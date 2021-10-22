@@ -1,0 +1,44 @@
+
+
+--------------
+users
+-------------
+
+id
+name
+email
+salt
+etc.
+
+
+-------------
+project
+-------------
+
+id
+name
+description
+owner - userid
+
+
+
+-------------
+project members
+-------------
+
+projectid
+userid
+
+
+-------------
+time entry
+-------------
+
+id
+start  - datetime
+stop   - maybe datetime
+userid
+projectid
+description
+
+
