@@ -10,7 +10,6 @@ email
 salt
 etc.
 
-
 -------------
 project
 -------------
@@ -20,15 +19,13 @@ name
 description
 owner - userid
 
-
-
 -------------
 project members
 -------------
 
 projectid
 userid
-
+payrate
 
 -------------
 time entry
@@ -40,5 +37,14 @@ stop   - maybe datetime
 userid
 projectid
 description
+excluded
 
+-------------
+payment entry
+-------------
 
+id
+pay time  - datetime
+userid
+projectid
+description

@@ -1,0 +1,19 @@
+use serde_derive::Deserialize;
+use std::path::PathBuf;
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct Config {
+  pub ip: String,
+  pub port: u16,
+  pub createdirs: bool,
+  pub db: PathBuf,
+  pub mainsite: String,
+  pub altmainsite: Vec<String>,
+  pub appname: String,
+  pub domain: String,
+  pub admin_email: String,
+  pub login_token_expiration_ms: i64,
+  pub email_token_expiration_ms: i64,
+  pub reset_token_expiration_ms: i64,
+  pub static_path: Option<PathBuf>,
+}
