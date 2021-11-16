@@ -652,10 +652,11 @@ pub fn read_project(
   projectid: i64,
 ) -> Result<Project, Box<dyn Error>> {
   let mut pstmt = conn.prepare(
-    "select project.name, project.description, project.public, project.createdate, project.changeddate from project, projectmember where
-    project.id = projectmember.project and
-    projectmember.user = ?1 and
-    project.id = ?2",
+    "select project.id, project.name, project.description, project.public, project.createdate, project.changeddate
+      from project, projectmember where
+      project.id = projectmember.project and
+      projectmember.user = ?1 and
+      project.id = ?2",
   )?;
   let r = Ok(pstmt.query_row(params![uid, projectid], |row| {
     Ok(Project {

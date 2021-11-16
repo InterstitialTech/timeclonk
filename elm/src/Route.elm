@@ -12,6 +12,7 @@ type Route
       -- | PublicZkPubId String
       -- | EditZkNoteR Int
       -- | EditZkNoteNew
+    | ProjectEditR Int
     | ResetPasswordR String UUID
     | SettingsR
     | Top
@@ -22,6 +23,9 @@ routeTitle appname route =
     case route of
         LoginR ->
             "login"
+
+        ProjectEditR id ->
+            "project " ++ String.fromInt id
 
         -- PublicZkNote id ->
         --     "zknote " ++ String.fromInt id
@@ -73,6 +77,10 @@ parseUrl url =
             , UP.map SettingsR <|
                 UP.s
                     "settings"
+            , UP.map ProjectEditR <|
+                UP.s
+                    "editproject"
+                    </> UP.int
             , UP.map Top <| UP.top
             ]
         )
@@ -84,6 +92,9 @@ routeUrl route =
     case route of
         LoginR ->
             UB.absolute [ "login" ] []
+
+        ProjectEditR id ->
+            UB.absolute [ "editproject", String.fromInt id ] []
 
         -- PublicZkNote id ->
         --     UB.absolute [ "note", String.fromInt id ] []

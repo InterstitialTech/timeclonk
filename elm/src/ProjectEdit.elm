@@ -137,7 +137,8 @@ view ld size model =
                     { onPress = Just DonePress, label = E.text "settings" }
                 ]
             , E.row [ E.spacing 8 ]
-                [ EI.button Common.buttonStyle { onPress = Just NewPress, label = E.text "new" }
+                [ EI.button Common.buttonStyle { onPress = Just DonePress, label = E.text "<-" }
+                , EI.button Common.buttonStyle { onPress = Just NewPress, label = E.text "new" }
                 , EI.button Common.buttonStyle { onPress = Just SavePress, label = E.text "save" }
                 ]
             , E.column

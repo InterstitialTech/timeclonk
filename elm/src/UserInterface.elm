@@ -239,6 +239,9 @@ serverResponseDecoder =
                     "savedproject" ->
                         JD.map SavedProject (JD.at [ "content" ] Data.decodeSavedProject)
 
+                    "project" ->
+                        JD.map Project (JD.at [ "content" ] Data.decodeProject)
+
                     wat ->
                         JD.succeed
                             (ServerError ("invalid 'what' from server: " ++ wat))

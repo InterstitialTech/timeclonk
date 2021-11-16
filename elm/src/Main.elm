@@ -170,6 +170,11 @@ routeState model route =
                 in
                 ( m.state, c )
 
+        ProjectEditR id ->
+            ( (displayMessageDialog model "loading project").state
+            , sendUIMsg model.location <| UI.GetProject id
+            )
+
 
 stateRoute : State -> SavedRoute
 stateRoute state =
@@ -981,7 +986,9 @@ actualupdate msg model =
                     )
 
                 ProjectEdit.Done ->
-                    ( { model | state = ProjectEdit nm login }, Cmd.none )
+                    ( { model | state = ProjectEdit nm login }
+                    , sendUIMsg model.location <| UI.GetProjectList login.userid
+                    )
 
                 ProjectEdit.None ->
                     ( { model | state = ProjectEdit nm login }, Cmd.none )
