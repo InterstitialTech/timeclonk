@@ -1,4 +1,6 @@
-use crate::data::{ChangeEmail, ChangePassword, LoginData, User};
+use crate::data::{
+  ChangeEmail, ChangePassword, ListProject, LoginData, Project, SaveProject, SavedProject, User,
+};
 use crate::util::{is_token_expired, now};
 use barrel::backend::Sqlite;
 use barrel::{types, Migration};
@@ -34,64 +36,6 @@ pub fn connection_open(dbfile: &Path) -> Result<Connection, Box<dyn Error>> {
 
   Ok(conn)
 }
-
-/*
-CREATE TABLE IF NOT EXISTS "singlevalue" (
-  "name" TEXT NOT NULL UNIQUE,
-    "value" TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS "zklink" (
-  "fromid" INTEGER REFERENCES zknote(id) NOT NULL,
-    "toid" INTEGER REFERENCES zknote(id) NOT NULL,
-    "user" INTEGER REFERENCES user(id) NOT NULL,
-    "linkzknote" INTEGER REFERENCES zknote(id));
-CREATE UNIQUE INDEX "zklinkunq" ON "zklink" (
-  "fromid",
-    "toid",
-    "user");
-CREATE TABLE IF NOT EXISTS "token" (
-  "user" INTEGER REFERENCES user(id) NOT NULL,
-    "token" TEXT NOT NULL,
-    "tokendate" INTEGER NOT NULL);
-CREATE UNIQUE INDEX "tokenunq" ON "token" (
-  "user",
-    "token");
-CREATE TABLE IF NOT EXISTS "zknote" (
-  "id" INTEGER PRIMARY KEY NOT NULL,
-    "title" TEXT NOT NULL,
-    "content" TEXT NOT NULL,
-    "sysdata" TEXT,
-    "pubid" TEXT UNIQUE,
-    "user" INTEGER REFERENCES user(id) NOT NULL,
-    "editable" BOOLEAN NOT NULL,
-    "createdate" INTEGER NOT NULL,
-    "changeddate" INTEGER NOT NULL);
-CREATE TABLE IF NOT EXISTS "newemail" (
-  "user" INTEGER REFERENCES user(id) NOT NULL,
-    "email" TEXT NOT NULL,
-    "token" TEXT NOT NULL,
-    "tokendate" INTEGER NOT NULL);
-CREATE UNIQUE INDEX "newemailunq" ON "newemail" (
-  "user",
-    "token");
-CREATE TABLE IF NOT EXISTS "user" (
-  "id" INTEGER PRIMARY KEY NOT NULL,
-    "name" TEXT NOT NULL UNIQUE,
-    "hashwd" TEXT NOT NULL,
-    "zknote" INTEGER REFERENCES zknote(id),
-    "homenote" INTEGER REFERENCES zknote(id),
-    "salt" TEXT NOT NULL,
-    "email" TEXT NOT NULL,
-    "registration_key" TEXT,
-    "createdate" INTEGER NOT NULL);
-CREATE TABLE IF NOT EXISTS "newpassword" (
-  "user" INTEGER REFERENCES user(id) NOT NULL,
-    "token" TEXT NOT NULL,
-    "tokendate" INTEGER NOT NULL);
-CREATE UNIQUE INDEX "resetpasswordunq" ON "newpassword" (
-  "user",
-    "token");
-
-*/
 
 pub fn initialdb() -> Migration {
   let mut m = Migration::new();
@@ -177,7 +121,6 @@ pub fn udpate1() -> Migration {
   m.create_table("projectmember", |t| {
     t.add_column("project", types::foreign("project", "id").nullable(false));
     t.add_column("user", types::foreign("user", "id").nullable(false));
-    t.add_column("payrate", types::float().nullable(false));
     t.add_index("unq", types::index(vec!["project", "user"]).unique(true));
   });
 
@@ -638,4 +581,91 @@ pub fn change_email(
       }
     }
   }
+}
+
+// --------------------------------------------------------
+
+pub fn project_list(conn: &Connection, uid: i64) -> Result<Vec<ListProject>, Box<dyn Error>> {
+  let mut pstmt = conn.prepare(
+    "select id, name from project, projectmember where
+    project.id = projectmember.project and
+    projectmember.user = ?1",
+  )?;
+  let r = Ok(
+    pstmt
+      .query_map(params![uid], |row| {
+        Ok(ListProject {
+          id: row.get(0)?,
+          name: row.get(1)?,
+        })
+      })?
+      .filter_map(|x| x.ok())
+      .collect(),
+  );
+  r
+}
+
+// password reset request.
+pub fn save_project(
+  conn: &Connection,
+  user: i64,
+  project: SaveProject,
+) -> Result<SavedProject, Box<dyn Error>> {
+  let now = now()?;
+
+  let proj = match project.id {
+    Some(id) => {
+      conn.execute(
+        "update project set name = ?1, description = ?2, public = ?3, changeddate = ?4
+          where id = ?5",
+        params![project.name, project.description, project.public, now, id],
+      )?;
+      SavedProject {
+        id: id,
+        changeddate: now,
+      }
+    }
+    None => {
+      conn.execute(
+        "insert into project (name, description, public, createdate, changeddate)
+         values (?1, ?2, ?3, ?4, ?5)",
+        params![project.name, project.description, project.public, now, now],
+      )?;
+      let id = conn.last_insert_rowid();
+      conn.execute(
+        "insert into projectmember (project, user)
+         values (?1, ?2)",
+        params![id, user],
+      )?;
+      SavedProject {
+        id: id,
+        changeddate: now,
+      }
+    }
+  };
+  Ok(proj)
+}
+
+pub fn read_project(
+  conn: &Connection,
+  uid: i64,
+  projectid: i64,
+) -> Result<Project, Box<dyn Error>> {
+  let mut pstmt = conn.prepare(
+    "select project.name, project.description, project.public, project.createdate, project.changeddate from project, projectmember where
+    project.id = projectmember.project and
+    projectmember.user = ?1 and
+    project.id = ?2",
+  )?;
+  let r = Ok(pstmt.query_row(params![uid, projectid], |row| {
+    Ok(Project {
+      id: row.get(0)?,
+      name: row.get(1)?,
+      description: row.get(2)?,
+      public: row.get(3)?,
+      createdate: row.get(4)?,
+      changeddate: row.get(5)?,
+    })
+  })?);
+  r
 }

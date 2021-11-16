@@ -10,7 +10,8 @@ use crypto_hash::{hex_digest, Algorithm};
 use log::info;
 // use simple_error::bail;
 use crate::data::{
-  ChangeEmail, ChangePassword, Login, LoginData, RegistrationData, ResetPassword, SetPassword,
+  ChangeEmail, ChangePassword, Login, LoginData, RegistrationData, ResetPassword, SaveProject,
+  SetPassword,
 };
 use crate::messages::{PublicMessage, ServerResponse, UserMessage};
 use std::error::Error;
@@ -271,6 +272,37 @@ fn user_interface_loggedin(
       Ok(ServerResponse {
         what: "changed email".to_string(),
         content: serde_json::Value::Null,
+      })
+    }
+    "GetProjectList" => {
+      let conn = sqldata::connection_open(config.db.as_path())?;
+      let projects = sqldata::project_list(&conn, uid)?;
+
+      Ok(ServerResponse {
+        what: "projectlist".to_string(),
+        content: serde_json::to_value(projects)?,
+      })
+    }
+    "SaveProject" => {
+      let msgdata = Option::ok_or(msg.data.as_ref(), "malformed json data")?;
+      let sp: SaveProject = serde_json::from_value(msgdata.clone())?;
+      let conn = sqldata::connection_open(config.db.as_path())?;
+      let saved = sqldata::save_project(&conn, uid, sp)?;
+
+      Ok(ServerResponse {
+        what: "savedproject".to_string(),
+        content: serde_json::to_value(saved)?,
+      })
+    }
+    "GetProject" => {
+      let msgdata = Option::ok_or(msg.data.as_ref(), "malformed json data")?;
+      let pid: i64 = serde_json::from_value(msgdata.clone())?;
+      let conn = sqldata::connection_open(config.db.as_path())?;
+      let project = sqldata::read_project(&conn, uid, pid)?;
+
+      Ok(ServerResponse {
+        what: "project".to_string(),
+        content: serde_json::to_value(project)?,
       })
     }
     wat => Err(Box::new(simple_error::SimpleError::new(format!(
