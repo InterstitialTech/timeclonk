@@ -53,12 +53,6 @@ type alias ChangeEmail =
 type alias LoginData =
     { userid : Int
     , name : String
-    , zknote : Int
-    , homenote : Maybe Int
-    , publicid : Int
-    , shareid : Int
-    , searchid : Int
-    , commentid : Int
     }
 
 
@@ -475,12 +469,6 @@ decodeLoginData =
     JD.succeed LoginData
         |> andMap (JD.field "userid" JD.int)
         |> andMap (JD.field "name" JD.string)
-        |> andMap (JD.field "zknote" JD.int)
-        |> andMap (JD.field "homenote" (JD.maybe JD.int))
-        |> andMap (JD.field "publicid" JD.int)
-        |> andMap (JD.field "shareid" JD.int)
-        |> andMap (JD.field "searchid" JD.int)
-        |> andMap (JD.field "commentid" JD.int)
 
 
 encodeImportZkNote : ImportZkNote -> JE.Value

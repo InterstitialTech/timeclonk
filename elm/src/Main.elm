@@ -394,13 +394,6 @@ sendUIMsgExp location msg tomsg =
         }
 
 
-addRecentZkListNote : List Data.ZkListNote -> Data.ZkListNote -> List Data.ZkListNote
-addRecentZkListNote recent zkln =
-    List.take 50 <|
-        zkln
-            :: List.filter (\x -> x.id /= zkln.id) recent
-
-
 piview : PiModel -> { title : String, body : List (Html Msg) }
 piview pimodel =
     case pimodel of
