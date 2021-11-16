@@ -17,6 +17,7 @@ type SendMsg
     | Logout
     | ChangePassword Data.ChangePassword
     | ChangeEmail Data.ChangeEmail
+    | GetProjectList Int
 
 
 
@@ -147,6 +148,12 @@ encodeSendMsg sm =
             JE.object
                 [ ( "what", JE.string "ChangeEmail" )
                 , ( "data", Data.encodeChangeEmail chpwd )
+                ]
+
+        GetProjectList uid ->
+            JE.object
+                [ ( "what", JE.string "GetProjectList" )
+                , ( "data", JE.int uid )
                 ]
 
 

@@ -304,7 +304,7 @@ pub fn read_user_by_token(
           email: row.get(4)?,
           registration_key: row.get(5)?,
         },
-        row.get(8)?,
+        row.get(6)?,
       ))
     },
   )?;
@@ -587,7 +587,7 @@ pub fn change_email(
 
 pub fn project_list(conn: &Connection, uid: i64) -> Result<Vec<ListProject>, Box<dyn Error>> {
   let mut pstmt = conn.prepare(
-    "select id, name from project, projectmember where
+    "select project.id, project.name from project, projectmember where
     project.id = projectmember.project and
     projectmember.user = ?1",
   )?;

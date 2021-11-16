@@ -952,7 +952,7 @@ initialPage curmodel =
             ( { curmodel
                 | state = ShowMessage { message = "congrats, you are logged in!" } login Nothing
               }
-            , Cmd.none
+            , sendUIMsg curmodel.location <| UI.GetProjectList login.userid
             )
 
         Nothing ->
