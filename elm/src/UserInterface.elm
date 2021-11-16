@@ -18,6 +18,8 @@ type SendMsg
     | ChangePassword Data.ChangePassword
     | ChangeEmail Data.ChangeEmail
     | GetProjectList Int
+    | GetProject Int
+    | SaveProject Data.SaveProject
 
 
 
@@ -48,6 +50,9 @@ type ServerResponse
     | ResetPasswordAck
     | SetPasswordAck
     | ServerError String
+    | ProjectList (List Data.ListProject)
+    | Project Data.Project
+    | SavedProject Data.SavedProject
 
 
 
@@ -105,6 +110,15 @@ showServerResponse sr =
         ServerError _ ->
             "ServerError"
 
+        ProjectList _ ->
+            "ProjectList"
+
+        Project _ ->
+            "Project"
+
+        SavedProject _ ->
+            "SavedProject"
+
 
 encodeSendMsg : SendMsg -> JE.Value
 encodeSendMsg sm =
@@ -154,6 +168,18 @@ encodeSendMsg sm =
             JE.object
                 [ ( "what", JE.string "GetProjectList" )
                 , ( "data", JE.int uid )
+                ]
+
+        GetProject pid ->
+            JE.object
+                [ ( "what", JE.string "GetProject" )
+                , ( "data", JE.int pid )
+                ]
+
+        SaveProject p ->
+            JE.object
+                [ ( "what", JE.string "SaveProject" )
+                , ( "data", Data.encodeSaveProject p )
                 ]
 
 
@@ -206,6 +232,12 @@ serverResponseDecoder =
 
                     "server error" ->
                         JD.map ServerError (JD.at [ "content" ] JD.string)
+
+                    "projectlist" ->
+                        JD.map ProjectList (JD.at [ "content" ] (JD.list Data.decodeListProject))
+
+                    "savedproject" ->
+                        JD.map SavedProject (JD.at [ "content" ] Data.decodeSavedProject)
 
                     wat ->
                         JD.succeed

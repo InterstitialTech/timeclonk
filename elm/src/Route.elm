@@ -17,8 +17,8 @@ type Route
     | Top
 
 
-routeTitle : Route -> String
-routeTitle route =
+routeTitle : String -> Route -> String
+routeTitle appname route =
     case route of
         LoginR ->
             "login"
@@ -38,7 +38,7 @@ routeTitle route =
             "user settings"
 
         Top ->
-            "zknotes"
+            appname
 
 
 parseUrl : Url -> Maybe Route

@@ -27,6 +27,8 @@ import Json.Decode as JD
 import Json.Encode as JE
 import LocalStorage as LS
 import Login
+import ProjectEdit
+import ProjectListing
 import Random exposing (Seed, initialSeed)
 import ResetPassword
 import Route exposing (Route(..), parseUrl, routeTitle, routeUrl)
@@ -63,6 +65,8 @@ type Msg
     | Zone Time.Zone
     | WkMsg (Result JD.Error WindowKeys.Key)
     | ReceiveLocalVal { for : String, name : String, value : Maybe String }
+    | ProjectListingMsg ProjectListing.Msg
+    | ProjectEditMsg ProjectEdit.Msg
     | Noop
 
 
@@ -78,6 +82,8 @@ type State
     | ResetPassword ResetPassword.Model
     | DisplayMessage DisplayMessage.GDModel State
     | Wait State (Model -> Msg -> ( Model, Cmd Msg ))
+    | ProjectListing ProjectListing.Model Data.LoginData
+    | ProjectEdit ProjectEdit.Model Data.LoginData
 
 
 type alias Flags =
@@ -252,6 +258,12 @@ showMessage msg =
         Zone _ ->
             "Zone"
 
+        ProjectListingMsg _ ->
+            "ProjectListingMsg"
+
+        ProjectEditMsg _ ->
+            "ProjectEditMsg"
+
 
 showState : State -> String
 showState state =
@@ -288,6 +300,12 @@ showState state =
 
         ResetPassword _ ->
             "ResetPassword"
+
+        ProjectListing _ _ ->
+            "ProjectListing"
+
+        ProjectEdit _ _ ->
+            "ProjectEdit"
 
 
 unexpectedMsg : Model -> Msg -> Model
@@ -342,6 +360,12 @@ viewState size state model =
         ResetPassword st ->
             E.map ResetPasswordMsg (ResetPassword.view size st)
 
+        ProjectListing em ld ->
+            E.map ProjectListingMsg <| ProjectListing.view ld size em
+
+        ProjectEdit em ld ->
+            E.map ProjectEditMsg <| ProjectEdit.view ld size em
+
 
 stateLogin : State -> Maybe Data.LoginData
 stateLogin state =
@@ -379,6 +403,12 @@ stateLogin state =
         ResetPassword _ ->
             Nothing
 
+        ProjectListing _ login ->
+            Just login
+
+        ProjectEdit _ login ->
+            Just login
+
 
 sendUIMsg : String -> UI.SendMsg -> Cmd Msg
 sendUIMsg location msg =
@@ -409,7 +439,7 @@ piview pimodel =
 view : Model -> { title : String, body : List (Html Msg) }
 view model =
     { title =
-        routeTitle model.savedRoute.route
+        routeTitle model.appname model.savedRoute.route
     , body =
         [ case model.state of
             DisplayMessage dm _ ->
@@ -827,7 +857,7 @@ actualupdate msg model =
                                     ( { model | state = Login lmod }, Cmd.none )
 
                                 _ ->
-                                    ( { model | state = Login <| Login.initialModel Nothing "zknotes" model.seed }, Cmd.none )
+                                    ( { model | state = Login <| Login.initialModel Nothing model.appname model.seed }, Cmd.none )
 
                         UI.InvalidUserOrPwd ->
                             case state of
@@ -835,10 +865,34 @@ actualupdate msg model =
                                     ( { model | state = Login <| Login.invalidUserOrPwd lmod }, Cmd.none )
 
                                 _ ->
-                                    ( unexpectedMessage { model | state = Login (Login.initialModel Nothing "zknotes" model.seed) }
+                                    ( unexpectedMessage { model | state = Login (Login.initialModel Nothing model.appname model.seed) }
                                         (UI.showServerResponse uiresponse)
                                     , Cmd.none
                                     )
+
+                        UI.ProjectList x ->
+                            case stateLogin state of
+                                Just login ->
+                                    ( { model | state = ProjectListing (ProjectListing.init x) login }, Cmd.none )
+
+                                Nothing ->
+                                    ( model, Cmd.none )
+
+                        UI.Project x ->
+                            case stateLogin state of
+                                Just login ->
+                                    ( { model | state = ProjectEdit (ProjectEdit.initEdit x) login }, Cmd.none )
+
+                                Nothing ->
+                                    ( model, Cmd.none )
+
+                        UI.SavedProject x ->
+                            case state of
+                                ProjectEdit s l ->
+                                    ( { model | state = ProjectEdit (ProjectEdit.onSavedProject x s) l }, Cmd.none )
+
+                                _ ->
+                                    ( model, Cmd.none )
 
         -- ( WkMsg reskey, EditZkNote es login ) ->
         --     case reskey of
@@ -887,6 +941,50 @@ actualupdate msg model =
 
         ( DisplayMessageMsg GD.Noop, _ ) ->
             ( model, Cmd.none )
+
+        ( ProjectListingMsg ms, ProjectListing st login ) ->
+            let
+                ( nm, cmd ) =
+                    ProjectListing.update ms st login
+            in
+            case cmd of
+                ProjectListing.Selected id ->
+                    ( { model | state = ProjectListing nm login }
+                    , sendUIMsg model.location <| UI.GetProject id
+                    )
+
+                ProjectListing.New ->
+                    ( { model | state = ProjectEdit ProjectEdit.initNew login }
+                    , Cmd.none
+                    )
+
+                ProjectListing.Done ->
+                    ( { model | state = ProjectListing nm login }, Cmd.none )
+
+                ProjectListing.None ->
+                    ( { model | state = ProjectListing nm login }, Cmd.none )
+
+        ( ProjectEditMsg ms, ProjectEdit st login ) ->
+            let
+                ( nm, cmd ) =
+                    ProjectEdit.update ms st login
+            in
+            case cmd of
+                ProjectEdit.Save s ->
+                    ( { model | state = ProjectEdit nm login }
+                    , sendUIMsg model.location <| UI.SaveProject s
+                    )
+
+                ProjectEdit.New ->
+                    ( { model | state = ProjectEdit ProjectEdit.initNew login }
+                    , Cmd.none
+                    )
+
+                ProjectEdit.Done ->
+                    ( { model | state = ProjectEdit nm login }, Cmd.none )
+
+                ProjectEdit.None ->
+                    ( { model | state = ProjectEdit nm login }, Cmd.none )
 
         ( x, y ) ->
             ( unexpectedMsg model x
