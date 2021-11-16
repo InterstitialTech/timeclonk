@@ -53,7 +53,11 @@ pub fn send_registration(
   uid: &str,
   reg_id: &str,
 ) -> Result<Response, Box<dyn Error>> {
-  info!("Sending registration email for user: {}", uid);
+  info!(
+    "Sending registration email for user: {}, email: {}",
+    uid, email
+  );
+  println!("no-reply@{}", domain);
   let email = EmailBuilder::new()
     .from(format!("no-reply@{}", domain).to_string())
     .to(email)
