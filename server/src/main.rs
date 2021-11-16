@@ -55,7 +55,10 @@ fn mainpage(session: Session, data: web::Data<Config>, req: HttpRequest) -> Http
         // search and replace with logindata!
         HttpResponse::Ok()
           .content_type("text/html; charset=utf-8")
-          .body(s.replace("{{logindata}}", logindata.to_string().as_str()))
+          .body(
+            s.replace("{{logindata}}", logindata.to_string().as_str())
+              .replace("{{appname}}", data.appname.to_string().as_str()),
+          )
       }
       Err(e) => HttpResponse::from_error(actix_web::error::ErrorImATeapot(e)),
     },

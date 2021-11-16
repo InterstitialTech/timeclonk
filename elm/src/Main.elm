@@ -84,6 +84,7 @@ type alias Flags =
     { seed : Int
     , location : String
     , useragent : String
+    , appname : String
     , debugstring : String
     , width : Int
     , height : Int
@@ -101,6 +102,7 @@ type alias Model =
     { state : State
     , size : Util.Size
     , location : String
+    , appname : String
     , navkey : Browser.Navigation.Key
     , seed : Seed
     , timezone : Time.Zone
@@ -137,10 +139,10 @@ routeState : Model -> Route -> ( State, Cmd Msg )
 routeState model route =
     case route of
         LoginR ->
-            ( Login (Login.initialModel Nothing "zknotes" model.seed), Cmd.none )
+            ( Login (Login.initialModel Nothing model.appname model.seed), Cmd.none )
 
         ResetPasswordR username key ->
-            ( ResetPassword <| ResetPassword.initialModel username key "zknotes", Cmd.none )
+            ( ResetPassword <| ResetPassword.initialModel username key model.appname, Cmd.none )
 
         SettingsR ->
             case stateLogin model.state of
@@ -148,7 +150,7 @@ routeState model route =
                     ( UserSettings (UserSettings.init login model.fontsize) login model.state, Cmd.none )
 
                 Nothing ->
-                    ( (displayMessageDialog { model | state = initLogin model.seed } "can't view user settings; you're not logged in!").state, Cmd.none )
+                    ( (displayMessageDialog { model | state = initLogin model.appname model.seed } "can't view user settings; you're not logged in!").state, Cmd.none )
 
         Top ->
             if (stateRoute model.state).route == Top then
@@ -406,7 +408,7 @@ piview pimodel =
             view model
 
         PreInit model ->
-            { title = "zknotes: initializing"
+            { title = model.flags.appname ++ ": initializing"
             , body = []
             }
 
@@ -667,7 +669,7 @@ actualupdate msg model =
                     ( { model | state = prevstate }, Cmd.none )
 
                 UserSettings.LogOut ->
-                    ( { model | state = Login (Login.initialModel Nothing "zknotes" model.seed) }
+                    ( { model | state = Login (Login.initialModel Nothing model.appname model.seed) }
                     , sendUIMsg model.location UI.Logout
                     )
 
@@ -774,7 +776,7 @@ actualupdate msg model =
                                 nmod =
                                     { model
                                         | state =
-                                            Login <| Login.initialModel Nothing "zknotes" model.seed
+                                            Login <| Login.initialModel Nothing model.appname model.seed
                                     }
                             in
                             ( displayMessageDialog nmod "password reset attempted!  if you're a valid user, check your inbox for a reset email."
@@ -786,7 +788,7 @@ actualupdate msg model =
                                 nmod =
                                     { model
                                         | state =
-                                            Login <| Login.initialModel Nothing "zknotes" model.seed
+                                            Login <| Login.initialModel Nothing model.appname model.seed
                                     }
                             in
                             ( displayMessageDialog nmod "password reset complete!"
@@ -799,7 +801,10 @@ actualupdate msg model =
                             )
 
                         UI.ChangedEmail ->
-                            ( displayMessageDialog model "email change confirmation sent!  check your inbox (or spam folder) for an email with title 'change zknotes email', and follow the enclosed link to change to the new address."
+                            ( displayMessageDialog model <|
+                                "email change confirmation sent!  check your inbox (or spam folder) for an email with title 'change "
+                                    ++ model.appname
+                                    ++ " email', and follow the enclosed link to change to the new address."
                             , Cmd.none
                             )
 
@@ -958,7 +963,7 @@ initialPage curmodel =
             )
 
         Nothing ->
-            ( { curmodel | state = initLogin curmodel.seed }, Cmd.none )
+            ( { curmodel | state = initLogin curmodel.appname curmodel.seed }, Cmd.none )
     )
         |> (\( m, c ) ->
                 ( m
@@ -987,6 +992,7 @@ init flags url key zone fontsize =
                         ShowMessage { message = "loading..." } l Nothing
             , size = { width = flags.width, height = flags.height }
             , location = flags.location
+            , appname = flags.appname
             , navkey = key
             , seed = seed
             , timezone = zone
@@ -1042,9 +1048,9 @@ init flags url key zone fontsize =
             )
 
 
-initLogin : Seed -> State
-initLogin seed =
-    Login <| Login.initialModel Nothing "zknotes" seed
+initLogin : String -> Seed -> State
+initLogin appname seed =
+    Login <| Login.initialModel Nothing appname seed
 
 
 main : Platform.Program Flags PiModel Msg
