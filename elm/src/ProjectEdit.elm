@@ -38,14 +38,13 @@ type alias Model =
     , members : List Data.ProjectMember
     , initialProject : Maybe Data.Project
     , initialMembers : List Data.ProjectMember
-    , selectMember : Maybe (SelectString.GDModel Int)
     }
 
 
 type Command
     = Save Data.SaveProject
     | New
-    | GetMembers
+    | AddMember
     | Done
     | None
 
@@ -71,20 +70,9 @@ onSavedProject sp model =
     }
 
 
-onAllMembers : List Data.ProjectMember -> Data.LoginData -> Util.Size -> Model -> Model
-onAllMembers allmembers ld size model =
-    { model
-        | selectMember =
-            Just
-                (SelectString.init
-                    { choices = List.map (\m -> ( m.id, m.name )) allmembers
-                    , selected = Nothing
-                    , search = ""
-                    }
-                    Common.buttonStyle
-                    (E.map (always ()) (view ld size model))
-                )
-    }
+addMember : Data.ProjectMember -> Model -> Model
+addMember pm model =
+    { model | members = pm :: model.members }
 
 
 isDirty : Model -> Bool
@@ -115,7 +103,6 @@ initNew =
     , members = []
     , initialProject = Nothing
     , initialMembers = []
-    , selectMember = Nothing
     }
 
 
@@ -130,7 +117,6 @@ initEdit proj members =
     , members = members
     , initialProject = Just proj
     , initialMembers = members
-    , selectMember = Nothing
     }
 
 
@@ -249,7 +235,7 @@ update msg model ld =
             ( model, Done )
 
         AddMemberPress ->
-            ( model, GetMembers )
+            ( model, AddMember )
 
         Noop ->
             ( model, None )

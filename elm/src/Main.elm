@@ -58,7 +58,7 @@ type Msg
     | UrlChanged Url
     | WindowSize Util.Size
     | DisplayMessageMsg (GD.Msg DisplayMessage.Msg)
-    | SelectDialogMsg (GD.Msg (SS.Msg Int))
+    | SelectDialogMsg (GD.Msg (SS.Msg Data.ProjectMember))
     | ChangePasswordDialogMsg (GD.Msg CP.Msg)
     | ChangeEmailDialogMsg (GD.Msg CE.Msg)
     | ResetPasswordMsg ResetPassword.Msg
@@ -76,7 +76,7 @@ type State
     | ShowMessage ShowMessage.Model Data.LoginData (Maybe State)
     | PubShowMessage ShowMessage.Model (Maybe State)
     | LoginShowMessage ShowMessage.Model Data.LoginData Url
-    | SelectDialog (SS.GDModel Int) State
+    | SelectDialog (SS.GDModel Data.ProjectMember) State
     | ChangePasswordDialog CP.GDModel State
     | ChangeEmailDialog CE.GDModel State
     | ResetPassword ResetPassword.Model
@@ -902,8 +902,23 @@ actualupdate msg model =
                         UI.AllMembers x ->
                             case state of
                                 ProjectEdit s l ->
-                                    ( { model | state = ProjectEdit (ProjectEdit.onAllMembers x l model.size s) l }, Cmd.none )
+                                    ( { model
+                                        | state =
+                                            SelectDialog
+                                                (SS.init
+                                                    { choices = List.map (\m -> ( m, m.name )) x
+                                                    , selected = Nothing
+                                                    , search = ""
+                                                    }
+                                                    Common.buttonStyle
+                                                    (E.map (always ()) (ProjectEdit.view l model.size s))
+                                                )
+                                                state
+                                      }
+                                    , Cmd.none
+                                    )
 
+                                -- ( { model | state = ProjectEdit (ProjectEdit.onAllMembers x l model.size s) l }, Cmd.none )
                                 _ ->
                                     ( model, Cmd.none )
 
@@ -949,6 +964,24 @@ actualupdate msg model =
         ( ChangeEmailDialogMsg GD.Noop, _ ) ->
             ( model, Cmd.none )
 
+        ( SelectDialogMsg sdmsg, SelectDialog sdmod instate ) ->
+            case GD.update sdmsg sdmod of
+                GD.Dialog nmod ->
+                    ( { model | state = SelectDialog nmod instate }, Cmd.none )
+
+                GD.Ok return ->
+                    case instate of
+                        ProjectEdit pemod login ->
+                            ( { model | state = ProjectEdit (ProjectEdit.addMember return pemod) login }
+                            , Cmd.none
+                            )
+
+                        _ ->
+                            ( { model | state = instate }, Cmd.none )
+
+                GD.Cancel ->
+                    ( { model | state = instate }, Cmd.none )
+
         ( SelectDialogMsg GD.Noop, _ ) ->
             ( model, Cmd.none )
 
@@ -993,7 +1026,7 @@ actualupdate msg model =
                     , Cmd.none
                     )
 
-                ProjectEdit.GetMembers ->
+                ProjectEdit.AddMember ->
                     ( { model | state = ProjectEdit nm login }
                     , sendUIMsg model.location <| UI.GetAllMembers
                     )
