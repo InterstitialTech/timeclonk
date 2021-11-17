@@ -122,6 +122,43 @@ type alias SavedProjectEdit =
     }
 
 
+type alias TimeEntry =
+    { id : Int
+    , project : Int
+    , user : Int
+    , description : String
+    , startdate : Int
+    , enddate : Int
+    , createdate : Int
+    , changeddate : Int
+    , creator : Int
+    }
+
+
+type alias SaveTimeEntry =
+    { id : Maybe Int
+    , project : Int
+    , user : Int
+    , description : String
+    , startdate : Int
+    , enddate : Int
+    }
+
+
+type alias SaveProjectTime =
+    { project : Int
+    , savetimeentries : List SaveTimeEntry
+    , deletetimeentries : List Int
+    }
+
+
+type alias ProjectTime =
+    { project : Project
+    , members : List ProjectMember
+    , timeentries : List TimeEntry
+    }
+
+
 
 ----------------------------------------
 -- Json encoders/decoders
@@ -261,3 +298,49 @@ decodeSavedProjectEdit =
     JD.succeed SavedProjectEdit
         |> andMap (JD.field "project" decodeSavedProject)
         |> andMap (JD.field "members" <| JD.list decodeProjectMember)
+
+
+encodeSaveProjectTime : SaveProjectTime -> JE.Value
+encodeSaveProjectTime t =
+    JE.object
+        [ ( "project", JE.int t.project )
+        , ( "savetimeentries", JE.list encodeSaveTimeEntry t.savetimeentries )
+        , ( "deletetimeentries", JE.list JE.int t.deletetimeentries )
+        ]
+
+
+decodeTimeEntry : JD.Decoder TimeEntry
+decodeTimeEntry =
+    JD.succeed TimeEntry
+        |> andMap (JD.field "id" JD.int)
+        |> andMap (JD.field "project" JD.int)
+        |> andMap (JD.field "user" JD.int)
+        |> andMap (JD.field "description" JD.string)
+        |> andMap (JD.field "startdate" JD.int)
+        |> andMap (JD.field "enddate" JD.int)
+        |> andMap (JD.field "createdate" JD.int)
+        |> andMap (JD.field "changeddate" JD.int)
+        |> andMap (JD.field "creator" JD.int)
+
+
+encodeSaveTimeEntry : SaveTimeEntry -> JE.Value
+encodeSaveTimeEntry e =
+    JE.object <|
+        (e.id
+            |> Maybe.map (\id -> (::) ( "id", JE.int id ))
+            |> Maybe.withDefault identity
+        )
+            [ ( "project", JE.int e.project )
+            , ( "user", JE.int e.user )
+            , ( "description", JE.string e.description )
+            , ( "startdate", JE.int e.startdate )
+            , ( "enddate", JE.int e.enddate )
+            ]
+
+
+decodeProjectTime : JD.Decoder ProjectTime
+decodeProjectTime =
+    JD.succeed ProjectTime
+        |> andMap (JD.field "project" <| decodeProject)
+        |> andMap (JD.field "members" <| JD.list decodeProjectMember)
+        |> andMap (JD.field "timeentries" <| JD.list decodeTimeEntry)

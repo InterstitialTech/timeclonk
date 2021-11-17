@@ -1,6 +1,6 @@
 use crate::data::{
   ChangeEmail, ChangePassword, ListProject, LoginData, Project, ProjectEdit, ProjectMember,
-  SaveProject, SaveProjectEdit, SavedProject, SavedProjectEdit, User,
+  ProjectTime, SaveProject, SaveProjectEdit, SavedProject, SavedProjectEdit, TimeEntry, User,
 };
 use crate::util::{is_token_expired, now};
 use barrel::backend::Sqlite;
@@ -754,5 +754,53 @@ pub fn read_project_edit(
   Ok(ProjectEdit {
     project: proj,
     members: members,
+  })
+}
+
+pub fn timeentries(
+  conn: &Connection,
+  uid: i64,
+  projectid: i64,
+) -> Result<Vec<TimeEntry>, Box<dyn Error>> {
+  let mut pstmt = conn.prepare(
+    "select te.id, te.project, te.user, te.description, te.startdate, te.enddate, te.createdate, te.changeddate, te.creator
+          from timeentry te, projectmember pm where
+    te.project = ?1 and
+    te.project = pm.project and
+    pm.user = ?2",
+  )?;
+  let r = Ok(
+    pstmt
+      .query_map(params![projectid, uid], |row| {
+        Ok(TimeEntry {
+          id: row.get(0)?,
+          project: row.get(1)?,
+          user: row.get(2)?,
+          description: row.get(3)?,
+          startdate: row.get(4)?,
+          enddate: row.get(5)?,
+          createdate: row.get(6)?,
+          changeddate: row.get(7)?,
+          creator: row.get(8)?,
+        })
+      })?
+      .filter_map(|x| x.ok())
+      .collect(),
+  );
+  r
+}
+
+pub fn read_project_time(
+  conn: &Connection,
+  uid: i64,
+  projectid: i64,
+) -> Result<ProjectTime, Box<dyn Error>> {
+  let proj = read_project(conn, uid, projectid)?;
+  let members = member_list(conn, uid, Some(projectid))?;
+  let timeentries = timeentries(conn, uid, projectid)?;
+  Ok(ProjectTime {
+    project: proj,
+    members: members,
+    timeentries: timeentries,
   })
 }

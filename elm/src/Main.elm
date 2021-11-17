@@ -29,6 +29,7 @@ import LocalStorage as LS
 import Login
 import ProjectEdit
 import ProjectListing
+import ProjectTime
 import Random exposing (Seed, initialSeed)
 import ResetPassword
 import Route exposing (Route(..), parseUrl, routeTitle, routeUrl)
@@ -67,6 +68,7 @@ type Msg
     | ReceiveLocalVal { for : String, name : String, value : Maybe String }
     | ProjectListingMsg ProjectListing.Msg
     | ProjectEditMsg ProjectEdit.Msg
+    | ProjectTimeMsg ProjectTime.Msg
     | Noop
 
 
@@ -84,6 +86,7 @@ type State
     | Wait State (Model -> Msg -> ( Model, Cmd Msg ))
     | ProjectListing ProjectListing.Model Data.LoginData
     | ProjectEdit ProjectEdit.Model Data.LoginData
+    | ProjectTime ProjectTime.Model Data.LoginData
 
 
 type alias Flags =
@@ -173,6 +176,11 @@ routeState model route =
         ProjectEditR id ->
             ( (displayMessageDialog model "loading project").state
             , sendUIMsg model.location <| UI.GetProjectEdit id
+            )
+
+        ProjectTimeR id ->
+            ( (displayMessageDialog model "loading project").state
+            , sendUIMsg model.location <| UI.GetProjectTime id
             )
 
 
@@ -269,6 +277,9 @@ showMessage msg =
         ProjectEditMsg _ ->
             "ProjectEditMsg"
 
+        ProjectTimeMsg _ ->
+            "ProjectTimeMsg"
+
 
 showState : State -> String
 showState state =
@@ -311,6 +322,9 @@ showState state =
 
         ProjectEdit _ _ ->
             "ProjectEdit"
+
+        ProjectTime _ _ ->
+            "ProjectTime"
 
 
 unexpectedMsg : Model -> Msg -> Model
@@ -371,6 +385,9 @@ viewState size state model =
         ProjectEdit em ld ->
             E.map ProjectEditMsg <| ProjectEdit.view ld size em
 
+        ProjectTime em ld ->
+            E.map ProjectTimeMsg <| ProjectTime.view ld size em
+
 
 stateLogin : State -> Maybe Data.LoginData
 stateLogin state =
@@ -412,6 +429,9 @@ stateLogin state =
             Just login
 
         ProjectEdit _ login ->
+            Just login
+
+        ProjectTime _ login ->
             Just login
 
 
@@ -891,6 +911,14 @@ actualupdate msg model =
                                 Nothing ->
                                     ( model, Cmd.none )
 
+                        UI.ProjectTime x ->
+                            case stateLogin state of
+                                Just login ->
+                                    ( { model | state = ProjectTime (ProjectTime.init x) login }, Cmd.none )
+
+                                Nothing ->
+                                    ( model, Cmd.none )
+
                         UI.SavedProjectEdit x ->
                             case state of
                                 ProjectEdit s l ->
@@ -1030,6 +1058,30 @@ actualupdate msg model =
 
                 ProjectEdit.None ->
                     ( { model | state = ProjectEdit nm login }, Cmd.none )
+
+        ( ProjectTimeMsg ms, ProjectTime st login ) ->
+            let
+                ( nm, cmd ) =
+                    ProjectTime.update ms st login
+            in
+            case cmd of
+                ProjectTime.Save s ->
+                    ( { model | state = ProjectTime nm login }
+                    , sendUIMsg model.location <| UI.SaveProjectTime s
+                    )
+
+                ProjectTime.Edit ->
+                    ( { model | state = ProjectEdit (ProjectEdit.initEdit st.project st.members) login }
+                    , Cmd.none
+                    )
+
+                ProjectTime.Done ->
+                    ( { model | state = ProjectTime nm login }
+                    , sendUIMsg model.location <| UI.GetProjectList login.userid
+                    )
+
+                ProjectTime.None ->
+                    ( { model | state = ProjectTime nm login }, Cmd.none )
 
         ( x, y ) ->
             ( unexpectedMsg model x

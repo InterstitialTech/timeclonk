@@ -305,6 +305,17 @@ fn user_interface_loggedin(
         content: serde_json::to_value(project)?,
       })
     }
+    "GetProjectTime" => {
+      let msgdata = Option::ok_or(msg.data.as_ref(), "malformed json data")?;
+      let pid: i64 = serde_json::from_value(msgdata.clone())?;
+      let conn = sqldata::connection_open(config.db.as_path())?;
+      let project = sqldata::read_project_time(&conn, uid, pid)?;
+
+      Ok(ServerResponse {
+        what: "projecttime".to_string(),
+        content: serde_json::to_value(project)?,
+      })
+    }
     "GetAllMembers" => {
       let conn = sqldata::connection_open(config.db.as_path())?;
       let members = sqldata::member_list(&conn, uid, None)?;

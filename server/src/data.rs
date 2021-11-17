@@ -115,3 +115,40 @@ pub struct ProjectEdit {
   pub project: Project,
   pub members: Vec<ProjectMember>,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TimeEntry {
+  pub id: i64,
+  pub project: i64,
+  pub user: i64,
+  pub description: String,
+  pub startdate: i64,
+  pub enddate: i64,
+  pub createdate: i64,
+  pub changeddate: i64,
+  pub creator: i64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SaveTimeEntry {
+  pub id: Option<i64>,
+  pub project: i64,
+  pub user: i64,
+  pub description: String,
+  pub startdate: i64,
+  pub enddate: i64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SaveProjectTime {
+  pub project: i64,
+  pub savetimeentries: Vec<SaveTimeEntry>,
+  pub deletetimeentries: Vec<i64>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ProjectTime {
+  pub project: Project,
+  pub members: Vec<ProjectMember>,
+  pub timeentries: Vec<TimeEntry>,
+}
