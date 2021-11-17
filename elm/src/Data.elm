@@ -100,7 +100,7 @@ type alias ProjectMember =
 
 type alias ProjectEdit =
     { project : Project
-    , users : List ProjectMember
+    , members : List ProjectMember
     }
 
 

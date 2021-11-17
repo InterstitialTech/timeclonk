@@ -9,6 +9,7 @@ import Element.Border as EBd
 import Element.Font as EF
 import Element.Input as EI
 import Element.Region
+import SelectString
 import TangoColors as TC
 import TcCommon as TC
 import Toop
@@ -23,6 +24,7 @@ type Msg
     | RevertPress
     | DonePress
     | NewPress
+    | AddMemberPress
     | Noop
 
 
@@ -33,13 +35,17 @@ type alias Model =
     , public : Bool
     , createdate : Maybe Int
     , changeddate : Maybe Int
+    , members : List Data.ProjectMember
     , initialProject : Maybe Data.Project
+    , initialMembers : List Data.ProjectMember
+    , selectMember : Maybe (SelectString.GDModel Int)
     }
 
 
 type Command
     = Save Data.SaveProject
     | New
+    | GetMembers
     | Done
     | None
 
@@ -62,6 +68,22 @@ onSavedProject sp model =
             model.createdate
                 |> Maybe.withDefault sp.changeddate
                 |> Just
+    }
+
+
+onAllMembers : List Data.ProjectMember -> Data.LoginData -> Util.Size -> Model -> Model
+onAllMembers allmembers ld size model =
+    { model
+        | selectMember =
+            Just
+                (SelectString.init
+                    { choices = List.map (\m -> ( m.id, m.name )) allmembers
+                    , selected = Nothing
+                    , search = ""
+                    }
+                    Common.buttonStyle
+                    (E.map (always ()) (view ld size model))
+                )
     }
 
 
@@ -90,19 +112,25 @@ initNew =
     , public = False
     , createdate = Nothing
     , changeddate = Nothing
+    , members = []
     , initialProject = Nothing
+    , initialMembers = []
+    , selectMember = Nothing
     }
 
 
-initEdit : Data.Project -> Model
-initEdit proj =
+initEdit : Data.Project -> List Data.ProjectMember -> Model
+initEdit proj members =
     { id = Just proj.id
     , name = proj.name
     , description = proj.description
     , public = proj.public
     , createdate = Just proj.createdate
     , changeddate = Just proj.changeddate
+    , members = members
     , initialProject = Just proj
+    , initialMembers = members
+    , selectMember = Nothing
     }
 
 
@@ -182,6 +210,20 @@ view ld size model =
                             (E.text "description")
                     }
                 ]
+            , E.column
+                [ E.padding 8
+                , EBd.rounded 10
+                , EBd.width 1
+                , EBd.color TC.darkGrey
+                , EBk.color TC.white
+                , E.spacing 8
+                ]
+                (E.row [ E.spacing 10 ]
+                    [ E.el [ EF.bold ] <| E.text "members"
+                    , EI.button Common.buttonStyle { onPress = Just AddMemberPress, label = E.text "add" }
+                    ]
+                    :: (model.members |> List.map (\m -> E.text m.name))
+                )
             ]
 
 
@@ -205,6 +247,9 @@ update msg model ld =
 
         DonePress ->
             ( model, Done )
+
+        AddMemberPress ->
+            ( model, GetMembers )
 
         Noop ->
             ( model, None )

@@ -886,7 +886,7 @@ actualupdate msg model =
                         UI.ProjectEdit x ->
                             case stateLogin state of
                                 Just login ->
-                                    ( { model | state = ProjectEdit (ProjectEdit.initEdit x.project) login }, Cmd.none )
+                                    ( { model | state = ProjectEdit (ProjectEdit.initEdit x.project x.members) login }, Cmd.none )
 
                                 Nothing ->
                                     ( model, Cmd.none )
@@ -895,6 +895,14 @@ actualupdate msg model =
                             case state of
                                 ProjectEdit s l ->
                                     ( { model | state = ProjectEdit (ProjectEdit.onSavedProject x s) l }, Cmd.none )
+
+                                _ ->
+                                    ( model, Cmd.none )
+
+                        UI.AllMembers x ->
+                            case state of
+                                ProjectEdit s l ->
+                                    ( { model | state = ProjectEdit (ProjectEdit.onAllMembers x l model.size s) l }, Cmd.none )
 
                                 _ ->
                                     ( model, Cmd.none )
@@ -983,6 +991,11 @@ actualupdate msg model =
                 ProjectEdit.New ->
                     ( { model | state = ProjectEdit ProjectEdit.initNew login }
                     , Cmd.none
+                    )
+
+                ProjectEdit.GetMembers ->
+                    ( { model | state = ProjectEdit nm login }
+                    , sendUIMsg model.location <| UI.GetAllMembers
                     )
 
                 ProjectEdit.Done ->

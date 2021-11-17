@@ -675,24 +675,40 @@ pub fn read_project(
 pub fn member_list(
   conn: &Connection,
   uid: i64,
-  projectid: i64,
+  projectid: Option<i64>,
 ) -> Result<Vec<ProjectMember>, Box<dyn Error>> {
-  let mut pstmt = conn.prepare(
-    "select user.id, user.name from user, projectmember where
+  let r = match projectid {
+    Some(projectid) => {
+      let mut pstmt = conn.prepare(
+        "select user.id, user.name from user, projectmember where
     user.id = projectmember.user and
     projectmember.project = ?1",
-  )?;
-  let r = Ok(
-    pstmt
-      .query_map(params![uid], |row| {
-        Ok(ProjectMember {
-          id: row.get(0)?,
-          name: row.get(1)?,
-        })
-      })?
-      .filter_map(|x| x.ok())
-      .collect(),
-  );
+      )?;
+      let r = pstmt
+        .query_map(params![uid], |row| {
+          Ok(ProjectMember {
+            id: row.get(0)?,
+            name: row.get(1)?,
+          })
+        })?
+        .filter_map(|x| x.ok())
+        .collect();
+      Ok(r)
+    }
+    None => {
+      let mut pstmt = conn.prepare("select user.id, user.name from user")?;
+      let r = pstmt
+        .query_map(params![], |row| {
+          Ok(ProjectMember {
+            id: row.get(0)?,
+            name: row.get(1)?,
+          })
+        })?
+        .filter_map(|x| x.ok())
+        .collect();
+      Ok(r)
+    }
+  };
   r
 }
 
@@ -702,7 +718,7 @@ pub fn read_project_edit(
   projectid: i64,
 ) -> Result<ProjectEdit, Box<dyn Error>> {
   let proj = read_project(conn, uid, projectid)?;
-  let members = member_list(conn, uid, projectid)?;
+  let members = member_list(conn, uid, Some(projectid))?;
   Ok(ProjectEdit {
     project: proj,
     members: members,

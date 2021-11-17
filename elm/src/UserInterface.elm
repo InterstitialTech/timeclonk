@@ -20,6 +20,7 @@ type SendMsg
     | GetProjectList Int
     | GetProjectEdit Int
     | SaveProject Data.SaveProject
+    | GetAllMembers
 
 
 
@@ -53,6 +54,7 @@ type ServerResponse
     | ProjectList (List Data.ListProject)
     | ProjectEdit Data.ProjectEdit
     | SavedProject Data.SavedProject
+    | AllMembers (List Data.ProjectMember)
 
 
 
@@ -119,6 +121,9 @@ showServerResponse sr =
         SavedProject _ ->
             "SavedProject"
 
+        AllMembers _ ->
+            "AllMembers"
+
 
 encodeSendMsg : SendMsg -> JE.Value
 encodeSendMsg sm =
@@ -182,6 +187,11 @@ encodeSendMsg sm =
                 , ( "data", Data.encodeSaveProject p )
                 ]
 
+        GetAllMembers ->
+            JE.object
+                [ ( "what", JE.string "GetAllMembers" )
+                ]
+
 
 encodeEmail : String -> JE.Value
 encodeEmail email =
@@ -241,6 +251,9 @@ serverResponseDecoder =
 
                     "projectedit" ->
                         JD.map ProjectEdit (JD.at [ "content" ] Data.decodeProjectEdit)
+
+                    "allmembers" ->
+                        JD.map AllMembers (JD.at [ "content" ] (JD.list Data.decodeProjectMember))
 
                     wat ->
                         JD.succeed

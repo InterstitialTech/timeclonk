@@ -305,6 +305,15 @@ fn user_interface_loggedin(
         content: serde_json::to_value(project)?,
       })
     }
+    "GetAllMembers" => {
+      let conn = sqldata::connection_open(config.db.as_path())?;
+      let members = sqldata::member_list(&conn, uid, None)?;
+
+      Ok(ServerResponse {
+        what: "allmembers".to_string(),
+        content: serde_json::to_value(members)?,
+      })
+    }
     wat => Err(Box::new(simple_error::SimpleError::new(format!(
       "invalid 'what' code:'{}'",
       wat
