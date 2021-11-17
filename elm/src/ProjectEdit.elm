@@ -43,7 +43,7 @@ type alias Model =
 
 
 type Command
-    = Save Data.SaveProject
+    = Save Data.SaveProjectEdit
     | New
     | AddMember
     | Done
@@ -59,15 +59,31 @@ toSaveProject model =
     }
 
 
-onSavedProject : Data.SavedProject -> Model -> Model
-onSavedProject sp model =
+toSaveProjectEdit : Model -> Data.SaveProjectEdit
+toSaveProjectEdit model =
+    { project = toSaveProject model
+    , members =
+        (Dict.diff model.members model.initialMembers
+            |> Dict.values
+            |> List.map (\m -> { id = m.id, delete = False })
+        )
+            ++ (Dict.diff model.initialMembers model.members
+                    |> Dict.values
+                    |> List.map (\m -> { id = m.id, delete = True })
+               )
+    }
+
+
+onSavedProjectEdit : Data.SavedProjectEdit -> Model -> Model
+onSavedProjectEdit spe model =
     { model
-        | id = Just sp.id
-        , changeddate = Just sp.changeddate
+        | id = Just spe.project.id
+        , changeddate = Just spe.project.changeddate
         , createdate =
             model.createdate
-                |> Maybe.withDefault sp.changeddate
+                |> Maybe.withDefault spe.project.changeddate
                 |> Just
+        , members = spe.members |> List.map (\m -> ( m.id, m )) |> Dict.fromList
     }
 
 
@@ -230,7 +246,7 @@ update msg model ld =
             ( { model | description = t }, None )
 
         SavePress ->
-            ( model, Save (toSaveProject model) )
+            ( model, Save (toSaveProjectEdit model) )
 
         RevertPress ->
             ( model, None )

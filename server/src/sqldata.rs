@@ -1,6 +1,6 @@
 use crate::data::{
   ChangeEmail, ChangePassword, ListProject, LoginData, Project, ProjectEdit, ProjectMember,
-  SaveProject, SavedProject, User,
+  SaveProject, SaveProjectEdit, SavedProject, SavedProjectEdit, User,
 };
 use crate::util::{is_token_expired, now};
 use barrel::backend::Sqlite;
@@ -607,6 +607,38 @@ pub fn project_list(conn: &Connection, uid: i64) -> Result<Vec<ListProject>, Box
 }
 
 // password reset request.
+pub fn save_project_edit(
+  conn: &Connection,
+  user: i64,
+  project_edit: SaveProjectEdit,
+) -> Result<SavedProjectEdit, Box<dyn Error>> {
+  let sp = save_project(conn, user, project_edit.project)?;
+
+  for m in project_edit.members {
+    if m.delete {
+      conn.execute(
+        "insert into projectmember (project, user)
+         values (?1, ?2)",
+        params![sp.id, m.id],
+      )?;
+    } else {
+      conn.execute(
+        "insert into projectmember (project, user)
+         values (?1, ?2)",
+        params![sp.id, m.id],
+      )?;
+    }
+  }
+
+  let mems = member_list(conn, user, Some(sp.id))?;
+
+  Ok(SavedProjectEdit {
+    project: sp,
+    members: mems,
+  })
+}
+
+// password reset request.
 pub fn save_project(
   conn: &Connection,
   user: i64,
@@ -674,18 +706,18 @@ pub fn read_project(
 
 pub fn member_list(
   conn: &Connection,
-  uid: i64,
+  _uid: i64,
   projectid: Option<i64>,
 ) -> Result<Vec<ProjectMember>, Box<dyn Error>> {
   let r = match projectid {
     Some(projectid) => {
       let mut pstmt = conn.prepare(
         "select user.id, user.name from user, projectmember where
-    user.id = projectmember.user and
-    projectmember.project = ?1",
+          user.id = projectmember.user and
+          projectmember.project = ?1",
       )?;
       let r = pstmt
-        .query_map(params![uid], |row| {
+        .query_map(params![projectid], |row| {
           Ok(ProjectMember {
             id: row.get(0)?,
             name: row.get(1)?,

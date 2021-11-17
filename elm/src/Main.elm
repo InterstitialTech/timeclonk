@@ -891,10 +891,10 @@ actualupdate msg model =
                                 Nothing ->
                                     ( model, Cmd.none )
 
-                        UI.SavedProject x ->
+                        UI.SavedProjectEdit x ->
                             case state of
                                 ProjectEdit s l ->
-                                    ( { model | state = ProjectEdit (ProjectEdit.onSavedProject x s) l }, Cmd.none )
+                                    ( { model | state = ProjectEdit (ProjectEdit.onSavedProjectEdit x s) l }, Cmd.none )
 
                                 _ ->
                                     ( model, Cmd.none )
@@ -925,30 +925,15 @@ actualupdate msg model =
                                     , Cmd.none
                                     )
 
-                                -- ( { model | state = ProjectEdit (ProjectEdit.onAllMembers x l model.size s) l }, Cmd.none )
                                 _ ->
                                     ( model, Cmd.none )
 
-        -- ( WkMsg reskey, EditZkNote es login ) ->
-        --     case reskey of
-        --         Ok key ->
-        --             handleEditZkNoteCmd model login (EditZkNote.onWkKeyPress key es)
-        --         Err e ->
-        --             ( model, Cmd.none )
-        -- ( WkMsg reskey, EditZkNoteListing es login ) ->
-        --     case reskey of
-        --         Ok key ->
-        --             handleEditZkNoteListing model
-        --                 login
-        --                 (EditZkNoteListing.onWkKeyPress key es)
-        --         Err e ->
-        --             ( model, Cmd.none )
         ( DisplayMessageMsg bm, DisplayMessage bs prevstate ) ->
             case GD.update bm bs of
                 GD.Dialog nmod ->
                     ( { model | state = DisplayMessage nmod prevstate }, Cmd.none )
 
-                GD.Ok return ->
+                GD.Ok _ ->
                     case prevstate of
                         ShowMessage _ _ (Just ps) ->
                             ( { model | state = ps }, Cmd.none )
@@ -1025,7 +1010,7 @@ actualupdate msg model =
             case cmd of
                 ProjectEdit.Save s ->
                     ( { model | state = ProjectEdit nm login }
-                    , sendUIMsg model.location <| UI.SaveProject s
+                    , sendUIMsg model.location <| UI.SaveProjectEdit s
                     )
 
                 ProjectEdit.New ->

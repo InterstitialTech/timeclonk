@@ -70,10 +70,28 @@ pub struct SaveProject {
   pub public: bool,
 }
 
+#[derive(Deserialize, Debug, Clone)]
+pub struct SaveProjectMember {
+  pub id: i64,
+  pub delete: bool,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct SaveProjectEdit {
+  pub project: SaveProject,
+  pub members: Vec<SaveProjectMember>,
+}
+
 #[derive(Serialize, Debug, Clone)]
 pub struct SavedProject {
   pub id: i64,
   pub changeddate: i64,
+}
+
+#[derive(Serialize, Debug, Clone)]
+pub struct SavedProjectEdit {
+  pub project: SavedProject,
+  pub members: Vec<ProjectMember>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

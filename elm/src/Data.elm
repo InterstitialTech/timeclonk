@@ -104,6 +104,24 @@ type alias ProjectEdit =
     }
 
 
+type alias SaveProjectMember =
+    { id : Int
+    , delete : Bool
+    }
+
+
+type alias SaveProjectEdit =
+    { project : SaveProject
+    , members : List SaveProjectMember
+    }
+
+
+type alias SavedProjectEdit =
+    { project : SavedProject
+    , members : List ProjectMember
+    }
+
+
 
 ----------------------------------------
 -- Json encoders/decoders
@@ -220,3 +238,26 @@ decodeProjectEdit =
     JD.succeed ProjectEdit
         |> andMap (JD.field "project" decodeProject)
         |> andMap (JD.field "members" (JD.list decodeProjectMember))
+
+
+encodeSaveProjectMember : SaveProjectMember -> JE.Value
+encodeSaveProjectMember m =
+    JE.object
+        [ ( "id", JE.int m.id )
+        , ( "delete", JE.bool m.delete )
+        ]
+
+
+encodeSaveProjectEdit : SaveProjectEdit -> JE.Value
+encodeSaveProjectEdit p =
+    JE.object
+        [ ( "project", encodeSaveProject p.project )
+        , ( "members", JE.list encodeSaveProjectMember p.members )
+        ]
+
+
+decodeSavedProjectEdit : JD.Decoder SavedProjectEdit
+decodeSavedProjectEdit =
+    JD.succeed SavedProjectEdit
+        |> andMap (JD.field "project" decodeSavedProject)
+        |> andMap (JD.field "members" <| JD.list decodeProjectMember)
