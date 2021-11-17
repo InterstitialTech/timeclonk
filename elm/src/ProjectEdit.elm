@@ -3,6 +3,7 @@ module ProjectEdit exposing (..)
 import Common
 import Data
 import Dialog as D
+import Dict exposing (Dict)
 import Element as E exposing (Element)
 import Element.Background as EBk
 import Element.Border as EBd
@@ -35,9 +36,9 @@ type alias Model =
     , public : Bool
     , createdate : Maybe Int
     , changeddate : Maybe Int
-    , members : List Data.ProjectMember
+    , members : Dict Int Data.ProjectMember
     , initialProject : Maybe Data.Project
-    , initialMembers : List Data.ProjectMember
+    , initialMembers : Dict Int Data.ProjectMember
     }
 
 
@@ -72,7 +73,7 @@ onSavedProject sp model =
 
 addMember : Data.ProjectMember -> Model -> Model
 addMember pm model =
-    { model | members = pm :: model.members }
+    { model | members = Dict.insert pm.id pm model.members }
 
 
 isDirty : Model -> Bool
@@ -100,23 +101,29 @@ initNew =
     , public = False
     , createdate = Nothing
     , changeddate = Nothing
-    , members = []
+    , members = Dict.empty
     , initialProject = Nothing
-    , initialMembers = []
+    , initialMembers = Dict.empty
     }
 
 
 initEdit : Data.Project -> List Data.ProjectMember -> Model
 initEdit proj members =
+    let
+        mbs =
+            members
+                |> List.map (\m -> ( m.id, m ))
+                |> Dict.fromList
+    in
     { id = Just proj.id
     , name = proj.name
     , description = proj.description
     , public = proj.public
     , createdate = Just proj.createdate
     , changeddate = Just proj.changeddate
-    , members = members
+    , members = mbs
     , initialProject = Just proj
-    , initialMembers = members
+    , initialMembers = mbs
     }
 
 
@@ -208,7 +215,7 @@ view ld size model =
                     [ E.el [ EF.bold ] <| E.text "members"
                     , EI.button Common.buttonStyle { onPress = Just AddMemberPress, label = E.text "add" }
                     ]
-                    :: (model.members |> List.map (\m -> E.text m.name))
+                    :: (model.members |> Dict.values |> List.map (\m -> E.text m.name))
                 )
             ]
 

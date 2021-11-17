@@ -902,11 +902,18 @@ actualupdate msg model =
                         UI.AllMembers x ->
                             case state of
                                 ProjectEdit s l ->
+                                    let
+                                        alms =
+                                            x |> List.map (\m -> ( m.id, m )) |> Dict.fromList
+
+                                        somems =
+                                            Dict.diff alms s.members
+                                    in
                                     ( { model
                                         | state =
                                             SelectDialog
                                                 (SS.init
-                                                    { choices = List.map (\m -> ( m, m.name )) x
+                                                    { choices = somems |> Dict.values |> List.map (\m -> ( m, m.name ))
                                                     , selected = Nothing
                                                     , search = ""
                                                     }
