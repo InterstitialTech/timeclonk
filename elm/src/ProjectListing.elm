@@ -9,6 +9,7 @@ import Element.Border as EBd
 import Element.Font as EF
 import Element.Input as EI
 import Element.Region
+import Route
 import TangoColors as TC
 import TcCommon as TC
 import Toop
@@ -95,7 +96,7 @@ view ld size model =
                                         ]
                                         [ E.link
                                             [ E.height <| E.px 30 ]
-                                            { url = TC.editProjectLink n.id
+                                            { url = Route.routeUrl (Route.ProjectEditR n.id)
                                             , label = E.text n.name
                                             }
                                         ]

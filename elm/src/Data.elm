@@ -92,6 +92,18 @@ type alias SavedProject =
     }
 
 
+type alias ProjectMember =
+    { id : Int
+    , name : String
+    }
+
+
+type alias ProjectEdit =
+    { project : Project
+    , users : List ProjectMember
+    }
+
+
 
 ----------------------------------------
 -- Json encoders/decoders
@@ -194,3 +206,17 @@ decodeSavedProject =
     JD.succeed SavedProject
         |> andMap (JD.field "id" JD.int)
         |> andMap (JD.field "changeddate" JD.int)
+
+
+decodeProjectMember : JD.Decoder ProjectMember
+decodeProjectMember =
+    JD.succeed ProjectMember
+        |> andMap (JD.field "id" JD.int)
+        |> andMap (JD.field "name" JD.string)
+
+
+decodeProjectEdit : JD.Decoder ProjectEdit
+decodeProjectEdit =
+    JD.succeed ProjectEdit
+        |> andMap (JD.field "project" decodeProject)
+        |> andMap (JD.field "members" (JD.list decodeProjectMember))

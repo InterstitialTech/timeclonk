@@ -294,14 +294,14 @@ fn user_interface_loggedin(
         content: serde_json::to_value(saved)?,
       })
     }
-    "GetProject" => {
+    "GetProjectEdit" => {
       let msgdata = Option::ok_or(msg.data.as_ref(), "malformed json data")?;
       let pid: i64 = serde_json::from_value(msgdata.clone())?;
       let conn = sqldata::connection_open(config.db.as_path())?;
-      let project = sqldata::read_project(&conn, uid, pid)?;
+      let project = sqldata::read_project_edit(&conn, uid, pid)?;
 
       Ok(ServerResponse {
-        what: "project".to_string(),
+        what: "projectedit".to_string(),
         content: serde_json::to_value(project)?,
       })
     }

@@ -11,10 +11,6 @@ import Url.Builder as UB
 import Util as U
 
 
-editProjectLink : Int -> String
-editProjectLink id =
-    UB.absolute [ "editproject", String.fromInt id ] []
-
 
 myLinkStylePlain =
     [ EF.color TC.darkBlue ]

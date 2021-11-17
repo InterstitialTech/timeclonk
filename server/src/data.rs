@@ -76,7 +76,7 @@ pub struct SavedProject {
   pub changeddate: i64,
 }
 
-#[derive(Serialize,Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Project {
   pub id: i64,
   pub name: String,
@@ -86,9 +86,14 @@ pub struct Project {
   pub changeddate: i64,
 }
 
-/*
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ProjectList {
-  pub projects: Vec<ListProject>
+pub struct ProjectMember {
+  pub id: i64,
+  pub name: String,
 }
-*/
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ProjectEdit {
+  pub project: Project,
+  pub members: Vec<ProjectMember>,
+}

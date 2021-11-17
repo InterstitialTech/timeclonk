@@ -172,7 +172,7 @@ routeState model route =
 
         ProjectEditR id ->
             ( (displayMessageDialog model "loading project").state
-            , sendUIMsg model.location <| UI.GetProject id
+            , sendUIMsg model.location <| UI.GetProjectEdit id
             )
 
 
@@ -883,10 +883,10 @@ actualupdate msg model =
                                 Nothing ->
                                     ( model, Cmd.none )
 
-                        UI.Project x ->
+                        UI.ProjectEdit x ->
                             case stateLogin state of
                                 Just login ->
-                                    ( { model | state = ProjectEdit (ProjectEdit.initEdit x) login }, Cmd.none )
+                                    ( { model | state = ProjectEdit (ProjectEdit.initEdit x.project) login }, Cmd.none )
 
                                 Nothing ->
                                     ( model, Cmd.none )
@@ -955,7 +955,7 @@ actualupdate msg model =
             case cmd of
                 ProjectListing.Selected id ->
                     ( { model | state = ProjectListing nm login }
-                    , sendUIMsg model.location <| UI.GetProject id
+                    , sendUIMsg model.location <| UI.GetProjectEdit id
                     )
 
                 ProjectListing.New ->

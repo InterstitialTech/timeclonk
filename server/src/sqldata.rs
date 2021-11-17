@@ -1,5 +1,6 @@
 use crate::data::{
-  ChangeEmail, ChangePassword, ListProject, LoginData, Project, SaveProject, SavedProject, User,
+  ChangeEmail, ChangePassword, ListProject, LoginData, Project, ProjectEdit, ProjectMember,
+  SaveProject, SavedProject, User,
 };
 use crate::util::{is_token_expired, now};
 use barrel::backend::Sqlite;
@@ -669,4 +670,41 @@ pub fn read_project(
     })
   })?);
   r
+}
+
+pub fn member_list(
+  conn: &Connection,
+  uid: i64,
+  projectid: i64,
+) -> Result<Vec<ProjectMember>, Box<dyn Error>> {
+  let mut pstmt = conn.prepare(
+    "select user.id, user.name from user, projectmember where
+    user.id = projectmember.user and
+    projectmember.project = ?1",
+  )?;
+  let r = Ok(
+    pstmt
+      .query_map(params![uid], |row| {
+        Ok(ProjectMember {
+          id: row.get(0)?,
+          name: row.get(1)?,
+        })
+      })?
+      .filter_map(|x| x.ok())
+      .collect(),
+  );
+  r
+}
+
+pub fn read_project_edit(
+  conn: &Connection,
+  uid: i64,
+  projectid: i64,
+) -> Result<ProjectEdit, Box<dyn Error>> {
+  let proj = read_project(conn, uid, projectid)?;
+  let members = member_list(conn, uid, projectid)?;
+  Ok(ProjectEdit {
+    project: proj,
+    members: members,
+  })
 }
