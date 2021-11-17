@@ -94,19 +94,26 @@ addMember pm model =
 
 isDirty : Model -> Bool
 isDirty model =
-    model.initialProject
-        |> Maybe.map
-            (\ip ->
-                not
-                    ((model.id == Just ip.id)
-                        && (model.name == ip.name)
-                        && (model.description == ip.description)
-                        && (model.public == ip.public)
-                        && (model.createdate == Just ip.createdate)
-                        && (model.changeddate == Just ip.changeddate)
+    let
+        projdirty =
+            model.initialProject
+                |> Maybe.map
+                    (\ip ->
+                        not
+                            ((model.id == Just ip.id)
+                                && (model.name == ip.name)
+                                && (model.description == ip.description)
+                                && (model.public == ip.public)
+                                && (model.createdate == Just ip.createdate)
+                                && (model.changeddate == Just ip.changeddate)
+                            )
                     )
-            )
-        |> Maybe.withDefault True
+                |> Maybe.withDefault True
+
+        membersdirty =
+            model.members /= model.initialMembers
+    in
+    projdirty || membersdirty
 
 
 initNew : Model
@@ -176,7 +183,14 @@ view ld size model =
             , E.row [ E.spacing 8 ]
                 [ EI.button Common.buttonStyle { onPress = Just DonePress, label = E.text "<-" }
                 , EI.button Common.buttonStyle { onPress = Just NewPress, label = E.text "new" }
-                , EI.button Common.buttonStyle { onPress = Just SavePress, label = E.text "save" }
+                , EI.button
+                    (if isdirty then
+                        Common.buttonStyle ++ [ EBk.color TC.darkYellow ]
+
+                     else
+                        Common.buttonStyle
+                    )
+                    { onPress = Just SavePress, label = E.text "save" }
                 ]
             , E.column
                 [ E.padding 8
