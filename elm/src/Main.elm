@@ -386,7 +386,7 @@ viewState size state model =
             E.map ProjectEditMsg <| ProjectEdit.view ld size em
 
         ProjectTime em ld ->
-            E.map ProjectTimeMsg <| ProjectTime.view ld size em
+            E.map ProjectTimeMsg <| ProjectTime.view ld size model.timezone em
 
 
 stateLogin : State -> Maybe Data.LoginData
@@ -1073,6 +1073,11 @@ actualupdate msg model =
                 ProjectTime.Edit ->
                     ( { model | state = ProjectEdit (ProjectEdit.initEdit st.project st.members) login }
                     , Cmd.none
+                    )
+
+                ProjectTime.GetTime tomsg ->
+                    ( { model | state = ProjectTime nm login }
+                    , Task.perform (Time.posixToMillis >> tomsg >> ProjectTimeMsg) Time.now
                     )
 
                 ProjectTime.Done ->

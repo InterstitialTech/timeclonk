@@ -13,6 +13,7 @@ import Element.Region
 import SelectString
 import TangoColors as TC
 import TcCommon as TC
+import Time
 import Toop
 import Util
 import WindowKeys as WK
@@ -24,15 +25,27 @@ type Msg
     | RevertPress
     | DonePress
     | EditPress
+    | ClonkInPress
+    | ClonkOutPress
+    | ClonkInTime Int
+    | ClonkOutTime Int
     | Noop
+
+
+type alias EditTimeEntry =
+    { id : Maybe Int
+    , description : String
+    , startdate : Int
+    , enddate : Int
+    }
 
 
 type alias Model =
     { project : Data.Project
     , members : List Data.ProjectMember
     , description : String
-    , timeentries : List Data.TimeEntry
-    , initialtimeentries : List Data.TimeEntry
+    , timeentries : Dict Int EditTimeEntry
+    , initialtimeentries : Dict Int EditTimeEntry
     }
 
 
@@ -40,6 +53,7 @@ type Command
     = Save Data.SaveProjectTime
     | Edit
     | Done
+    | GetTime (Int -> Msg)
     | None
 
 
@@ -51,11 +65,31 @@ toSaveProjectTime model =
     }
 
 
+toEditTimeEntry : Data.TimeEntry -> EditTimeEntry
+toEditTimeEntry te =
+    { id = Just te.id
+    , description = te.description
+    , startdate = te.startdate
+    , enddate = te.enddate
+    }
+
+
+toEteDict : List Data.TimeEntry -> Dict Int EditTimeEntry
+toEteDict te =
+    te
+        |> List.map (toEditTimeEntry >> (\ete -> ( ete.startdate, ete )))
+        |> Dict.fromList
+
+
 onSavedProjectTime : List Data.TimeEntry -> Model -> Model
 onSavedProjectTime te model =
+    let
+        ietes =
+            toEteDict te
+    in
     { model
-        | timeentries = te
-        , initialtimeentries = te
+        | timeentries = ietes
+        , initialtimeentries = ietes
     }
 
 
@@ -66,16 +100,20 @@ isDirty model =
 
 init : Data.ProjectTime -> Model
 init pt =
+    let
+        ietes =
+            toEteDict pt.timeentries
+    in
     { project = pt.project
     , members = pt.members
     , description = ""
-    , timeentries = pt.timeentries
-    , initialtimeentries = pt.timeentries
+    , timeentries = ietes
+    , initialtimeentries = ietes
     }
 
 
-view : Data.LoginData -> Util.Size -> Model -> Element Msg
-view ld size model =
+view : Data.LoginData -> Util.Size -> Time.Zone -> Model -> Element Msg
+view ld size zone model =
     let
         maxwidth =
             700
@@ -104,8 +142,10 @@ view ld size model =
                     (E.alignRight :: Common.buttonStyle)
                     { onPress = Just DonePress, label = E.text "settings" }
                 ]
+            , E.row [] [ E.text "project name", E.text model.project.name ]
             , E.row [ E.spacing 8 ]
                 [ EI.button Common.buttonStyle { onPress = Just DonePress, label = E.text "<-" }
+                , EI.button Common.buttonStyle { onPress = Just EditPress, label = E.text "edit project" }
                 , EI.button
                     (if isdirty then
                         Common.buttonStyle ++ [ EBk.color TC.darkYellow ]
@@ -115,24 +155,36 @@ view ld size model =
                     )
                     { onPress = Just SavePress, label = E.text "save" }
                 ]
-            , E.table []
-                { data = model.timeentries
+            , E.table [ E.spacing 8 ]
+                { data = model.timeentries |> Dict.values
                 , columns =
                     [ { header = E.text "Task"
                       , width = E.shrink
                       , view = \te -> E.text te.description
                       }
+                    , { header = E.text "Start"
+                      , width = E.shrink
+                      , view = \te -> E.text <| Util.showTime zone (Time.millisToPosix te.startdate)
+                      }
+                    , { header = E.text "End"
+                      , width = E.shrink
+                      , view = \te -> E.text <| Util.showTime zone (Time.millisToPosix te.enddate)
+                      }
+                    , { header = E.text "Duration"
+                      , width = E.shrink
+                      , view = \te -> E.text <| Util.showTime zone (Time.millisToPosix (te.enddate - te.startdate))
+                      }
                     ]
                 }
-            , E.column
-                [ E.padding 8
-                , EBd.rounded 10
-                , EBd.width 1
-                , EBd.color TC.darkGrey
-                , EBk.color TC.white
-                , E.spacing 8
-                ]
-                [ E.row [] [ E.text "project name", E.text model.project.name ]
+            , E.row [ E.width E.fill, E.spacing 8 ]
+                [ EI.text [ E.width E.fill ]
+                    { onChange = DescriptionChanged
+                    , text = model.description
+                    , placeholder = Nothing
+                    , label = EI.labelLeft [] <| E.text "Current Task:"
+                    }
+                , EI.button Common.buttonStyle { onPress = Just ClonkInPress, label = E.text "Clonk In" }
+                , EI.button Common.buttonStyle { onPress = Just ClonkOutPress, label = E.text "Clonk Out" }
                 ]
             ]
 
@@ -151,6 +203,39 @@ update msg model ld =
 
         EditPress ->
             ( model, Edit )
+
+        ClonkInPress ->
+            ( model, GetTime ClonkInTime )
+
+        ClonkOutPress ->
+            ( model, GetTime ClonkOutTime )
+
+        ClonkInTime time ->
+            ( { model
+                | timeentries =
+                    Dict.insert time
+                        { id = Nothing
+                        , description = model.description
+                        , startdate = time
+                        , enddate = time
+                        }
+                        model.timeentries
+              }
+            , None
+            )
+
+        ClonkOutTime time ->
+            ( { model
+                | timeentries =
+                    model.timeentries
+                        |> Dict.values
+                        |> List.reverse
+                        >> List.head
+                        |> Maybe.map (\t -> Dict.insert t.startdate { t | enddate = time } model.timeentries)
+                        |> Maybe.withDefault model.timeentries
+              }
+            , None
+            )
 
         DonePress ->
             ( model, Done )
