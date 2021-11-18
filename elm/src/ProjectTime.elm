@@ -213,7 +213,9 @@ view ld size zone model =
             , E.row [ E.width E.fill, E.spacing 8 ]
                 [ E.text "team hours: "
                 , E.text <| (model.timeentries |> Dict.values |> TR.totalMillis |> TR.millisToHours)
-                , E.text "my hours: "
+                ]
+            , E.row [ E.width E.fill, E.spacing 8 ]
+                [ E.text "my hours: "
                 , E.text <|
                     (model.timeentries
                         |> Dict.values
