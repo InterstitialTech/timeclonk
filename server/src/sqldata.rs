@@ -829,7 +829,7 @@ pub fn save_time_entry(
 ) -> Result<i64, Box<dyn Error>> {
   let now = now()?;
   conn.execute(
-    "insert into timeentry (project, user, description, startdate, enddate, createdate, changeddate, creator);
+    "insert into timeentry (project, user, description, startdate, enddate, createdate, changeddate, creator)
      values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
     params![spt.project, spt.user, spt.description, spt.startdate, spt.enddate, now, now, uid],
   )?;

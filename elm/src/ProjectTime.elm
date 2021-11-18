@@ -34,6 +34,7 @@ type Msg
 
 type alias EditTimeEntry =
     { id : Maybe Int
+    , user : Int
     , description : String
     , startdate : Int
     , enddate : Int
@@ -60,17 +61,46 @@ type Command
 toSaveProjectTime : Model -> Data.SaveProjectTime
 toSaveProjectTime model =
     { project = model.project.id
-    , savetimeentries = []
-    , deletetimeentries = []
+    , savetimeentries =
+        model.timeentries
+            |> Dict.values
+            |> List.foldl
+                (\te saves ->
+                    case te.id |> Maybe.andThen (\id -> Dict.get id model.initialtimeentries) of
+                        Just ite ->
+                            if te /= ite then
+                                te :: saves
+
+                            else
+                                saves
+
+                        Nothing ->
+                            te :: saves
+                )
+                []
+            |> List.map (toSaveTimeEntry model)
+    , deletetimeentries = Dict.diff model.initialtimeentries model.timeentries |> Dict.keys
     }
 
 
 toEditTimeEntry : Data.TimeEntry -> EditTimeEntry
 toEditTimeEntry te =
     { id = Just te.id
+    , user = te.user
     , description = te.description
     , startdate = te.startdate
     , enddate = te.enddate
+    }
+
+
+toSaveTimeEntry : Model -> EditTimeEntry -> Data.SaveTimeEntry
+toSaveTimeEntry model ete =
+    { id = ete.id
+    , project = model.project.id
+    , user = ete.user
+    , description = ete.description
+    , startdate = ete.startdate
+    , enddate = ete.enddate
     }
 
 
@@ -216,6 +246,7 @@ update msg model ld =
                     Dict.insert time
                         { id = Nothing
                         , description = model.description
+                        , user = ld.userid
                         , startdate = time
                         , enddate = time
                         }
