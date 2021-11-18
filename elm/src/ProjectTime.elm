@@ -15,6 +15,7 @@ import SelectString
 import TangoColors as TC
 import TcCommon as TC
 import Time
+import TimeReporting as TR exposing (EditTimeEntry)
 import Toop
 import Util
 import WindowKeys as WK
@@ -32,15 +33,6 @@ type Msg
     | ClonkInTime Int
     | ClonkOutTime Int
     | Noop
-
-
-type alias EditTimeEntry =
-    { id : Maybe Int
-    , user : Int
-    , description : String
-    , startdate : Int
-    , enddate : Int
-    }
 
 
 type alias Model =
@@ -175,7 +167,7 @@ view ld size zone model =
                     (E.alignRight :: Common.buttonStyle)
                     { onPress = Just SettingsPress, label = E.text "settings" }
                 ]
-            , E.row [] [ E.text "project name", E.text model.project.name ]
+            , E.row [ E.spacing 8 ] [ E.text "project:", E.el [ EF.bold ] <| E.text model.project.name ]
             , E.row [ E.spacing 8 ]
                 [ EI.button Common.buttonStyle { onPress = Just DonePress, label = E.text "<-" }
                 , EI.button Common.buttonStyle { onPress = Just EditPress, label = E.text "edit project" }
@@ -188,36 +180,48 @@ view ld size zone model =
                     )
                     { onPress = Just SavePress, label = E.text "save" }
                 ]
-            , E.table [ E.spacing 8 ]
+            , E.table [ E.spacing 8, E.width E.fill ]
                 { data = model.timeentries |> Dict.values |> List.filter (\te -> te.user == ld.userid)
                 , columns =
                     [ { header = E.text "Task"
-                      , width = E.shrink
+                      , width = E.fill
                       , view = \te -> E.text te.description
                       }
                     , { header = E.text "Start"
-                      , width = E.shrink
+                      , width = E.fill
                       , view = \te -> E.text <| Util.showTime zone (Time.millisToPosix te.startdate)
                       }
                     , { header = E.text "End"
-                      , width = E.shrink
+                      , width = E.fill
                       , view = \te -> E.text <| Util.showTime zone (Time.millisToPosix te.enddate)
                       }
                     , { header = E.text "Duration"
-                      , width = E.shrink
+                      , width = E.fill
                       , view = \te -> E.text <| R.round 2 (toFloat (te.enddate - te.startdate) / (1000.0 * 60.0 * 60.0))
                       }
 
                     -- , { header = E.text "Daily"
-                    --   , width = E.shrink
+                    --   , width = E.fill
                     --   , view = \te -> E.text <| R.round 2 (toFloat (te.enddate - te.startdate) / (1000.0 * 60.0 * 60.0))
                     --   }
                     -- , { header = E.text "Weekly"
-                    --   , width = E.shrink
+                    --   , width = E.fill
                     --   , view = \te -> E.text <| R.round 2 (toFloat (te.enddate - te.startdate) / (1000.0 * 60.0 * 60.0))
                     --   }
                     ]
                 }
+            , E.row [ E.width E.fill, E.spacing 8 ]
+                [ E.text "team hours: "
+                , E.text <| (model.timeentries |> Dict.values |> TR.totalMillis |> TR.millisToHours)
+                , E.text "my hours: "
+                , E.text <|
+                    (model.timeentries
+                        |> Dict.values
+                        |> List.filter (\te -> te.user == ld.userid)
+                        |> TR.totalMillis
+                        |> TR.millisToHours
+                    )
+                ]
             , E.row [ E.width E.fill, E.spacing 8 ]
                 [ EI.text [ E.width E.fill ]
                     { onChange = DescriptionChanged
@@ -275,6 +279,7 @@ update msg model ld =
                 | timeentries =
                     model.timeentries
                         |> Dict.values
+                        |> List.filter (.user >> (==) ld.userid)
                         |> List.reverse
                         >> List.head
                         |> Maybe.map (\t -> Dict.insert t.startdate { t | enddate = time } model.timeentries)
