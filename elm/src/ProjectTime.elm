@@ -189,7 +189,7 @@ view ld size zone model =
                     { onPress = Just SavePress, label = E.text "save" }
                 ]
             , E.table [ E.spacing 8 ]
-                { data = model.timeentries |> Dict.values
+                { data = model.timeentries |> Dict.values |> List.filter (\te -> te.user == ld.userid)
                 , columns =
                     [ { header = E.text "Task"
                       , width = E.shrink
