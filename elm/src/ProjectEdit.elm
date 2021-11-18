@@ -24,6 +24,7 @@ type Msg
     | SavePress
     | RevertPress
     | DonePress
+    | SettingsPress
     | NewPress
     | AddMemberPress
     | Noop
@@ -47,6 +48,7 @@ type Command
     | New
     | AddMember
     | Done
+    | Settings
     | None
 
 
@@ -76,6 +78,10 @@ toSaveProjectEdit model =
 
 onSavedProjectEdit : Data.SavedProjectEdit -> Model -> Model
 onSavedProjectEdit spe model =
+    let
+        mbrs =
+            spe.members |> List.map (\m -> ( m.id, m )) |> Dict.fromList
+    in
     { model
         | id = Just spe.project.id
         , changeddate = Just spe.project.changeddate
@@ -83,7 +89,9 @@ onSavedProjectEdit spe model =
             model.createdate
                 |> Maybe.withDefault spe.project.changeddate
                 |> Just
-        , members = spe.members |> List.map (\m -> ( m.id, m )) |> Dict.fromList
+        , members = mbrs
+        , initialMembers = mbrs
+        , initialProject = Just spe.project
     }
 
 
@@ -178,7 +186,7 @@ view ld size model =
                 [ E.row [ EF.bold ] [ E.text ld.name ]
                 , EI.button
                     (E.alignRight :: Common.buttonStyle)
-                    { onPress = Just DonePress, label = E.text "settings" }
+                    { onPress = Just SettingsPress, label = E.text "settings" }
                 ]
             , E.row [ E.spacing 8 ]
                 [ EI.button Common.buttonStyle { onPress = Just DonePress, label = E.text "<-" }
@@ -270,6 +278,9 @@ update msg model ld =
 
         DonePress ->
             ( model, Done )
+
+        SettingsPress ->
+            ( model, Settings )
 
         AddMemberPress ->
             ( model, AddMember )

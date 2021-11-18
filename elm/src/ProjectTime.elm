@@ -10,6 +10,7 @@ import Element.Border as EBd
 import Element.Font as EF
 import Element.Input as EI
 import Element.Region
+import Round as R
 import SelectString
 import TangoColors as TC
 import TcCommon as TC
@@ -25,6 +26,7 @@ type Msg
     | RevertPress
     | DonePress
     | EditPress
+    | SettingsPress
     | ClonkInPress
     | ClonkOutPress
     | ClonkInTime Int
@@ -55,6 +57,7 @@ type Command
     | Edit
     | Done
     | GetTime (Int -> Msg)
+    | Settings
     | None
 
 
@@ -170,7 +173,7 @@ view ld size zone model =
                 [ E.row [ EF.bold ] [ E.text ld.name ]
                 , EI.button
                     (E.alignRight :: Common.buttonStyle)
-                    { onPress = Just DonePress, label = E.text "settings" }
+                    { onPress = Just SettingsPress, label = E.text "settings" }
                 ]
             , E.row [] [ E.text "project name", E.text model.project.name ]
             , E.row [ E.spacing 8 ]
@@ -202,8 +205,17 @@ view ld size zone model =
                       }
                     , { header = E.text "Duration"
                       , width = E.shrink
-                      , view = \te -> E.text <| Util.showTime zone (Time.millisToPosix (te.enddate - te.startdate))
+                      , view = \te -> E.text <| R.round 2 (toFloat (te.enddate - te.startdate) / (1000.0 * 60.0 * 60.0))
                       }
+
+                    -- , { header = E.text "Daily"
+                    --   , width = E.shrink
+                    --   , view = \te -> E.text <| R.round 2 (toFloat (te.enddate - te.startdate) / (1000.0 * 60.0 * 60.0))
+                    --   }
+                    -- , { header = E.text "Weekly"
+                    --   , width = E.shrink
+                    --   , view = \te -> E.text <| R.round 2 (toFloat (te.enddate - te.startdate) / (1000.0 * 60.0 * 60.0))
+                    --   }
                     ]
                 }
             , E.row [ E.width E.fill, E.spacing 8 ]
@@ -233,6 +245,9 @@ update msg model ld =
 
         EditPress ->
             ( model, Edit )
+
+        SettingsPress ->
+            ( model, Settings )
 
         ClonkInPress ->
             ( model, GetTime ClonkInTime )

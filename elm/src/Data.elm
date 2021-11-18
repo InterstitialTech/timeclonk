@@ -117,7 +117,7 @@ type alias SaveProjectEdit =
 
 
 type alias SavedProjectEdit =
-    { project : SavedProject
+    { project : Project
     , members : List ProjectMember
     }
 
@@ -296,7 +296,7 @@ encodeSaveProjectEdit p =
 decodeSavedProjectEdit : JD.Decoder SavedProjectEdit
 decodeSavedProjectEdit =
     JD.succeed SavedProjectEdit
-        |> andMap (JD.field "project" decodeSavedProject)
+        |> andMap (JD.field "project" decodeProject)
         |> andMap (JD.field "members" <| JD.list decodeProjectMember)
 
 

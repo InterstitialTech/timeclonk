@@ -90,7 +90,7 @@ pub struct SavedProject {
 
 #[derive(Serialize, Debug, Clone)]
 pub struct SavedProjectEdit {
-  pub project: SavedProject,
+  pub project: Project,
   pub members: Vec<ProjectMember>,
 }
 

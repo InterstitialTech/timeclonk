@@ -631,10 +631,11 @@ pub fn save_project_edit(
     }
   }
 
+  let proj = read_project(conn, user, sp.id)?;
   let mems = member_list(conn, user, Some(sp.id))?;
 
   Ok(SavedProjectEdit {
-    project: sp,
+    project: proj,
     members: mems,
   })
 }

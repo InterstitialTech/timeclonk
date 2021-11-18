@@ -1027,6 +1027,14 @@ actualupdate msg model =
                 ProjectListing.Done ->
                     ( { model | state = ProjectListing nm login }, Cmd.none )
 
+                ProjectListing.Settings ->
+                    ( { model
+                        | state =
+                            UserSettings (UserSettings.init login model.fontsize) login model.state
+                      }
+                    , Cmd.none
+                    )
+
                 ProjectListing.None ->
                     ( { model | state = ProjectListing nm login }, Cmd.none )
 
@@ -1056,6 +1064,14 @@ actualupdate msg model =
                     , sendUIMsg model.location <| UI.GetProjectList login.userid
                     )
 
+                ProjectEdit.Settings ->
+                    ( { model
+                        | state =
+                            UserSettings (UserSettings.init login model.fontsize) login model.state
+                      }
+                    , Cmd.none
+                    )
+
                 ProjectEdit.None ->
                     ( { model | state = ProjectEdit nm login }, Cmd.none )
 
@@ -1083,6 +1099,14 @@ actualupdate msg model =
                 ProjectTime.Done ->
                     ( { model | state = ProjectTime nm login }
                     , sendUIMsg model.location <| UI.GetProjectList login.userid
+                    )
+
+                ProjectTime.Settings ->
+                    ( { model
+                        | state =
+                            UserSettings (UserSettings.init login model.fontsize) login model.state
+                      }
+                    , Cmd.none
                     )
 
                 ProjectTime.None ->
