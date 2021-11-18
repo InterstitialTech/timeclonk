@@ -1,6 +1,7 @@
 use crate::data::{
   ChangeEmail, ChangePassword, ListProject, LoginData, Project, ProjectEdit, ProjectMember,
-  ProjectTime, SaveProject, SaveProjectEdit, SavedProject, SavedProjectEdit, TimeEntry, User,
+  ProjectTime, SaveProject, SaveProjectEdit, SaveProjectTime, SaveTimeEntry, SavedProject,
+  SavedProjectEdit, TimeEntry, User,
 };
 use crate::util::{is_token_expired, now};
 use barrel::backend::Sqlite;
@@ -790,6 +791,22 @@ pub fn timeentries(
   r
 }
 
+pub fn is_project_member(
+  conn: &Connection,
+  uid: i64,
+  projectid: i64,
+) -> Result<bool, Box<dyn Error>> {
+  match conn.query_row(
+    "select user from projectmember where user = ?1 and project = ?2",
+    params![uid, projectid],
+    |_row| Ok(()),
+  ) {
+    Ok(_v) => Ok(true),
+    Err(rusqlite::Error::QueryReturnedNoRows) => Ok(false),
+    Err(x) => Err(Box::new(x)),
+  }
+}
+
 pub fn read_project_time(
   conn: &Connection,
   uid: i64,
@@ -803,4 +820,43 @@ pub fn read_project_time(
     members: members,
     timeentries: timeentries,
   })
+}
+
+pub fn save_time_entry(
+  conn: &Connection,
+  uid: i64,
+  spt: SaveTimeEntry,
+) -> Result<i64, Box<dyn Error>> {
+  let now = now()?;
+  conn.execute(
+    "insert into timeentry (project, user, description, startdate, enddate, createdate, changeddate, creator);
+     values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+    params![spt.project, spt.user, spt.description, spt.startdate, spt.enddate, now, now, uid],
+  )?;
+  let id = conn.last_insert_rowid();
+  Ok(id)
+}
+
+// check for user membership before calling!
+pub fn delete_time_entry(conn: &Connection, _uid: i64, teid: i64) -> Result<(), Box<dyn Error>> {
+  conn.execute("delete from timeentry where id = ?1", params![teid])?;
+  Ok(())
+}
+
+pub fn save_project_time(
+  conn: &Connection,
+  uid: i64,
+  spt: SaveProjectTime,
+) -> Result<ProjectTime, Box<dyn Error>> {
+  // is user a member of this project?
+  if is_project_member(conn, uid, spt.project)? {
+    for te in spt.savetimeentries {
+      save_time_entry(conn, uid, te)?;
+    }
+    for id in spt.deletetimeentries {
+      delete_time_entry(conn, uid, id)?;
+    }
+  }
+
+  read_project_time(conn, uid, spt.project)
 }

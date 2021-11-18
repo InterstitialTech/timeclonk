@@ -11,7 +11,7 @@ use log::info;
 // use simple_error::bail;
 use crate::data::{
   ChangeEmail, ChangePassword, Login, LoginData, RegistrationData, ResetPassword, SaveProjectEdit,
-  SetPassword,
+  SaveProjectTime, SetPassword,
 };
 use crate::messages::{PublicMessage, ServerResponse, UserMessage};
 use std::error::Error;
@@ -314,6 +314,17 @@ fn user_interface_loggedin(
       Ok(ServerResponse {
         what: "projecttime".to_string(),
         content: serde_json::to_value(project)?,
+      })
+    }
+    "SaveProjectTime" => {
+      let msgdata = Option::ok_or(msg.data.as_ref(), "malformed json data")?;
+      let spt: SaveProjectTime = serde_json::from_value(msgdata.clone())?;
+      let conn = sqldata::connection_open(config.db.as_path())?;
+      let bak = sqldata::save_project_time(&conn, uid, spt)?;
+
+      Ok(ServerResponse {
+        what: "projecttime".to_string(),
+        content: serde_json::to_value(bak)?,
       })
     }
     "GetAllMembers" => {
