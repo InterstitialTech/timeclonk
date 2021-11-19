@@ -1,5 +1,6 @@
-module Util exposing (Size, Stopoid(..), andMap, captchaQ, compareColor, deadEndToString, deadEndsToString, first, foldUntil, httpErrorString, isJust, mapNothing, maxInt, mbl, mblist, minInt, monthInt, paramParser, paramsParser, problemToString, rest, rslist, showTime, splitAt, trueforany, truncateDots)
+module Util exposing (Size, Stopoid(..), YMDMS, andMap, captchaQ, compareColor, deadEndToString, deadEndsToString, first, foldUntil, httpErrorString, isJust, mapNothing, maxInt, mbl, mblist, minInt, monthInt, paramParser, paramsParser, parseTime, problemToString, rest, rslist, showTime, splitAt, toTimeMonth, trueforany, truncateDots, ymdsParser)
 
+import DateTime
 import Dict exposing (Dict)
 import Element exposing (..)
 import Element.Background as Background
@@ -10,7 +11,7 @@ import Element.Input as Input
 import Http
 import Json.Decode exposing (Decoder, map2)
 import ParseHelp exposing (listOf)
-import Parser as P exposing ((|.), (|=), Problem(..), symbol)
+import Parser as P exposing ((|.), (|=), Parser, Problem(..), succeed, symbol)
 import Random exposing (Seed, int, step)
 import TangoColors as Color
 import Time
@@ -297,6 +298,98 @@ showTime zone time =
         ++ (String.fromInt <| Time.toMinute zone time)
         ++ ":"
         ++ (String.fromInt <| Time.toSecond zone time)
+
+
+toTimeMonth : Int -> Time.Month
+toTimeMonth monthnum =
+    case monthnum of
+        1 ->
+            Time.Jan
+
+        2 ->
+            Time.Feb
+
+        3 ->
+            Time.Mar
+
+        4 ->
+            Time.Apr
+
+        5 ->
+            Time.May
+
+        6 ->
+            Time.Jun
+
+        7 ->
+            Time.Jul
+
+        8 ->
+            Time.Aug
+
+        9 ->
+            Time.Sep
+
+        10 ->
+            Time.Oct
+
+        11 ->
+            Time.Nov
+
+        _ ->
+            Time.Dec
+
+
+parseTime : Time.Zone -> String -> Result (List P.DeadEnd) (Maybe Time.Posix)
+parseTime zone string =
+    P.run ymdsParser string
+        |> Result.map
+            (\x ->
+                DateTime.fromRawParts
+                    { year = x.year
+                    , month = toTimeMonth x.month
+                    , day = x.day
+                    }
+                    { hours = x.hour
+                    , minutes = x.minute
+                    , seconds = x.second
+                    , milliseconds = 0
+                    }
+                    |> Maybe.map
+                        (DateTime.toPosix
+                            >> (\p ->
+                                    Time.posixToMillis p
+                                        - DateTime.getTimezoneOffset zone p
+                                        |> Time.millisToPosix
+                               )
+                        )
+            )
+
+
+type alias YMDMS =
+    { year : Int
+    , month : Int
+    , day : Int
+    , hour : Int
+    , minute : Int
+    , second : Int
+    }
+
+
+ymdsParser : Parser YMDMS
+ymdsParser =
+    succeed YMDMS
+        |= P.int
+        |. symbol "/"
+        |= P.int
+        |. symbol "/"
+        |= P.int
+        |. symbol " "
+        |= P.int
+        |. symbol ":"
+        |= P.int
+        |. symbol ":"
+        |= P.int
 
 
 captchaQ : Seed -> ( Seed, String, Int )

@@ -1,5 +1,6 @@
 module ProjectTime exposing (..)
 
+import Calendar
 import Common
 import Data
 import Dialog as D
@@ -32,7 +33,16 @@ type Msg
     | ClonkOutPress
     | ClonkInTime Int
     | ClonkOutTime Int
+    | EteDescriptionChanged Int String
+    | EteStartChanged Int String
+    | TestDateChanged Time.Zone String
+    | SetViewMode ViewMode
     | Noop
+
+
+type ViewMode
+    = Clonk
+    | Payment
 
 
 type alias Model =
@@ -41,6 +51,8 @@ type alias Model =
     , description : String
     , timeentries : Dict Int EditTimeEntry
     , initialtimeentries : Dict Int EditTimeEntry
+    , testdate : String
+    , viewmode : ViewMode
     }
 
 
@@ -134,7 +146,29 @@ init pt =
     , description = ""
     , timeentries = ietes
     , initialtimeentries = ietes
+    , viewmode = Clonk
+    , testdate = ""
     }
+
+
+viewModeBar : Model -> Element Msg
+viewModeBar model =
+    let
+        vbt =
+            \vm text ->
+                EI.button
+                    (if vm == model.viewmode then
+                        Common.disabledButtonStyle
+
+                     else
+                        Common.buttonStyle
+                    )
+                    { onPress = Just (SetViewMode vm), label = E.text text }
+    in
+    E.row [ E.width E.fill, E.spacing 8 ]
+        [ vbt Clonk "Clonk"
+        , vbt Payment "Payments"
+        ]
 
 
 view : Data.LoginData -> Util.Size -> Time.Zone -> Model -> Element Msg
@@ -161,6 +195,7 @@ view ld size zone model =
             , E.centerX
             , EBk.color TC.lightGrey
             ]
+        <|
             [ E.row [ E.spacing 8, E.width E.fill ]
                 [ E.row [ EF.bold ] [ E.text ld.name ]
                 , EI.button
@@ -180,61 +215,147 @@ view ld size zone model =
                     )
                     { onPress = Just SavePress, label = E.text "save" }
                 ]
-            , E.table [ E.spacing 8, E.width E.fill ]
-                { data = model.timeentries |> Dict.values |> List.filter (\te -> te.user == ld.userid)
-                , columns =
-                    [ { header = E.text "Task"
-                      , width = E.fill
-                      , view = \te -> E.text te.description
-                      }
-                    , { header = E.text "Start"
-                      , width = E.fill
-                      , view = \te -> E.text <| Util.showTime zone (Time.millisToPosix te.startdate)
-                      }
-                    , { header = E.text "End"
-                      , width = E.fill
-                      , view = \te -> E.text <| Util.showTime zone (Time.millisToPosix te.enddate)
-                      }
-                    , { header = E.text "Duration"
-                      , width = E.fill
-                      , view = \te -> E.text <| R.round 2 (toFloat (te.enddate - te.startdate) / (1000.0 * 60.0 * 60.0))
-                      }
-
-                    -- , { header = E.text "Daily"
-                    --   , width = E.fill
-                    --   , view = \te -> E.text <| R.round 2 (toFloat (te.enddate - te.startdate) / (1000.0 * 60.0 * 60.0))
-                    --   }
-                    -- , { header = E.text "Weekly"
-                    --   , width = E.fill
-                    --   , view = \te -> E.text <| R.round 2 (toFloat (te.enddate - te.startdate) / (1000.0 * 60.0 * 60.0))
-                    --   }
-                    ]
+            , viewModeBar model
+            , EI.text [ E.width E.fill ]
+                { onChange = TestDateChanged zone
+                , text = model.testdate
+                , placeholder = Nothing
+                , label = EI.labelHidden "test date"
                 }
-            , E.row [ E.width E.fill, E.spacing 8 ]
-                [ E.text "team hours: "
-                , E.text <| (model.timeentries |> Dict.values |> TR.totalMillis |> TR.millisToHours)
-                ]
-            , E.row [ E.width E.fill, E.spacing 8 ]
-                [ E.text "my hours: "
-                , E.text <|
-                    (model.timeentries
-                        |> Dict.values
-                        |> List.filter (\te -> te.user == ld.userid)
-                        |> TR.totalMillis
-                        |> TR.millisToHours
-                    )
-                ]
-            , E.row [ E.width E.fill, E.spacing 8 ]
-                [ EI.text [ E.width E.fill ]
-                    { onChange = DescriptionChanged
-                    , text = model.description
-                    , placeholder = Nothing
-                    , label = EI.labelLeft [] <| E.text "Current Task:"
-                    }
-                , EI.button Common.buttonStyle { onPress = Just ClonkInPress, label = E.text "Clonk In" }
-                , EI.button Common.buttonStyle { onPress = Just ClonkOutPress, label = E.text "Clonk Out" }
-                ]
             ]
+                ++ (case model.viewmode of
+                        Clonk ->
+                            clonkview ld size zone model
+
+                        Payment ->
+                            payview ld size zone model
+                   )
+
+
+clonkview : Data.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
+clonkview ld size zone model =
+    [ E.table [ E.spacing 8, E.width E.fill ]
+        { data = model.timeentries |> Dict.values |> List.filter (\te -> te.user == ld.userid)
+        , columns =
+            [ { header = E.text "Task"
+              , width = E.fill
+              , view =
+                    \te ->
+                        EI.text [ E.width E.fill ]
+                            { onChange = EteDescriptionChanged te.startdate
+                            , text = te.description
+                            , placeholder = Nothing
+                            , label = EI.labelHidden "task description"
+                            }
+              }
+            , { header = E.text "Start"
+              , width = E.fill
+              , view = \te -> E.text <| Util.showTime zone (Time.millisToPosix te.startdate)
+
+              -- \te ->
+              --     EI.text [ E.width E.fill ]
+              --         { onChange = EteStartChanged te.startdate
+              --         , text = Util.showTime zone (Time.millisToPosix te.startdate)
+              --         , placeholder = Nothing
+              --         , label = EI.labelHidden "task start"
+              --         }
+              }
+            , { header = E.text "End"
+              , width = E.fill
+              , view = \te -> E.text <| Util.showTime zone (Time.millisToPosix te.enddate)
+              }
+            , { header = E.text "Duration"
+              , width = E.shrink
+              , view = \te -> E.text <| R.round 2 (toFloat (te.enddate - te.startdate) / (1000.0 * 60.0 * 60.0))
+              }
+            ]
+        }
+    , E.row [ E.width E.fill, E.spacing 8 ]
+        [ E.text "team hours: "
+        , E.text <| (model.timeentries |> Dict.values |> TR.totalMillis |> TR.millisToHours)
+        ]
+    , E.row [ E.width E.fill, E.spacing 8 ]
+        [ E.text "my hours: "
+        , E.text <|
+            (model.timeentries
+                |> Dict.values
+                |> List.filter (\te -> te.user == ld.userid)
+                |> TR.totalMillis
+                |> TR.millisToHours
+            )
+        ]
+    , E.row [ E.width E.fill, E.spacing 8 ]
+        [ EI.text [ E.width E.fill ]
+            { onChange = DescriptionChanged
+            , text = model.description
+            , placeholder = Nothing
+            , label = EI.labelLeft [] <| E.text "Current Task:"
+            }
+        , EI.button Common.buttonStyle { onPress = Just ClonkInPress, label = E.text "Clonk In" }
+        , EI.button Common.buttonStyle { onPress = Just ClonkOutPress, label = E.text "Clonk Out" }
+        ]
+    ]
+
+
+payview : Data.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
+payview ld size zone model =
+    let
+        tmpd =
+            Debug.log "tmpd" <|
+                TR.teamMillisPerDay (Dict.values model.timeentries)
+    in
+    [ E.table [ E.spacing 8, E.width E.fill ]
+        { data = Dict.toList tmpd -- (date, Dict user millis)
+        , columns =
+            { header = E.text "date"
+            , width = E.fill
+            , view =
+                \( date, ums ) ->
+                    date
+                        |> Time.millisToPosix
+                        |> Calendar.fromPosix
+                        |> (\cdate ->
+                                E.text <|
+                                    String.fromInt (Calendar.getYear cdate)
+                                        ++ "/"
+                                        ++ (cdate |> Calendar.getMonth |> Calendar.monthToInt |> String.fromInt)
+                                        ++ "/"
+                                        ++ String.fromInt
+                                            (Calendar.getDay cdate)
+                           )
+            }
+                :: (model.members
+                        |> List.map
+                            (\member ->
+                                { header = E.text member.name
+                                , width = E.fill
+                                , view =
+                                    \( date, ums ) ->
+                                        case Dict.get member.id ums of
+                                            Just millis ->
+                                                if millis > 0 then
+                                                    E.text <| R.round 2 (toFloat millis / (1000.0 * 60.0 * 60.0))
+
+                                                else
+                                                    E.none
+
+                                            Nothing ->
+                                                E.none
+                                }
+                            )
+                   )
+        }
+    , E.row [ E.width E.fill, E.spacing 8 ]
+        [ EI.text [ E.width E.fill ]
+            { onChange = DescriptionChanged
+            , text = model.description
+            , placeholder = Nothing
+            , label = EI.labelLeft [] <| E.text "Current Task:"
+            }
+        , EI.button Common.buttonStyle { onPress = Just ClonkInPress, label = E.text "Clonk In" }
+        , EI.button Common.buttonStyle { onPress = Just ClonkOutPress, label = E.text "Clonk Out" }
+        ]
+    ]
 
 
 update : Msg -> Model -> Data.LoginData -> ( Model, Command )
@@ -254,6 +375,9 @@ update msg model ld =
 
         SettingsPress ->
             ( model, Settings )
+
+        SetViewMode vm ->
+            ( { model | viewmode = vm }, None )
 
         ClonkInPress ->
             ( model, GetTime ClonkInTime )
@@ -289,6 +413,39 @@ update msg model ld =
               }
             , None
             )
+
+        EteDescriptionChanged startdate text ->
+            ( { model
+                | timeentries =
+                    case Dict.get startdate model.timeentries of
+                        Just te ->
+                            Dict.insert startdate { te | description = text } model.timeentries
+
+                        Nothing ->
+                            model.timeentries
+              }
+            , None
+            )
+
+        EteStartChanged startdate text ->
+            ( { model
+                | timeentries =
+                    case Dict.get startdate model.timeentries of
+                        Just te ->
+                            Dict.insert startdate { te | description = text } model.timeentries
+
+                        Nothing ->
+                            model.timeentries
+              }
+            , None
+            )
+
+        TestDateChanged zone s ->
+            let
+                _ =
+                    Debug.log "pt" (Util.parseTime zone s)
+            in
+            ( { model | testdate = s }, None )
 
         DonePress ->
             ( model, Done )
