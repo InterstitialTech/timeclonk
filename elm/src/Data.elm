@@ -332,6 +332,8 @@ encodeSaveProjectTime t =
         [ ( "project", JE.int t.project )
         , ( "savetimeentries", JE.list encodeSaveTimeEntry t.savetimeentries )
         , ( "deletetimeentries", JE.list JE.int t.deletetimeentries )
+        , ( "savepayentries", JE.list encodeSavePayEntry t.savepayentries )
+        , ( "deletepayentries", JE.list JE.int t.deletepayentries )
         ]
 
 

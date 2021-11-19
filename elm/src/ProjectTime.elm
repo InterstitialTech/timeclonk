@@ -44,6 +44,9 @@ type Msg
     | OnDistributionChanged String
     | ClearDistribution
     | CalcDistribution
+    | OnPaymentChanged Int String
+    | AddPaymentPress Int Int
+    | AddPayment Int Int Int
     | Noop
 
 
@@ -65,7 +68,8 @@ type alias Model =
     , focusdescription : String
     , focusrow : Maybe Int
     , distributionhours : String
-    , distribution : Maybe (Dict Int Int)
+    , distribution : Maybe (Dict Int String)
+    , paymenthours : String
     , viewmode : ViewMode
     }
 
@@ -193,7 +197,10 @@ onSavedProjectTime te model =
 
 isDirty : Model -> Bool
 isDirty model =
-    model.timeentries /= model.initialtimeentries
+    model.timeentries
+        /= model.initialtimeentries
+        || model.payentries
+        /= model.initialpayentries
 
 
 init : Data.ProjectTime -> Model
@@ -219,6 +226,7 @@ init pt =
     , focusrow = Nothing
     , distributionhours = ""
     , distribution = Nothing
+    , paymenthours = ""
     }
 
 
@@ -480,7 +488,7 @@ payview ld size zone model =
                             \( id, _ ) ->
                                 case Dict.get id md of
                                     Just m ->
-                                        E.text m.name
+                                        E.el [ E.centerY ] <| E.text m.name
 
                                     Nothing ->
                                         E.none
@@ -488,14 +496,42 @@ payview ld size zone model =
                     , { header = E.text "Hours"
                       , width = E.shrink
                       , view =
-                            \( _, millis ) ->
-                                E.text (R.round 2 (toFloat millis / (60 * 60 * 1000)))
+                            \( user, hours ) ->
+                                E.row [ E.spacing 8 ]
+                                    [ EI.text []
+                                        { onChange = OnPaymentChanged user
+                                        , text = hours
+                                        , placeholder = Nothing
+                                        , label = EI.labelHidden "member hours"
+                                        }
+                                    , case
+                                        hours
+                                            |> String.toFloat
+                                            |> Maybe.map (\f -> f * 60 * 60 * 1000 |> round)
+                                      of
+                                        Just millis ->
+                                            EI.button Common.buttonStyle
+                                                { onPress = Just <| AddPaymentPress user millis, label = E.text "add" }
+
+                                        Nothing ->
+                                            E.none
+                                    ]
                       }
                     ]
                 }
 
         Nothing ->
             E.none
+
+    -- , E.row [ E.width E.fill, E.spacing 8 ]
+    --     [ EI.text [ E.width E.fill ]
+    --         { onChange = OnPaymentChanged
+    --         , text = model.distributionhours
+    --         , placeholder = Nothing
+    --         , label = EI.labelLeft [] <| E.text "payment:"
+    --         }
+    --     , EI.button Common.buttonStyle { onPress = Just AddPaymentPress, label = E.text "add" }
+    --     ]
     ]
 
 
@@ -795,10 +831,50 @@ update msg model ld =
                                     )
                                     ( Dict.empty, distmillis )
                     in
-                    ( { model | distribution = Just (Tuple.first dist) }, None )
+                    ( { model
+                        | distribution =
+                            Just
+                                (Tuple.first dist
+                                    |> Dict.map (\_ i -> R.round 2 (toFloat i / (60 * 60 * 1000)))
+                                )
+                      }
+                    , None
+                    )
 
                 Nothing ->
                     ( model, None )
+
+        OnPaymentChanged member text ->
+            case model.distribution of
+                Just dist ->
+                    ( { model
+                        | distribution =
+                            Just <|
+                                Dict.insert member text dist
+                      }
+                    , None
+                    )
+
+                Nothing ->
+                    ( model, None )
+
+        AddPaymentPress member payment ->
+            ( model, GetTime (AddPayment member payment) )
+
+        AddPayment member payment paydate ->
+            ( { model
+                | payentries =
+                    Dict.insert paydate
+                        { id = Nothing
+                        , user = member
+                        , description = "payment"
+                        , paymentdate = paydate
+                        , duration = payment
+                        }
+                        model.payentries
+              }
+            , None
+            )
 
         DonePress ->
             ( model, Done )
