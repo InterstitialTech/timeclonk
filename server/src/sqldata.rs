@@ -1,7 +1,7 @@
 use crate::data::{
-  ChangeEmail, ChangePassword, ListProject, LoginData, Project, ProjectEdit, ProjectMember,
-  ProjectTime, SaveProject, SaveProjectEdit, SaveProjectTime, SaveTimeEntry, SavedProject,
-  SavedProjectEdit, TimeEntry, User,
+  ChangeEmail, ChangePassword, ListProject, LoginData, PayEntry, Project, ProjectEdit,
+  ProjectMember, ProjectTime, SavePayEntry, SaveProject, SaveProjectEdit, SaveProjectTime,
+  SaveTimeEntry, SavedProject, SavedProjectEdit, TimeEntry, User,
 };
 use crate::util::{is_token_expired, now};
 use barrel::backend::Sqlite;
@@ -164,6 +164,34 @@ pub fn udpate1() -> Migration {
   m
 }
 
+pub fn udpate2() -> Migration {
+  let mut m = Migration::new();
+
+  // timeclonk specific tables.
+
+  m.drop_table("payentry");
+
+  m.create_table("payentry", |t| {
+    t.add_column(
+      "id",
+      types::integer()
+        .primary(true)
+        .increments(true)
+        .nullable(false),
+    );
+    t.add_column("project", types::foreign("project", "id").nullable(false));
+    t.add_column("user", types::foreign("user", "id").nullable(false));
+    t.add_column("description", types::text().nullable(false));
+    t.add_column("duration", types::integer().nullable(false));
+    t.add_column("paymentdate", types::integer().nullable(false));
+    t.add_column("createdate", types::integer().nullable(false));
+    t.add_column("changeddate", types::integer().nullable(false));
+    t.add_column("creator", types::foreign("user", "id").nullable(false));
+  });
+
+  m
+}
+
 pub fn get_single_value(conn: &Connection, name: &str) -> Result<Option<String>, Box<dyn Error>> {
   match conn.query_row(
     "select value from singlevalue where name = ?1",
@@ -208,6 +236,12 @@ pub fn dbinit(dbfile: &Path, token_expiration_ms: i64) -> Result<(), Box<dyn Err
     info!("udpate1");
     conn.execute_batch(udpate1().make::<Sqlite>().as_str())?;
     set_single_value(&conn, "migration_level", "1")?;
+  }
+
+  if nlevel < 2 {
+    info!("udpate2");
+    conn.execute_batch(udpate2().make::<Sqlite>().as_str())?;
+    set_single_value(&conn, "migration_level", "2")?;
   }
 
   info!("db up to date.");
@@ -759,7 +793,7 @@ pub fn read_project_edit(
   })
 }
 
-pub fn timeentries(
+pub fn time_entries(
   conn: &Connection,
   uid: i64,
   projectid: i64,
@@ -792,6 +826,60 @@ pub fn timeentries(
   r
 }
 
+pub fn pay_entries(
+  conn: &Connection,
+  uid: i64,
+  projectid: i64,
+) -> Result<Vec<PayEntry>, Box<dyn Error>> {
+  let mut pstmt = conn.prepare(
+    "select  pe.id, pe.project, pe.user, pe.duration, pe.paymentdate, pe.description, pe.createdate, pe.changeddate, pe.creator
+          from payentry pe, projectmember pm where
+          pe.project = ?1 and
+          pe.project = pm.project and
+          pm.user = ?2",
+  )?;
+  let r = Ok(
+    pstmt
+      .query_map(params![projectid, uid], |row| {
+        Ok(PayEntry {
+          id: row.get(0)?,
+          project: row.get(1)?,
+          user: row.get(2)?,
+          duration: row.get(3)?,
+          paymentdate: row.get(4)?,
+          description: row.get(5)?,
+          createdate: row.get(6)?,
+          changeddate: row.get(7)?,
+          creator: row.get(8)?,
+        })
+      })?
+      .filter_map(|x| x.ok())
+      .collect(),
+  );
+  r
+}
+
+pub fn save_pay_entry(
+  conn: &Connection,
+  uid: i64,
+  spe: SavePayEntry,
+) -> Result<i64, Box<dyn Error>> {
+  let now = now()?;
+  conn.execute(
+    "insert into payentry (project, user, description, duration, paymentdate, createdate, changeddate, creator)
+     values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+    params![spe.project, spe.user, spe.description, spe.duration, spe.paymentdate, now, now, uid],
+  )?;
+  let id = conn.last_insert_rowid();
+  Ok(id)
+}
+
+// check for user membership before calling!
+pub fn delete_pay_entry(conn: &Connection, _uid: i64, peid: i64) -> Result<(), Box<dyn Error>> {
+  conn.execute("delete from payentry where id = ?1", params![peid])?;
+  Ok(())
+}
+
 pub fn is_project_member(
   conn: &Connection,
   uid: i64,
@@ -815,11 +903,13 @@ pub fn read_project_time(
 ) -> Result<ProjectTime, Box<dyn Error>> {
   let proj = read_project(conn, uid, projectid)?;
   let members = member_list(conn, uid, Some(projectid))?;
-  let timeentries = timeentries(conn, uid, projectid)?;
+  let timeentries = time_entries(conn, uid, projectid)?;
+  let payentries = pay_entries(conn, uid, projectid)?;
   Ok(ProjectTime {
     project: proj,
     members: members,
     timeentries: timeentries,
+    payentries: payentries,
   })
 }
 
@@ -856,6 +946,12 @@ pub fn save_project_time(
     }
     for id in spt.deletetimeentries {
       delete_time_entry(conn, uid, id)?;
+    }
+    for te in spt.savepayentries {
+      save_pay_entry(conn, uid, te)?;
+    }
+    for id in spt.deletepayentries {
+      delete_pay_entry(conn, uid, id)?;
     }
   }
 

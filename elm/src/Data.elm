@@ -145,10 +145,35 @@ type alias SaveTimeEntry =
     }
 
 
+type alias PayEntry =
+    { id : Int
+    , project : Int
+    , user : Int
+    , duration : Int
+    , paymentdate : Int
+    , description : String
+    , createdate : Int
+    , changeddate : Int
+    , creator : Int
+    }
+
+
+type alias SavePayEntry =
+    { id : Maybe Int
+    , project : Int
+    , user : Int
+    , duration : Int
+    , paymentdate : Int
+    , description : String
+    }
+
+
 type alias SaveProjectTime =
     { project : Int
     , savetimeentries : List SaveTimeEntry
     , deletetimeentries : List Int
+    , savepayentries : List SavePayEntry
+    , deletepayentries : List Int
     }
 
 
@@ -156,6 +181,7 @@ type alias ProjectTime =
     { project : Project
     , members : List ProjectMember
     , timeentries : List TimeEntry
+    , payentries : List PayEntry
     }
 
 
@@ -338,9 +364,39 @@ encodeSaveTimeEntry e =
             ]
 
 
+decodePayEntry : JD.Decoder PayEntry
+decodePayEntry =
+    JD.succeed PayEntry
+        |> andMap (JD.field "id" JD.int)
+        |> andMap (JD.field "project" JD.int)
+        |> andMap (JD.field "user" JD.int)
+        |> andMap (JD.field "duration" JD.int)
+        |> andMap (JD.field "paymentdate" JD.int)
+        |> andMap (JD.field "description" JD.string)
+        |> andMap (JD.field "createdate" JD.int)
+        |> andMap (JD.field "changeddate" JD.int)
+        |> andMap (JD.field "creator" JD.int)
+
+
+encodeSavePayEntry : SavePayEntry -> JE.Value
+encodeSavePayEntry e =
+    JE.object <|
+        (e.id
+            |> Maybe.map (\id -> (::) ( "id", JE.int id ))
+            |> Maybe.withDefault identity
+        )
+            [ ( "project", JE.int e.project )
+            , ( "user", JE.int e.user )
+            , ( "duration", JE.int e.duration )
+            , ( "paymentdate", JE.int e.paymentdate )
+            , ( "description", JE.string e.description )
+            ]
+
+
 decodeProjectTime : JD.Decoder ProjectTime
 decodeProjectTime =
     JD.succeed ProjectTime
         |> andMap (JD.field "project" <| decodeProject)
         |> andMap (JD.field "members" <| JD.list decodeProjectMember)
         |> andMap (JD.field "timeentries" <| JD.list decodeTimeEntry)
+        |> andMap (JD.field "payentries" <| JD.list decodePayEntry)

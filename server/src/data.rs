@@ -144,6 +144,8 @@ pub struct SaveProjectTime {
   pub project: i64,
   pub savetimeentries: Vec<SaveTimeEntry>,
   pub deletetimeentries: Vec<i64>,
+  pub savepayentries: Vec<SavePayEntry>,
+  pub deletepayentries: Vec<i64>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -151,4 +153,28 @@ pub struct ProjectTime {
   pub project: Project,
   pub members: Vec<ProjectMember>,
   pub timeentries: Vec<TimeEntry>,
+  pub payentries: Vec<PayEntry>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PayEntry {
+  pub id: i64,
+  pub project: i64,
+  pub user: i64,
+  pub duration: i64,
+  pub paymentdate: i64,
+  pub description: String,
+  pub createdate: i64,
+  pub changeddate: i64,
+  pub creator: i64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SavePayEntry {
+  pub id: Option<i64>,
+  pub project: i64,
+  pub user: i64,
+  pub duration: i64,
+  pub paymentdate: i64,
+  pub description: String,
 }

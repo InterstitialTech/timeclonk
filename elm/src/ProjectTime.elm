@@ -17,7 +17,7 @@ import SelectString
 import TangoColors as TC
 import TcCommon as TC
 import Time
-import TimeReporting as TR exposing (EditTimeEntry)
+import TimeReporting as TR exposing (EditPayEntry, EditTimeEntry)
 import Toop
 import Util
 import WindowKeys as WK
@@ -58,6 +58,8 @@ type alias Model =
     , description : String
     , timeentries : Dict Int EditTimeEntry
     , initialtimeentries : Dict Int EditTimeEntry
+    , payentries : Dict Int EditPayEntry
+    , initialpayentries : Dict Int EditPayEntry
     , focusstart : String
     , focusend : String
     , focusdescription : String
@@ -99,6 +101,25 @@ toSaveProjectTime model =
                 []
             |> List.map (toSaveTimeEntry model)
     , deletetimeentries = Dict.diff model.initialtimeentries model.timeentries |> Dict.keys
+    , savepayentries =
+        model.payentries
+            |> Dict.values
+            |> List.foldl
+                (\te saves ->
+                    case te.id |> Maybe.andThen (\id -> Dict.get id model.initialpayentries) of
+                        Just ite ->
+                            if te /= ite then
+                                te :: saves
+
+                            else
+                                saves
+
+                        Nothing ->
+                            te :: saves
+                )
+                []
+            |> List.map (toSavePayEntry model)
+    , deletepayentries = Dict.diff model.initialpayentries model.payentries |> Dict.keys
     }
 
 
@@ -109,6 +130,16 @@ toEditTimeEntry te =
     , description = te.description
     , startdate = te.startdate
     , enddate = te.enddate
+    }
+
+
+toEditPayEntry : Data.PayEntry -> EditPayEntry
+toEditPayEntry te =
+    { id = Just te.id
+    , user = te.user
+    , description = te.description
+    , paymentdate = te.paymentdate
+    , duration = te.duration
     }
 
 
@@ -123,10 +154,28 @@ toSaveTimeEntry model ete =
     }
 
 
+toSavePayEntry : Model -> EditPayEntry -> Data.SavePayEntry
+toSavePayEntry model ete =
+    { id = ete.id
+    , project = model.project.id
+    , user = ete.user
+    , description = ete.description
+    , paymentdate = ete.paymentdate
+    , duration = ete.duration
+    }
+
+
 toEteDict : List Data.TimeEntry -> Dict Int EditTimeEntry
 toEteDict te =
     te
         |> List.map (toEditTimeEntry >> (\ete -> ( ete.startdate, ete )))
+        |> Dict.fromList
+
+
+toEpeDict : List Data.PayEntry -> Dict Int EditPayEntry
+toEpeDict pe =
+    pe
+        |> List.map (toEditPayEntry >> (\epe -> ( epe.paymentdate, epe )))
         |> Dict.fromList
 
 
@@ -152,12 +201,17 @@ init pt =
     let
         ietes =
             toEteDict pt.timeentries
+
+        iepes =
+            toEpeDict pt.payentries
     in
     { project = pt.project
     , members = pt.members
     , description = ""
     , timeentries = ietes
     , initialtimeentries = ietes
+    , payentries = iepes
+    , initialpayentries = iepes
     , viewmode = Clonk
     , focusstart = ""
     , focusend = ""

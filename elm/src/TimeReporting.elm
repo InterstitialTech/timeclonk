@@ -17,6 +17,15 @@ type alias EditTimeEntry =
     }
 
 
+type alias EditPayEntry =
+    { id : Maybe Int
+    , user : Int
+    , description : String
+    , paymentdate : Int
+    , duration : Int
+    }
+
+
 millisToHours : Int -> String
 millisToHours millis =
     toFloat millis
