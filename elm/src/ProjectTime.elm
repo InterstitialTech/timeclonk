@@ -8,6 +8,7 @@ import Dict exposing (Dict)
 import Element as E exposing (Element)
 import Element.Background as EBk
 import Element.Border as EBd
+import Element.Events as EE
 import Element.Font as EF
 import Element.Input as EI
 import Element.Region
@@ -35,8 +36,14 @@ type Msg
     | ClonkOutTime Int
     | EteDescriptionChanged Int String
     | EteStartChanged Int String
-    | TestDateChanged Time.Zone String
+    | FocusDescriptionChanged String
+    | FocusStartChanged Time.Zone String
+    | FocusEndChanged Time.Zone String
     | SetViewMode ViewMode
+    | OnRowClick Time.Zone Int
+    | OnDistributionChanged String
+    | ClearDistribution
+    | CalcDistribution
     | Noop
 
 
@@ -51,7 +58,12 @@ type alias Model =
     , description : String
     , timeentries : Dict Int EditTimeEntry
     , initialtimeentries : Dict Int EditTimeEntry
-    , testdate : String
+    , focusstart : String
+    , focusend : String
+    , focusdescription : String
+    , focusrow : Maybe Int
+    , distributionhours : String
+    , distribution : Maybe (Dict Int Int)
     , viewmode : ViewMode
     }
 
@@ -147,7 +159,12 @@ init pt =
     , timeentries = ietes
     , initialtimeentries = ietes
     , viewmode = Clonk
-    , testdate = ""
+    , focusstart = ""
+    , focusend = ""
+    , focusdescription = ""
+    , focusrow = Nothing
+    , distributionhours = ""
+    , distribution = Nothing
     }
 
 
@@ -166,7 +183,7 @@ viewModeBar model =
                     { onPress = Just (SetViewMode vm), label = E.text text }
     in
     E.row [ E.width E.fill, E.spacing 8 ]
-        [ vbt Clonk "Clonk"
+        [ vbt Clonk "Clonks"
         , vbt Payment "Payments"
         ]
 
@@ -216,12 +233,13 @@ view ld size zone model =
                     { onPress = Just SavePress, label = E.text "save" }
                 ]
             , viewModeBar model
-            , EI.text [ E.width E.fill ]
-                { onChange = TestDateChanged zone
-                , text = model.testdate
-                , placeholder = Nothing
-                , label = EI.labelHidden "test date"
-                }
+
+            -- , EI.text [ E.width E.fill ]
+            --     { onChange = TestDateChanged zone
+            --     , text = model.testdate
+            --     , placeholder = Nothing
+            --     , label = EI.labelHidden "test date"
+            --     }
             ]
                 ++ (case model.viewmode of
                         Clonk ->
@@ -241,28 +259,67 @@ clonkview ld size zone model =
               , width = E.fill
               , view =
                     \te ->
-                        EI.text [ E.width E.fill ]
-                            { onChange = EteDescriptionChanged te.startdate
-                            , text = te.description
-                            , placeholder = Nothing
-                            , label = EI.labelHidden "task description"
-                            }
+                        let
+                            row =
+                                E.row [ EE.onClick <| OnRowClick zone te.startdate ] [ E.text te.description ]
+                        in
+                        if model.focusrow == Just te.startdate then
+                            E.column []
+                                [ row
+                                , EI.text [ E.width E.fill ]
+                                    { onChange = EteDescriptionChanged te.startdate
+                                    , text = te.description
+                                    , placeholder = Nothing
+                                    , label = EI.labelHidden "task description"
+                                    }
+                                ]
+
+                        else
+                            row
               }
             , { header = E.text "Start"
               , width = E.fill
-              , view = \te -> E.text <| Util.showTime zone (Time.millisToPosix te.startdate)
+              , view =
+                    \te ->
+                        let
+                            row =
+                                E.row [ EE.onClick <| OnRowClick zone te.startdate ] [ E.text <| Util.showTime zone (Time.millisToPosix te.startdate) ]
+                        in
+                        if model.focusrow == Just te.startdate then
+                            E.column []
+                                [ row
+                                , EI.text [ E.width E.fill ]
+                                    { onChange = FocusStartChanged zone
+                                    , text = model.focusstart
+                                    , placeholder = Nothing
+                                    , label = EI.labelHidden "task start date"
+                                    }
+                                ]
 
-              -- \te ->
-              --     EI.text [ E.width E.fill ]
-              --         { onChange = EteStartChanged te.startdate
-              --         , text = Util.showTime zone (Time.millisToPosix te.startdate)
-              --         , placeholder = Nothing
-              --         , label = EI.labelHidden "task start"
-              --         }
+                        else
+                            row
               }
             , { header = E.text "End"
               , width = E.fill
-              , view = \te -> E.text <| Util.showTime zone (Time.millisToPosix te.enddate)
+              , view =
+                    \te ->
+                        let
+                            row =
+                                E.row [ EE.onClick <| OnRowClick zone te.startdate ] [ E.text <| Util.showTime zone (Time.millisToPosix te.enddate) ]
+                        in
+                        if model.focusrow == Just te.startdate then
+                            E.column []
+                                [ row
+                                , EI.text [ E.width E.fill ]
+                                    { onChange = FocusEndChanged zone
+                                    , text = model.focusend
+                                    , placeholder = Nothing
+                                    , label = EI.labelHidden "task end date"
+                                    }
+                                ]
+
+                        else
+                            row
               }
             , { header = E.text "Duration"
               , width = E.shrink
@@ -301,8 +358,7 @@ payview : Data.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg
 payview ld size zone model =
     let
         tmpd =
-            Debug.log "tmpd" <|
-                TR.teamMillisPerDay (Dict.values model.timeentries)
+            TR.teamMillisPerDay (Dict.values model.timeentries)
     in
     [ E.table [ E.spacing 8, E.width E.fill ]
         { data = Dict.toList tmpd -- (date, Dict user millis)
@@ -347,14 +403,45 @@ payview ld size zone model =
         }
     , E.row [ E.width E.fill, E.spacing 8 ]
         [ EI.text [ E.width E.fill ]
-            { onChange = DescriptionChanged
-            , text = model.description
+            { onChange = OnDistributionChanged
+            , text = model.distributionhours
             , placeholder = Nothing
-            , label = EI.labelLeft [] <| E.text "Current Task:"
+            , label = EI.labelLeft [] <| E.text "Calc Distribution:"
             }
-        , EI.button Common.buttonStyle { onPress = Just ClonkInPress, label = E.text "Clonk In" }
-        , EI.button Common.buttonStyle { onPress = Just ClonkOutPress, label = E.text "Clonk Out" }
+        , EI.button Common.buttonStyle { onPress = Just CalcDistribution, label = E.text "calc" }
+        , EI.button Common.buttonStyle { onPress = Just ClearDistribution, label = E.text "x" }
         ]
+    , case model.distribution of
+        Just dist ->
+            let
+                md =
+                    model.members |> List.map (\m -> ( m.id, m )) |> Dict.fromList
+            in
+            E.table [ E.spacing 8, E.width E.fill ]
+                { data = dist |> Dict.toList
+                , columns =
+                    [ { header = E.text "User"
+                      , width = E.shrink
+                      , view =
+                            \( id, _ ) ->
+                                case Dict.get id md of
+                                    Just m ->
+                                        E.text m.name
+
+                                    Nothing ->
+                                        E.none
+                      }
+                    , { header = E.text "User"
+                      , width = E.shrink
+                      , view =
+                            \( _, millis ) ->
+                                E.text (R.round 2 (toFloat millis / (60 * 60 * 1000)))
+                      }
+                    ]
+                }
+
+        Nothing ->
+            E.none
     ]
 
 
@@ -440,12 +527,147 @@ update msg model ld =
             , None
             )
 
-        TestDateChanged zone s ->
-            let
-                _ =
-                    Debug.log "pt" (Util.parseTime zone s)
-            in
-            ( { model | testdate = s }, None )
+        OnRowClick zone i ->
+            if model.focusrow == Just i then
+                ( { model | focusrow = Nothing }, None )
+
+            else
+                case Dict.get i model.timeentries of
+                    Just te ->
+                        ( { model
+                            | focusrow = Just i
+                            , focusdescription = te.description
+                            , focusstart = Util.showTime zone (Time.millisToPosix te.startdate)
+                            , focusend = Util.showTime zone (Time.millisToPosix te.enddate)
+                          }
+                        , None
+                        )
+
+                    Nothing ->
+                        ( model, None )
+
+        FocusDescriptionChanged text ->
+            case model.focusrow of
+                Just startdate ->
+                    ( { model
+                        | timeentries =
+                            case Dict.get startdate model.timeentries of
+                                Just te ->
+                                    Dict.insert startdate { te | description = text } model.timeentries
+
+                                Nothing ->
+                                    model.timeentries
+                      }
+                    , None
+                    )
+
+                Nothing ->
+                    ( model, None )
+
+        FocusStartChanged zone text ->
+            case ( model.focusrow, Debug.log "parttimes" <| Util.parseTime zone text ) of
+                ( Just startdate, Ok (Just time) ) ->
+                    case Dict.get startdate model.timeentries of
+                        Just te ->
+                            let
+                                newtime =
+                                    Time.posixToMillis time
+                            in
+                            ( { model
+                                | timeentries =
+                                    Dict.insert newtime { te | startdate = newtime } model.timeentries
+                                        |> Dict.remove startdate
+                                , focusrow = Just <| newtime
+                                , focusstart = text
+                              }
+                            , None
+                            )
+
+                        Nothing ->
+                            ( { model | focusstart = text }, None )
+
+                _ ->
+                    ( { model | focusstart = text }, None )
+
+        FocusEndChanged zone text ->
+            case ( model.focusrow, Debug.log "parttimes" <| Util.parseTime zone text ) of
+                ( Just startdate, Ok (Just time) ) ->
+                    case Dict.get startdate model.timeentries of
+                        Just te ->
+                            let
+                                newtime =
+                                    Time.posixToMillis time
+                            in
+                            ( { model
+                                | timeentries =
+                                    Dict.insert startdate { te | enddate = newtime } model.timeentries
+                                , focusend = text
+                              }
+                            , None
+                            )
+
+                        Nothing ->
+                            ( { model | focusend = text }, None )
+
+                _ ->
+                    ( { model | focusend = text }, None )
+
+        OnDistributionChanged text ->
+            ( { model | distributionhours = text }, None )
+
+        ClearDistribution ->
+            ( { model | distributionhours = "", distribution = Nothing }, None )
+
+        CalcDistribution ->
+            case String.toFloat model.distributionhours of
+                Just hours ->
+                    let
+                        tmpd =
+                            TR.teamMillisPerDay (Dict.values model.timeentries)
+
+                        distmillis =
+                            round <|
+                                hours
+                                    * 60
+                                    * 60
+                                    * 1000
+
+                        dist =
+                            tmpd
+                                |> Dict.toList
+                                |> List.foldl
+                                    (\( date, day ) sum ->
+                                        let
+                                            daysum =
+                                                day |> Dict.values |> List.foldl (+) 0
+
+                                            sumsum =
+                                                sum |> Dict.values |> List.foldl (+) 0
+                                        in
+                                        if daysum + sumsum > distmillis then
+                                            -- do last-day distrib.
+                                            sum
+
+                                        else
+                                            day
+                                                |> Dict.toList
+                                                |> List.foldl
+                                                    (\( user, millis ) newsum ->
+                                                        case Dict.get user newsum of
+                                                            Just oldsum ->
+                                                                Dict.insert user (millis + oldsum) newsum
+
+                                                            Nothing ->
+                                                                Dict.insert user millis newsum
+                                                    )
+                                                    sum
+                                    )
+                                    Dict.empty
+                    in
+                    ( { model | distribution = Just dist }, None )
+
+                Nothing ->
+                    ( model, None )
 
         DonePress ->
             ( model, Done )
