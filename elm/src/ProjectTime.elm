@@ -431,7 +431,7 @@ payview ld size zone model =
                                     Nothing ->
                                         E.none
                       }
-                    , { header = E.text "User"
+                    , { header = E.text "Hours"
                       , width = E.shrink
                       , view =
                             \( _, millis ) ->
@@ -636,35 +636,112 @@ update msg model ld =
                             tmpd
                                 |> Dict.toList
                                 |> List.foldl
-                                    (\( date, day ) sum ->
+                                    (\( date, day ) ( sum, distamt ) ->
                                         let
+                                            _ =
+                                                Debug.log "( sum, distamt )" ( sum, distamt )
+
                                             daysum =
-                                                day |> Dict.values |> List.foldl (+) 0
+                                                Debug.log "daysum"
+                                                    (day |> Dict.values |> List.foldl (+) 0)
 
                                             sumsum =
-                                                sum |> Dict.values |> List.foldl (+) 0
+                                                Debug.log "sumsum"
+                                                    (sum |> Dict.values |> List.foldl (+) 0)
+
+                                            _ =
+                                                Debug.log "(daysum + sumsum , distamt) " ( daysum + sumsum, distamt )
                                         in
-                                        if daysum + sumsum > distmillis then
+                                        if daysum + sumsum > distamt then
                                             -- do last-day distrib.
-                                            sum
+                                            let
+                                                _ =
+                                                    Debug.log "lastday" sum
+
+                                                distbelowavg daylist sumdict badistamt =
+                                                    let
+                                                        _ =
+                                                            Debug.log "distbelowavg" ( daylist, sumdict, badistamt )
+
+                                                        ddsize =
+                                                            List.length daylist
+                                                    in
+                                                    if ddsize == 0 then
+                                                        -- not supposed to run out of users in this scenario.
+                                                        ( sumdict, badistamt )
+
+                                                    else
+                                                        let
+                                                            avg =
+                                                                Debug.log "avg" <|
+                                                                    badistamt
+                                                                        // ddsize
+
+                                                            ( outer_dd, outer_sd, outer_da ) =
+                                                                daylist
+                                                                    |> List.foldl
+                                                                        (\( user, millis ) ( dd, sd, da ) ->
+                                                                            if millis < avg then
+                                                                                ( dd
+                                                                                , sd
+                                                                                    |> Dict.get user
+                                                                                    |> Maybe.map (\amt -> amt + millis)
+                                                                                    |> Maybe.withDefault millis
+                                                                                    |> (\ms -> Dict.insert user ms sd)
+                                                                                , da - millis
+                                                                                )
+
+                                                                            else
+                                                                                ( ( user, millis ) :: dd
+                                                                                , sd
+                                                                                , da
+                                                                                )
+                                                                        )
+                                                                        ( [], sumdict, badistamt )
+                                                        in
+                                                        if List.length outer_dd == ddsize then
+                                                            -- dist evenly to all users and exit.
+                                                            ( List.foldl
+                                                                (\user sd ->
+                                                                    sd
+                                                                        |> Dict.get user
+                                                                        |> Maybe.map (\amt -> amt + avg)
+                                                                        |> Maybe.withDefault avg
+                                                                        |> (\ms -> Dict.insert user ms sd)
+                                                                )
+                                                                sumdict
+                                                                (List.map Tuple.first outer_dd)
+                                                            , 0
+                                                            )
+
+                                                        else if outer_da == 0 then
+                                                            ( outer_sd, 0 )
+
+                                                        else
+                                                            distbelowavg outer_dd outer_sd outer_da
+                                            in
+                                            distbelowavg (Dict.toList day) sum distamt
 
                                         else
-                                            day
-                                                |> Dict.toList
-                                                |> List.foldl
-                                                    (\( user, millis ) newsum ->
-                                                        case Dict.get user newsum of
-                                                            Just oldsum ->
-                                                                Dict.insert user (millis + oldsum) newsum
+                                            Debug.log "fullday: "
+                                                ( day
+                                                    |> Dict.toList
+                                                    |> List.foldl
+                                                        (\( user, millis ) newsum ->
+                                                            case Dict.get user newsum of
+                                                                Just oldsum ->
+                                                                    Dict.insert user (millis + oldsum) newsum
 
-                                                            Nothing ->
-                                                                Dict.insert user millis newsum
-                                                    )
-                                                    sum
+                                                                Nothing ->
+                                                                    Dict.insert user millis newsum
+                                                        )
+                                                        sum
+                                                , distamt - daysum
+                                                )
                                     )
-                                    Dict.empty
+                                    ( Dict.empty, distmillis )
                     in
-                    ( { model | distribution = Just dist }, None )
+                    ( { model | distribution = Just (Tuple.first dist) }, None )
 
                 Nothing ->
                     ( model, None )
