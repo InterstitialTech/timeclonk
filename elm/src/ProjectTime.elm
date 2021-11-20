@@ -883,17 +883,17 @@ update msg model ld =
                                                 -- distribute 2 hours between them, then each would get 1 hour of pay.
                                                 distbelowavg daylist sumdict badistamt =
                                                     let
-                                                        ddsize =
+                                                        dl_len =
                                                             List.length daylist
                                                     in
-                                                    if ddsize == 0 then
+                                                    if dl_len == 0 then
                                                         -- not supposed to run out of users in this scenario.
                                                         ( sumdict, badistamt )
 
                                                     else
                                                         let
                                                             avg =
-                                                                badistamt // ddsize
+                                                                badistamt // dl_len
 
                                                             ( outer_dd, outer_sd, outer_da ) =
                                                                 daylist
@@ -917,7 +917,7 @@ update msg model ld =
                                                                         )
                                                                         ( [], sumdict, badistamt )
                                                         in
-                                                        if List.length outer_dd == ddsize then
+                                                        if List.length outer_dd == dl_len then
                                                             -- dist evenly to all users and exit.
                                                             ( List.foldl
                                                                 (\user sd ->
