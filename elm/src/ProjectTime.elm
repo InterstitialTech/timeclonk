@@ -806,71 +806,61 @@ update msg model ld =
             case String.toFloat model.distributionhours of
                 Just hours ->
                     let
+                        -- total millis per day for each member.
                         utmpd =
-                            Debug.log "utmpd" <|
-                                TR.teamMillisPerDay (Dict.values model.timeentries)
+                            TR.teamMillisPerDay (Dict.values model.timeentries)
 
+                        -- total pay so far for each member.
                         paytotes =
-                            Debug.log "paytotes: "
-                                (TR.payTotes (Dict.values model.payentries))
+                            TR.payTotes (Dict.values model.payentries)
 
                         ( tmpd, fintotes ) =
-                            Debug.log "( tmpd, fintotes )"
-                                (utmpd
-                                    |> Dict.toList
-                                    |> List.foldl
-                                        -- while ptotes is > 0, remove time from utime and ptotes.
-                                        (\( date, utime ) ( outtime, ptotes ) ->
-                                            let
-                                                ( upday, newtotes ) =
-                                                    utime
-                                                        |> Dict.toList
-                                                        |> List.foldl
-                                                            -- for each day subtract user time from the payment totals.
-                                                            (\( user, time ) ( utim, ptots ) ->
-                                                                case Dict.get user ptots of
-                                                                    Just ptime ->
-                                                                        if ptime - time < 0 then
-                                                                            ( Dict.insert user (time - ptime) utim
-                                                                            , Dict.insert user 0 ptots
-                                                                            )
+                            utmpd
+                                |> Dict.toList
+                                |> List.foldl
+                                    -- while ptotes is > 0, remove time from utime and ptotes.
+                                    (\( date, utime ) ( outtime, ptotes ) ->
+                                        let
+                                            ( upday, newtotes ) =
+                                                utime
+                                                    |> Dict.toList
+                                                    |> List.foldl
+                                                        -- for each day subtract user time from the payment totals.
+                                                        (\( user, time ) ( utim, ptots ) ->
+                                                            case Dict.get user ptots of
+                                                                Just ptime ->
+                                                                    if ptime - time < 0 then
+                                                                        ( Dict.insert user (time - ptime) utim
+                                                                        , Dict.insert user 0 ptots
+                                                                        )
 
-                                                                        else
-                                                                            ( Dict.remove user utim
-                                                                            , Dict.insert user (ptime - time) ptots
-                                                                            )
+                                                                    else
+                                                                        ( Dict.remove user utim
+                                                                        , Dict.insert user (ptime - time) ptots
+                                                                        )
 
-                                                                    Nothing ->
-                                                                        ( utim, ptots )
-                                                            )
-                                                            ( utime, ptotes )
-                                            in
-                                            ( ( date, upday ) :: outtime, newtotes )
-                                        )
-                                        ( [], paytotes )
-                                    |> (\( t, tots ) ->
-                                            ( t |> List.filter (\( i, d ) -> not <| Dict.isEmpty d) |> Dict.fromList, tots )
-                                       )
-                                )
+                                                                Nothing ->
+                                                                    ( utim, ptots )
+                                                        )
+                                                        ( utime, ptotes )
+                                        in
+                                        ( ( date, upday ) :: outtime, newtotes )
+                                    )
+                                    ( [], paytotes )
+                                |> (\( t, tots ) ->
+                                        ( t |> List.filter (\( i, d ) -> not <| Dict.isEmpty d) |> Dict.fromList, tots )
+                                   )
 
-                        totespay =
-                            Debug.log "totespay" <|
-                                List.foldl (+) 0 (Dict.values paytotes)
-
-                        watpay =
-                            Debug.log "watpay" <|
-                                List.foldl (+) 0 (Dict.values fintotes)
-
+                        -- total millseconds to distribute this time.
                         distmillis =
-                            Debug.log "distmillis" <|
-                                (round <|
-                                    hours
-                                        * 60
-                                        * 60
-                                        * 1000
-                                )
+                            round <|
+                                hours
+                                    * 60
+                                    * 60
+                                    * 1000
 
-                        -- + totespay
+                        -- add to pay totals for each user until we run out of pay.
+                        -- on the last day split the remainder between users with a 'below average' algo
                         dist =
                             tmpd
                                 |> Dict.toList
@@ -886,6 +876,11 @@ update msg model ld =
                                         if daysum + sumsum > distamt then
                                             -- do last-day distrib.
                                             let
+                                                -- 'below average' distribution.  the shortest time periods get paid first.
+                                                -- once all users are 'above average' then the money is split evenly
+                                                -- between them.
+                                                -- for example, if we have two users who wored 3 and 5 hours, and we want to
+                                                -- distribute 2 hours between them, then each would get 1 hour of pay.
                                                 distbelowavg daylist sumdict badistamt =
                                                     let
                                                         ddsize =
