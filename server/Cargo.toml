@@ -1,5 +1,5 @@
 [package]
-name = "server"
+name = "timeclonk-server"
 version = "0.1.0"
 authors = ["Ben Burdette <ben@interstitial.coop>"]
 edition = "2018"

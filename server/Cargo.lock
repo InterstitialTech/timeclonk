@@ -2208,38 +2208,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "server"
-version = "0.1.0"
-dependencies = [
- "actix-cors",
- "actix-files",
- "actix-session",
- "actix-web",
- "barrel",
- "base64 0.2.1",
- "chrono",
- "clap",
- "crypto-hash",
- "either",
- "env_logger",
- "futures 0.1.31",
- "json",
- "lettre",
- "lettre_email",
- "log",
- "rand 0.5.6",
- "rusqlite",
- "serde",
- "serde_derive",
- "serde_json",
- "simple-error",
- "time 0.1.43",
- "timer",
- "toml",
- "uuid 0.8.2",
-]
-
-[[package]]
 name = "sha-1"
 version = "0.9.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2497,6 +2465,38 @@ dependencies = [
  "quote",
  "standback",
  "syn",
+]
+
+[[package]]
+name = "timeclonk-server"
+version = "0.1.0"
+dependencies = [
+ "actix-cors",
+ "actix-files",
+ "actix-session",
+ "actix-web",
+ "barrel",
+ "base64 0.2.1",
+ "chrono",
+ "clap",
+ "crypto-hash",
+ "either",
+ "env_logger",
+ "futures 0.1.31",
+ "json",
+ "lettre",
+ "lettre_email",
+ "log",
+ "rand 0.5.6",
+ "rusqlite",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "simple-error",
+ "time 0.1.43",
+ "timer",
+ "toml",
+ "uuid 0.8.2",
 ]
 
 [[package]]
