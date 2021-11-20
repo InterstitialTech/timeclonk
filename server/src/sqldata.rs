@@ -142,34 +142,11 @@ pub fn udpate1() -> Migration {
     t.add_column("createdate", types::integer().nullable(false));
     t.add_column("changeddate", types::integer().nullable(false));
     t.add_column("creator", types::foreign("user", "id").nullable(false));
-  });
-
-  m.create_table("payentry", |t| {
-    t.add_column(
-      "id",
-      types::integer()
-        .primary(true)
-        .increments(true)
-        .nullable(false),
+    t.add_index(
+      "timeentryunq",
+      types::index(vec!["user", "startdate"]).unique(true),
     );
-    t.add_column("project", types::foreign("project", "id").nullable(false));
-    t.add_column("user", types::foreign("user", "id").nullable(false));
-    t.add_column("description", types::text().nullable(false));
-    t.add_column("paymentdate", types::integer().nullable(false));
-    t.add_column("createdate", types::integer().nullable(false));
-    t.add_column("changeddate", types::integer().nullable(false));
-    t.add_column("creator", types::foreign("user", "id").nullable(false));
   });
-
-  m
-}
-
-pub fn udpate2() -> Migration {
-  let mut m = Migration::new();
-
-  // timeclonk specific tables.
-
-  m.drop_table("payentry");
 
   m.create_table("payentry", |t| {
     t.add_column(
@@ -187,6 +164,10 @@ pub fn udpate2() -> Migration {
     t.add_column("createdate", types::integer().nullable(false));
     t.add_column("changeddate", types::integer().nullable(false));
     t.add_column("creator", types::foreign("user", "id").nullable(false));
+    t.add_index(
+      "payentryunq",
+      types::index(vec!["user", "paymentdate"]).unique(true),
+    );
   });
 
   m
@@ -238,12 +219,6 @@ pub fn dbinit(dbfile: &Path, token_expiration_ms: i64) -> Result<(), Box<dyn Err
     set_single_value(&conn, "migration_level", "1")?;
   }
 
-  if nlevel < 2 {
-    info!("udpate2");
-    conn.execute_batch(udpate2().make::<Sqlite>().as_str())?;
-    set_single_value(&conn, "migration_level", "2")?;
-  }
-
   info!("db up to date.");
 
   purge_login_tokens(&conn, token_expiration_ms)?;
@@ -262,10 +237,6 @@ pub fn new_user(
   registration_key: String,
 ) -> Result<i64, Box<dyn Error>> {
   let conn = connection_open(dbfile)?;
-
-  // let usernoteid = note_id(&conn, "system", "user")?;
-  // let publicnoteid = note_id(&conn, "system", "public")?;
-  // let systemid = user_id(&conn, "system")?;
 
   let now = now()?;
 
@@ -865,11 +836,26 @@ pub fn save_pay_entry(
   spe: SavePayEntry,
 ) -> Result<i64, Box<dyn Error>> {
   let now = now()?;
-  conn.execute(
-    "insert into payentry (project, user, description, duration, paymentdate, createdate, changeddate, creator)
-     values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-    params![spe.project, spe.user, spe.description, spe.duration, spe.paymentdate, now, now, uid],
-  )?;
+  match spe.id {
+    Some(id) =>
+        conn.execute(
+          "update payentry set
+            project =?1
+            , user =?2
+            , description =?3
+            , duration =?4
+            , paymentdate =?5
+            , changeddate =?6
+              where id = ?7 ",
+          params![spe.project, spe.user, spe.description, spe.duration, spe.paymentdate, now, id],
+        )?,
+    None =>
+      conn.execute(
+        "insert into payentry (project, user, description, duration, paymentdate, createdate, changeddate, creator)
+         values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        params![spe.project, spe.user, spe.description, spe.duration, spe.paymentdate, now, now, uid],
+      )?,
+  };
   let id = conn.last_insert_rowid();
   Ok(id)
 }
@@ -919,11 +905,26 @@ pub fn save_time_entry(
   spt: SaveTimeEntry,
 ) -> Result<i64, Box<dyn Error>> {
   let now = now()?;
-  conn.execute(
-    "insert into timeentry (project, user, description, startdate, enddate, createdate, changeddate, creator)
-     values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-    params![spt.project, spt.user, spt.description, spt.startdate, spt.enddate, now, now, uid],
-  )?;
+  match spt.id {
+    Some(id) =>
+      conn.execute(
+        "update timeentry set
+            project =?1,
+            user = ?2,
+            description = ?3,
+            startdate = ?4,
+            enddate = ?5,
+            changeddate = ?6,
+          where id = ?7",
+        params![spt.project, spt.user, spt.description, spt.startdate, spt.enddate, now, id],
+      )?,
+    None =>
+      conn.execute(
+        "insert into timeentry (project, user, description, startdate, enddate, createdate, changeddate, creator)
+         values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        params![spt.project, spt.user, spt.description, spt.startdate, spt.enddate, now, now, uid],
+      )?,
+  };
   let id = conn.last_insert_rowid();
   Ok(id)
 }
@@ -945,12 +946,14 @@ pub fn save_project_time(
       save_time_entry(conn, uid, te)?;
     }
     for id in spt.deletetimeentries {
+      println!("deletetimeentry: {}, {}", uid, id);
       delete_time_entry(conn, uid, id)?;
     }
     for te in spt.savepayentries {
       save_pay_entry(conn, uid, te)?;
     }
     for id in spt.deletepayentries {
+      println!("deletepayentry: {}, {}", uid, id);
       delete_pay_entry(conn, uid, id)?;
     }
   }

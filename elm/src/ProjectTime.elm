@@ -34,6 +34,8 @@ type Msg
     | ClonkOutPress
     | ClonkInTime Int
     | ClonkOutTime Int
+    | DeleteClonk Int
+    | DeletePay Int
     | EteDescriptionChanged Int String
     | EteStartChanged Int String
     | FocusDescriptionChanged String
@@ -67,9 +69,9 @@ type alias Model =
     , focusend : String
     , focusdescription : String
     , focusrow : Maybe Int
+    , focuspay : String
     , distributionhours : String
     , distribution : Maybe (Dict Int String)
-    , paymenthours : String
     , viewmode : ViewMode
     }
 
@@ -91,7 +93,7 @@ toSaveProjectTime model =
             |> Dict.values
             |> List.foldl
                 (\te saves ->
-                    case te.id |> Maybe.andThen (\id -> Dict.get id model.initialtimeentries) of
+                    case Dict.get te.startdate model.initialtimeentries of
                         Just ite ->
                             if te /= ite then
                                 te :: saves
@@ -104,26 +106,26 @@ toSaveProjectTime model =
                 )
                 []
             |> List.map (toSaveTimeEntry model)
-    , deletetimeentries = Dict.diff model.initialtimeentries model.timeentries |> Dict.keys
+    , deletetimeentries = Dict.diff model.initialtimeentries model.timeentries |> Dict.values |> List.filterMap .id
     , savepayentries =
         model.payentries
             |> Dict.values
             |> List.foldl
-                (\te saves ->
-                    case te.id |> Maybe.andThen (\id -> Dict.get id model.initialpayentries) of
-                        Just ite ->
-                            if te /= ite then
-                                te :: saves
+                (\pe saves ->
+                    case Dict.get pe.paymentdate model.initialpayentries of
+                        Just ipe ->
+                            if pe /= ipe then
+                                pe :: saves
 
                             else
                                 saves
 
                         Nothing ->
-                            te :: saves
+                            pe :: saves
                 )
                 []
             |> List.map (toSavePayEntry model)
-    , deletepayentries = Dict.diff model.initialpayentries model.payentries |> Dict.keys
+    , deletepayentries = Dict.diff model.initialpayentries model.payentries |> Dict.values |> List.filterMap .id
     }
 
 
@@ -224,9 +226,9 @@ init pt =
     , focusend = ""
     , focusdescription = ""
     , focusrow = Nothing
+    , focuspay = ""
     , distributionhours = ""
     , distribution = Nothing
-    , paymenthours = ""
     }
 
 
@@ -387,6 +389,19 @@ clonkview ld size zone model =
               , width = E.shrink
               , view = \te -> E.text <| R.round 2 (toFloat (te.enddate - te.startdate) / (1000.0 * 60.0 * 60.0))
               }
+            , { header = E.text ""
+              , width = E.shrink
+              , view =
+                    \te ->
+                        if model.focusrow == Just te.startdate then
+                            EI.button Common.buttonStyle
+                                { onPress = Just (DeleteClonk te.startdate)
+                                , label = E.text "delete"
+                                }
+
+                        else
+                            E.none
+              }
             ]
         }
     , E.row [ E.width E.fill, E.spacing 8 ]
@@ -416,6 +431,11 @@ clonkview ld size zone model =
     ]
 
 
+type Entry
+    = TimeDay (Dict Int Int)
+    | PayEntry EditPayEntry
+
+
 payview : Data.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
 payview ld size zone model =
     let
@@ -423,23 +443,25 @@ payview ld size zone model =
             TR.teamMillisPerDay (Dict.values model.timeentries)
     in
     [ E.table [ E.spacing 8, E.width E.fill ]
-        { data = Dict.toList tmpd -- (date, Dict user millis)
+        { data = Dict.toList <| Dict.union (Dict.map (\i v -> TimeDay v) tmpd) (Dict.map (\i v -> PayEntry v) model.payentries)
         , columns =
             { header = E.text "date"
             , width = E.fill
             , view =
-                \( date, ums ) ->
+                \( date, _ ) ->
                     date
                         |> Time.millisToPosix
                         |> Calendar.fromPosix
                         |> (\cdate ->
-                                E.text <|
-                                    String.fromInt (Calendar.getYear cdate)
-                                        ++ "/"
-                                        ++ (cdate |> Calendar.getMonth |> Calendar.monthToInt |> String.fromInt)
-                                        ++ "/"
-                                        ++ String.fromInt
-                                            (Calendar.getDay cdate)
+                                E.row [ EE.onClick <| OnRowClick zone date ]
+                                    [ E.text <|
+                                        String.fromInt (Calendar.getYear cdate)
+                                            ++ "/"
+                                            ++ (cdate |> Calendar.getMonth |> Calendar.monthToInt |> String.fromInt)
+                                            ++ "/"
+                                            ++ String.fromInt
+                                                (Calendar.getDay cdate)
+                                    ]
                            )
             }
                 :: (model.members
@@ -448,17 +470,55 @@ payview ld size zone model =
                                 { header = E.text member.name
                                 , width = E.fill
                                 , view =
-                                    \( date, ums ) ->
-                                        case Dict.get member.id ums of
-                                            Just millis ->
-                                                if millis > 0 then
-                                                    E.text <| R.round 2 (toFloat millis / (1000.0 * 60.0 * 60.0))
+                                    \( date, e ) ->
+                                        case e of
+                                            TimeDay ums ->
+                                                case Dict.get member.id ums of
+                                                    Just millis ->
+                                                        if millis > 0 then
+                                                            E.row [ EE.onClick <| OnRowClick zone date ]
+                                                                [ E.text <| R.round 2 (toFloat millis / (1000.0 * 60.0 * 60.0))
+                                                                ]
+
+                                                        else
+                                                            E.none
+
+                                                    Nothing ->
+                                                        E.none
+
+                                            PayEntry epe ->
+                                                if epe.user == member.id then
+                                                    let
+                                                        s =
+                                                            R.round 2 (toFloat epe.duration / (1000.0 * 60.0 * 60.0))
+
+                                                        p =
+                                                            E.el [ EF.bold ] <| E.text <| s ++ " pmt"
+                                                    in
+                                                    if model.focusrow == Just date then
+                                                        E.column []
+                                                            [ E.row [ EE.onClick <| OnRowClick zone date ]
+                                                                [ p
+                                                                ]
+                                                            , EI.text [ E.width E.fill ]
+                                                                { onChange = OnPaymentChanged date
+                                                                , text = s
+                                                                , placeholder = Nothing
+                                                                , label = EI.labelHidden "payment"
+                                                                }
+                                                            , EI.button Common.buttonStyle
+                                                                { onPress = Just <| DeletePay date
+                                                                , label = E.text "delete"
+                                                                }
+                                                            ]
+
+                                                    else
+                                                        E.row [ EE.onClick <| OnRowClick zone date ]
+                                                            [ p
+                                                            ]
 
                                                 else
                                                     E.none
-
-                                            Nothing ->
-                                                E.none
                                 }
                             )
                    )
@@ -617,24 +677,58 @@ update msg model ld =
             , None
             )
 
+        DeleteClonk startdate ->
+            ( { model
+                | timeentries =
+                    Dict.remove startdate model.timeentries
+              }
+            , None
+            )
+
+        DeletePay startdate ->
+            ( { model
+                | payentries =
+                    Dict.remove startdate model.payentries
+              }
+            , None
+            )
+
         OnRowClick zone i ->
             if model.focusrow == Just i then
                 ( { model | focusrow = Nothing }, None )
 
             else
-                case Dict.get i model.timeentries of
-                    Just te ->
-                        ( { model
-                            | focusrow = Just i
-                            , focusdescription = te.description
-                            , focusstart = Util.showTime zone (Time.millisToPosix te.startdate)
-                            , focusend = Util.showTime zone (Time.millisToPosix te.enddate)
-                          }
-                        , None
-                        )
+                case model.viewmode of
+                    Clonk ->
+                        case Dict.get i model.timeentries of
+                            Just te ->
+                                ( { model
+                                    | focusrow = Just i
+                                    , focusdescription = te.description
+                                    , focusstart = Util.showTime zone (Time.millisToPosix te.startdate)
+                                    , focusend = Util.showTime zone (Time.millisToPosix te.enddate)
+                                  }
+                                , None
+                                )
 
-                    Nothing ->
-                        ( model, None )
+                            Nothing ->
+                                ( model, None )
+
+                    Payment ->
+                        case Dict.get i model.payentries of
+                            Just pe ->
+                                ( { model
+                                    | focusrow = Just i
+                                    , focusdescription = ""
+                                    , focusstart = ""
+                                    , focusend = ""
+                                    , focuspay = R.round 2 (toFloat pe.duration / (1000.0 * 60.0 * 60.0))
+                                  }
+                                , None
+                                )
+
+                            Nothing ->
+                                ( model, None )
 
         FocusDescriptionChanged text ->
             case model.focusrow of
@@ -655,7 +749,7 @@ update msg model ld =
                     ( model, None )
 
         FocusStartChanged zone text ->
-            case ( model.focusrow, Debug.log "parttimes" <| Util.parseTime zone text ) of
+            case ( model.focusrow, Util.parseTime zone text ) of
                 ( Just startdate, Ok (Just time) ) ->
                     case Dict.get startdate model.timeentries of
                         Just te ->
@@ -680,7 +774,7 @@ update msg model ld =
                     ( { model | focusstart = text }, None )
 
         FocusEndChanged zone text ->
-            case ( model.focusrow, Debug.log "parttimes" <| Util.parseTime zone text ) of
+            case ( model.focusrow, Util.parseTime zone text ) of
                 ( Just startdate, Ok (Just time) ) ->
                     case Dict.get startdate model.timeentries of
                         Just te ->
@@ -728,31 +822,17 @@ update msg model ld =
                                 |> List.foldl
                                     (\( date, day ) ( sum, distamt ) ->
                                         let
-                                            _ =
-                                                Debug.log "( sum, distamt )" ( sum, distamt )
-
                                             daysum =
-                                                Debug.log "daysum"
-                                                    (day |> Dict.values |> List.foldl (+) 0)
+                                                day |> Dict.values |> List.foldl (+) 0
 
                                             sumsum =
-                                                Debug.log "sumsum"
-                                                    (sum |> Dict.values |> List.foldl (+) 0)
-
-                                            _ =
-                                                Debug.log "(daysum + sumsum , distamt) " ( daysum + sumsum, distamt )
+                                                sum |> Dict.values |> List.foldl (+) 0
                                         in
                                         if daysum + sumsum > distamt then
                                             -- do last-day distrib.
                                             let
-                                                _ =
-                                                    Debug.log "lastday" sum
-
                                                 distbelowavg daylist sumdict badistamt =
                                                     let
-                                                        _ =
-                                                            Debug.log "distbelowavg" ( daylist, sumdict, badistamt )
-
                                                         ddsize =
                                                             List.length daylist
                                                     in
@@ -763,9 +843,7 @@ update msg model ld =
                                                     else
                                                         let
                                                             avg =
-                                                                Debug.log "avg" <|
-                                                                    badistamt
-                                                                        // ddsize
+                                                                badistamt // ddsize
 
                                                             ( outer_dd, outer_sd, outer_da ) =
                                                                 daylist
@@ -813,21 +891,20 @@ update msg model ld =
                                             distbelowavg (Dict.toList day) sum distamt
 
                                         else
-                                            Debug.log "fullday: "
-                                                ( day
-                                                    |> Dict.toList
-                                                    |> List.foldl
-                                                        (\( user, millis ) newsum ->
-                                                            case Dict.get user newsum of
-                                                                Just oldsum ->
-                                                                    Dict.insert user (millis + oldsum) newsum
+                                            ( day
+                                                |> Dict.toList
+                                                |> List.foldl
+                                                    (\( user, millis ) newsum ->
+                                                        case Dict.get user newsum of
+                                                            Just oldsum ->
+                                                                Dict.insert user (millis + oldsum) newsum
 
-                                                                Nothing ->
-                                                                    Dict.insert user millis newsum
-                                                        )
-                                                        sum
-                                                , distamt - daysum
-                                                )
+                                                            Nothing ->
+                                                                Dict.insert user millis newsum
+                                                    )
+                                                    sum
+                                            , distamt - daysum
+                                            )
                                     )
                                     ( Dict.empty, distmillis )
                     in
