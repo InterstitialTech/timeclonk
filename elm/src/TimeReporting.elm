@@ -134,3 +134,18 @@ teamMillisPerDay etes =
                         Dict.insert mlis (Dict.insert mpd.user mpd.millis um) dict
             )
             e
+
+
+payTotes : List EditPayEntry -> Dict Int Int
+payTotes entries =
+    entries
+        |> List.foldl
+            (\entry sums ->
+                case Dict.get entry.user sums of
+                    Just sum ->
+                        Dict.insert entry.user (sum + entry.duration) sums
+
+                    Nothing ->
+                        Dict.insert entry.user entry.duration sums
+            )
+            Dict.empty

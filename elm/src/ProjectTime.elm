@@ -806,16 +806,71 @@ update msg model ld =
             case String.toFloat model.distributionhours of
                 Just hours ->
                     let
-                        tmpd =
-                            TR.teamMillisPerDay (Dict.values model.timeentries)
+                        utmpd =
+                            Debug.log "utmpd" <|
+                                TR.teamMillisPerDay (Dict.values model.timeentries)
+
+                        paytotes =
+                            Debug.log "paytotes: "
+                                (TR.payTotes (Dict.values model.payentries))
+
+                        ( tmpd, fintotes ) =
+                            Debug.log "( tmpd, fintotes )"
+                                (utmpd
+                                    |> Dict.toList
+                                    |> List.foldl
+                                        -- while ptotes is > 0, remove time from utime and ptotes.
+                                        (\( date, utime ) ( outtime, ptotes ) ->
+                                            let
+                                                ( upday, newtotes ) =
+                                                    utime
+                                                        |> Dict.toList
+                                                        |> List.foldl
+                                                            -- for each day subtract user time from the payment totals.
+                                                            (\( user, time ) ( utim, ptots ) ->
+                                                                case Dict.get user ptots of
+                                                                    Just ptime ->
+                                                                        if ptime - time < 0 then
+                                                                            ( Dict.insert user (time - ptime) utim
+                                                                            , Dict.insert user 0 ptots
+                                                                            )
+
+                                                                        else
+                                                                            ( Dict.remove user utim
+                                                                            , Dict.insert user (ptime - time) ptots
+                                                                            )
+
+                                                                    Nothing ->
+                                                                        ( utim, ptots )
+                                                            )
+                                                            ( utime, ptotes )
+                                            in
+                                            ( ( date, upday ) :: outtime, newtotes )
+                                        )
+                                        ( [], paytotes )
+                                    |> (\( t, tots ) ->
+                                            ( t |> List.filter (\( i, d ) -> not <| Dict.isEmpty d) |> Dict.fromList, tots )
+                                       )
+                                )
+
+                        totespay =
+                            Debug.log "totespay" <|
+                                List.foldl (+) 0 (Dict.values paytotes)
+
+                        watpay =
+                            Debug.log "watpay" <|
+                                List.foldl (+) 0 (Dict.values fintotes)
 
                         distmillis =
-                            round <|
-                                hours
-                                    * 60
-                                    * 60
-                                    * 1000
+                            Debug.log "distmillis" <|
+                                (round <|
+                                    hours
+                                        * 60
+                                        * 60
+                                        * 1000
+                                )
 
+                        -- + totespay
                         dist =
                             tmpd
                                 |> Dict.toList
