@@ -26,11 +26,10 @@ type alias EditPayEntry =
     }
 
 
-millisToHours : Int -> String
+millisToHours : Int -> Float
 millisToHours millis =
     toFloat millis
         / (1000 * 60 * 60)
-        |> R.round 2
 
 
 
@@ -147,5 +146,20 @@ payTotes entries =
 
                     Nothing ->
                         Dict.insert entry.user entry.duration sums
+            )
+            Dict.empty
+
+
+timeTotes : List EditTimeEntry -> Dict Int Int
+timeTotes entries =
+    entries
+        |> List.foldl
+            (\entry sums ->
+                case Dict.get entry.user sums of
+                    Just sum ->
+                        Dict.insert entry.user (sum + entry.enddate - entry.startdate) sums
+
+                    Nothing ->
+                        Dict.insert entry.user (entry.enddate - entry.startdate) sums
             )
             Dict.empty

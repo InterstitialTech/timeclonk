@@ -297,13 +297,6 @@ view ld size zone model =
                     { onPress = Just SavePress, label = E.text "save" }
                 ]
             , viewModeBar model
-
-            -- , EI.text [ E.width E.fill ]
-            --     { onChange = TestDateChanged zone
-            --     , text = model.testdate
-            --     , placeholder = Nothing
-            --     , label = EI.labelHidden "test date"
-            --     }
             ]
                 ++ (case model.viewmode of
                         Clonk ->
@@ -316,6 +309,32 @@ view ld size zone model =
 
 clonkview : Data.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
 clonkview ld size zone model =
+    let
+        teamhours =
+            model.timeentries |> Dict.values |> TR.totalMillis |> TR.millisToHours
+
+        myhours =
+            model.timeentries
+                |> Dict.values
+                |> List.filter (\te -> te.user == ld.userid)
+                |> TR.totalMillis
+                |> TR.millisToHours
+
+        paytotes =
+            model.payentries |> Dict.values |> TR.payTotes
+
+        mypay =
+            paytotes
+                |> Dict.get ld.userid
+                |> Maybe.withDefault 0
+                |> TR.millisToHours
+
+        teampay =
+            paytotes
+                |> Dict.values
+                |> List.foldl (+) 0
+                |> TR.millisToHours
+    in
     [ E.table [ E.spacing 8, E.width E.fill ]
         { data = model.timeentries |> Dict.values |> List.filter (\te -> te.user == ld.userid)
         , columns =
@@ -405,18 +424,12 @@ clonkview ld size zone model =
             ]
         }
     , E.row [ E.width E.fill, E.spacing 8 ]
-        [ E.text "team hours: "
-        , E.text <| (model.timeentries |> Dict.values |> TR.totalMillis |> TR.millisToHours)
+        [ E.text "team unpaid hours: "
+        , E.text <| R.round 2 <| teamhours - teampay
         ]
     , E.row [ E.width E.fill, E.spacing 8 ]
-        [ E.text "my hours: "
-        , E.text <|
-            (model.timeentries
-                |> Dict.values
-                |> List.filter (\te -> te.user == ld.userid)
-                |> TR.totalMillis
-                |> TR.millisToHours
-            )
+        [ E.text "my unpaid hours: "
+        , E.text <| R.round 2 <| myhours - mypay
         ]
     , E.row [ E.width E.fill, E.spacing 8 ]
         [ EI.text [ E.width E.fill ]
@@ -439,6 +452,25 @@ type Entry
 payview : Data.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
 payview ld size zone model =
     let
+        paytotes =
+            model.payentries |> Dict.values |> TR.payTotes
+
+        timetotes =
+            model.timeentries |> Dict.values |> TR.timeTotes
+
+        unpaidtotes =
+            timetotes
+                |> Dict.foldl
+                    (\k v up ->
+                        case Dict.get k paytotes of
+                            Just p ->
+                                Dict.insert k (v - p) up
+
+                            Nothing ->
+                                Dict.insert k v up
+                    )
+                    Dict.empty
+
         tmpd =
             TR.teamMillisPerDay (Dict.values model.timeentries)
     in
@@ -523,6 +555,29 @@ payview ld size zone model =
                             )
                    )
         }
+    , E.table [ E.paddingXY 0 10, E.spacing 8, E.width E.fill ]
+        { data = [ ( "total time", timetotes ), ( "total pay", paytotes ), ( "total unpaid", unpaidtotes ) ]
+        , columns =
+            { header = E.text "totals"
+            , width = E.fill
+            , view =
+                \( title, _ ) ->
+                    E.text title
+            }
+                :: (model.members
+                        |> List.map
+                            (\member ->
+                                { header = E.text member.name
+                                , width = E.fill
+                                , view =
+                                    \( _, totes ) ->
+                                        Dict.get member.id totes
+                                            |> Maybe.map (\t -> E.text <| R.round 2 <| TR.millisToHours t)
+                                            |> Maybe.withDefault E.none
+                                }
+                            )
+                   )
+        }
     , E.row [ E.width E.fill, E.spacing 8 ]
         [ EI.text [ E.width E.fill ]
             { onChange = OnDistributionChanged
@@ -582,16 +637,6 @@ payview ld size zone model =
 
         Nothing ->
             E.none
-
-    -- , E.row [ E.width E.fill, E.spacing 8 ]
-    --     [ EI.text [ E.width E.fill ]
-    --         { onChange = OnPaymentChanged
-    --         , text = model.distributionhours
-    --         , placeholder = Nothing
-    --         , label = EI.labelLeft [] <| E.text "payment:"
-    --         }
-    --     , EI.button Common.buttonStyle { onPress = Just AddPaymentPress, label = E.text "add" }
-    --     ]
     ]
 
 
