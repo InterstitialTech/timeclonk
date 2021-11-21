@@ -914,7 +914,7 @@ pub fn save_time_entry(
             description = ?3,
             startdate = ?4,
             enddate = ?5,
-            changeddate = ?6,
+            changeddate = ?6
           where id = ?7",
         params![spt.project, spt.user, spt.description, spt.startdate, spt.enddate, now, id],
       )?,
