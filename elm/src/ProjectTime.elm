@@ -43,6 +43,7 @@ type Msg
     | FocusDescriptionChanged String
     | FocusStartChanged Time.Zone String
     | FocusEndChanged Time.Zone String
+    | FocusPayChanged String
     | SetViewMode ViewMode
     | OnRowClick Time.Zone Int
     | OnDistributionChanged String
@@ -585,8 +586,8 @@ payview ld size zone model =
                                                                 [ p
                                                                 ]
                                                             , EI.text [ E.width E.fill ]
-                                                                { onChange = OnPaymentChanged date
-                                                                , text = s
+                                                                { onChange = FocusPayChanged
+                                                                , text = model.focuspay
                                                                 , placeholder = Nothing
                                                                 , label = EI.labelHidden "payment"
                                                                 }
@@ -892,6 +893,23 @@ update msg model ld =
 
                 _ ->
                     ( { model | focusend = text }, None )
+
+        FocusPayChanged s ->
+            ( { model
+                | focuspay = s
+                , payentries =
+                    case String.toFloat s of
+                        Just f ->
+                            model.focusrow
+                                |> Maybe.andThen (\r -> Dict.get r model.payentries)
+                                |> Maybe.map (\pe -> Dict.insert pe.paymentdate { pe | duration = round <| f * 60 * 60 * 1000 } model.payentries)
+                                |> Maybe.withDefault model.payentries
+
+                        Nothing ->
+                            model.payentries
+              }
+            , None
+            )
 
         OnDistributionChanged text ->
             ( { model | distributionhours = text }, None )
