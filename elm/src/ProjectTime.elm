@@ -252,18 +252,21 @@ isDirty model =
         /= model.initialpayentries
 
 
-init : Data.ProjectTime -> Model
-init pt =
+init : Data.LoginData -> Data.ProjectTime -> Model
+init ld pt =
     let
         ietes =
             toEteDict pt.timeentries
 
         iepes =
             toEpeDict pt.payentries
+
+        description =
+            ietes |> Dict.toList |> List.filter (\( _, e ) -> e.user == ld.userid) |> List.reverse |> List.head |> Maybe.map (\( _, ete ) -> ete.description) |> Maybe.withDefault ""
     in
     { project = pt.project
     , members = pt.members
-    , description = ""
+    , description = description
     , timeentries = ietes
     , initialtimeentries = ietes
     , payentries = iepes

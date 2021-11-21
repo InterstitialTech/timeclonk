@@ -914,7 +914,7 @@ actualupdate msg model =
                         UI.ProjectTime x ->
                             case stateLogin state of
                                 Just login ->
-                                    ( { model | state = ProjectTime (ProjectTime.init x) login }, Cmd.none )
+                                    ( { model | state = ProjectTime (ProjectTime.init login x) login }, Cmd.none )
 
                                 Nothing ->
                                     ( model, Cmd.none )
