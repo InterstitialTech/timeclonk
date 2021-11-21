@@ -11,9 +11,11 @@ import Element.Border as EBd
 import Element.Events as EE
 import Element.Font as EF
 import Element.Input as EI
+import Element.Keyed as EK
 import Element.Region
 import Round as R
 import SelectString
+import Set
 import TangoColors as TC
 import TcCommon as TC
 import Time
@@ -87,45 +89,90 @@ type Command
 
 toSaveProjectTime : Model -> Data.SaveProjectTime
 toSaveProjectTime model =
-    { project = model.project.id
-    , savetimeentries =
-        model.timeentries
-            |> Dict.values
-            |> List.foldl
-                (\te saves ->
-                    case Dict.get te.startdate model.initialtimeentries of
-                        Just ite ->
-                            if te /= ite then
+    let
+        savetimeentries =
+            model.timeentries
+                |> Dict.values
+                |> List.foldl
+                    (\te saves ->
+                        case Dict.get te.startdate model.initialtimeentries of
+                            Just ite ->
+                                if te /= ite then
+                                    te :: saves
+
+                                else
+                                    saves
+
+                            Nothing ->
                                 te :: saves
+                    )
+                    []
+                |> List.map (toSaveTimeEntry model)
 
-                            else
-                                saves
+        deletetimeentries =
+            Dict.diff model.initialtimeentries model.timeentries
+                |> Dict.values
+                |> List.filterMap .id
+                |> Set.fromList
 
-                        Nothing ->
-                            te :: saves
-                )
-                []
-            |> List.map (toSaveTimeEntry model)
-    , deletetimeentries = Dict.diff model.initialtimeentries model.timeentries |> Dict.values |> List.filterMap .id
-    , savepayentries =
-        model.payentries
-            |> Dict.values
-            |> List.foldl
-                (\pe saves ->
-                    case Dict.get pe.paymentdate model.initialpayentries of
-                        Just ipe ->
-                            if pe /= ipe then
+        savepayentries =
+            model.payentries
+                |> Dict.values
+                |> List.foldl
+                    (\pe saves ->
+                        case Dict.get pe.paymentdate model.initialpayentries of
+                            Just ipe ->
+                                if pe /= ipe then
+                                    pe :: saves
+
+                                else
+                                    saves
+
+                            Nothing ->
                                 pe :: saves
+                    )
+                    []
+                |> List.map (toSavePayEntry model)
 
-                            else
-                                saves
+        deletepayentries =
+            Dict.diff model.initialpayentries model.payentries
+                |> Dict.values
+                |> List.filterMap .id
+                |> Set.fromList
+    in
+    { project = model.project.id
+    , savetimeentries = savetimeentries
 
-                        Nothing ->
-                            pe :: saves
-                )
-                []
-            |> List.map (toSavePayEntry model)
-    , deletepayentries = Dict.diff model.initialpayentries model.payentries |> Dict.values |> List.filterMap .id
+    -- remove update ids from the delete list.
+    , deletetimeentries =
+        List.foldl
+            (\ste dte ->
+                case ste.id of
+                    Just id ->
+                        Set.remove id dte
+
+                    Nothing ->
+                        dte
+            )
+            deletetimeentries
+            savetimeentries
+            |> Set.toList
+    , savepayentries = savepayentries
+
+    -- remove update ids from the delete list.
+    , deletepayentries =
+        List.foldl
+            (\ste dte ->
+                case ste.id of
+                    Just id ->
+                        Set.remove id dte
+
+                    Nothing ->
+                        dte
+            )
+            deletepayentries
+            savepayentries
+            |> Set.toList
     }
 
 
@@ -369,14 +416,16 @@ clonkview ld size zone model =
                                 E.row [ EE.onClick <| OnRowClick zone te.startdate ] [ E.text <| Util.showTime zone (Time.millisToPosix te.startdate) ]
                         in
                         if model.focusrow == Just te.startdate then
-                            E.column []
-                                [ row
-                                , EI.text [ E.width E.fill ]
-                                    { onChange = FocusStartChanged zone
-                                    , text = model.focusstart
-                                    , placeholder = Nothing
-                                    , label = EI.labelHidden "task start date"
-                                    }
+                            EK.column []
+                                [ ( "start-row", row )
+                                , ( "start-date-edit"
+                                  , EI.text [ E.width E.fill ]
+                                        { onChange = FocusStartChanged zone
+                                        , text = model.focusstart
+                                        , placeholder = Nothing
+                                        , label = EI.labelHidden "task start date"
+                                        }
+                                  )
                                 ]
 
                         else
