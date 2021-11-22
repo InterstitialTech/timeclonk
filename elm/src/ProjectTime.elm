@@ -1290,12 +1290,32 @@ update msg model ld =
             )
 
         IgnoreChecked ->
+            let
+                anyunignored =
+                    Dict.foldl
+                        (\_ te any ->
+                            if te.checked then
+                                any || not te.ignore
+
+                            else
+                                any
+                        )
+                        False
+                        model.timeentries
+
+                igftn =
+                    if anyunignored then
+                        always True
+
+                    else
+                        not
+            in
             ( { model
                 | timeentries =
                     Dict.map
                         (\_ te ->
                             if te.checked then
-                                { te | ignore = not te.ignore }
+                                { te | ignore = igftn te.ignore }
 
                             else
                                 te
