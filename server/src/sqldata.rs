@@ -173,6 +173,128 @@ pub fn udpate1() -> Migration {
   m
 }
 
+pub fn udpate2(dbfile: &Path) -> Result<(), Box<dyn Error>> {
+  // db connection without foreign key checking.
+  let conn = Connection::open(dbfile)?;
+  let mut m1 = Migration::new();
+
+  // temp table to hold zknote data.
+  m1.create_table("timeentrytemp", |t| {
+    t.add_column(
+      "id",
+      types::integer()
+        .primary(true)
+        .increments(true)
+        .nullable(false),
+    );
+    t.add_column("project", types::foreign("project", "id").nullable(false));
+    t.add_column("user", types::foreign("user", "id").nullable(false));
+    t.add_column("description", types::text().nullable(false));
+    t.add_column("startdate", types::integer().nullable(false));
+    t.add_column("enddate", types::integer().nullable(false));
+    t.add_column("createdate", types::integer().nullable(false));
+    t.add_column("changeddate", types::integer().nullable(false));
+    t.add_column("creator", types::foreign("user", "id").nullable(false));
+    // t.add_index(
+    //   "timeentryunq",
+    //   types::index(vec!["user", "startdate"]).unique(true),
+    // );
+  });
+
+  conn.execute_batch(m1.make::<Sqlite>().as_str())?;
+
+  // copy everything from current table..
+  conn.execute(
+    "insert into timeentrytemp (
+      id,
+      project,
+      user,
+      description,
+      startdate,
+      enddate,
+      createdate,
+      changeddate,
+      creator)
+        select
+      id,
+      project,
+      user,
+      description,
+      startdate,
+      enddate,
+      createdate,
+      changeddate,
+      creator from timeentry",
+    params![],
+  )?;
+
+  let mut m2 = Migration::new();
+  // drop zknote.
+  m2.drop_table("timeentry");
+
+  // add 'ignore' bool to timeentry.
+  m2.create_table("timeentry", |t| {
+    t.add_column(
+      "id",
+      types::integer()
+        .primary(true)
+        .increments(true)
+        .nullable(false),
+    );
+    t.add_column("project", types::foreign("project", "id").nullable(false));
+    t.add_column("user", types::foreign("user", "id").nullable(false));
+    t.add_column("description", types::text().nullable(false));
+    t.add_column("startdate", types::integer().nullable(false));
+    t.add_column("enddate", types::integer().nullable(false));
+    t.add_column("ignore", types::boolean().nullable(false));
+    t.add_column("createdate", types::integer().nullable(false));
+    t.add_column("changeddate", types::integer().nullable(false));
+    t.add_column("creator", types::foreign("user", "id").nullable(false));
+    t.add_index(
+      "timeentryunq",
+      types::index(vec!["user", "startdate"]).unique(true),
+    );
+  });
+
+  conn.execute_batch(m2.make::<Sqlite>().as_str())?;
+
+  // copy everything from the temp table.
+  conn.execute(
+    "insert into timeentry (
+          id,
+          project,
+          user,
+          description,
+          startdate,
+          enddate,
+          ignore,
+          createdate,
+          changeddate,
+          creator)
+        select
+          id,
+          project,
+          user,
+          description,
+          startdate,
+          enddate,
+          0,
+          createdate,
+          changeddate,
+          creator
+        from timeentrytemp",
+    params![],
+  )?;
+
+  let mut m3 = Migration::new();
+  // drop timeentrytemp.
+  m3.drop_table("timeentrytemp");
+
+  conn.execute_batch(m3.make::<Sqlite>().as_str())?;
+
+  Ok(())
+}
+
 pub fn get_single_value(conn: &Connection, name: &str) -> Result<Option<String>, Box<dyn Error>> {
   match conn.query_row(
     "select value from singlevalue where name = ?1",
@@ -217,6 +339,11 @@ pub fn dbinit(dbfile: &Path, token_expiration_ms: i64) -> Result<(), Box<dyn Err
     info!("udpate1");
     conn.execute_batch(udpate1().make::<Sqlite>().as_str())?;
     set_single_value(&conn, "migration_level", "1")?;
+  }
+  if nlevel < 2 {
+    info!("udpate2");
+    udpate2(&dbfile)?;
+    set_single_value(&conn, "migration_level", "2")?;
   }
 
   info!("db up to date.");
