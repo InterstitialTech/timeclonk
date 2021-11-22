@@ -43,6 +43,7 @@ type Msg
     | FocusDescriptionChanged String
     | FocusStartChanged Time.Zone String
     | FocusEndChanged Time.Zone String
+    | FocusDurationChanged Time.Zone String
     | FocusPayChanged String
     | ChangeStart Int
     | SetViewMode ViewMode
@@ -79,6 +80,7 @@ type alias Model =
     , initialpayentries : Dict Int EditPayEntry
     , focusstart : String
     , focusend : String
+    , focusduration : String
     , focusdescription : String
     , focus : Maybe ( Int, FocusColumn )
     , focuspay : String
@@ -286,6 +288,7 @@ init ld pt =
     , viewmode = Clonk
     , focusstart = ""
     , focusend = ""
+    , focusduration = ""
     , focusdescription = ""
     , focus = Nothing
     , focuspay = ""
@@ -406,7 +409,8 @@ clonkview ld size zone model =
                     \te ->
                         let
                             row =
-                                E.row [ EE.onClick <| OnRowItemClick zone te.startdate Description ] [ E.text te.description ]
+                                E.row [ EE.onClick <| OnRowItemClick zone te.startdate Description ]
+                                    [ E.text te.description ]
                         in
                         if model.focus == Just ( te.startdate, Description ) then
                             E.column [ E.spacing 8 ]
@@ -445,9 +449,6 @@ clonkview ld size zone model =
                             in
                             EK.column [ E.spacing 8 ]
                                 [ ( "start-row", row )
-                                , ( "start-date-display"
-                                  , E.text display
-                                  )
                                 , ( "start-date-edit"
                                   , EI.text [ E.width E.fill ]
                                         { onChange = FocusStartChanged zone
@@ -455,6 +456,9 @@ clonkview ld size zone model =
                                         , placeholder = Nothing
                                         , label = EI.labelHidden "task start date"
                                         }
+                                  )
+                                , ( "start-date-display"
+                                  , E.text display
                                   )
                                 , ( "start-ok"
                                   , case mbstart of
@@ -499,7 +503,27 @@ clonkview ld size zone model =
               }
             , { header = E.text "Duration"
               , width = E.shrink
-              , view = \te -> E.text <| R.round 2 (toFloat (te.enddate - te.startdate) / (1000.0 * 60.0 * 60.0))
+              , view =
+                    -- \te -> E.text <| R.round 2 (toFloat (te.enddate - te.startdate) / (1000.0 * 60.0 * 60.0))
+                    \te ->
+                        let
+                            row =
+                                E.row [ EE.onClick <| OnRowItemClick zone te.startdate Duration ]
+                                    [ E.text <| R.round 2 (toFloat (te.enddate - te.startdate) / (1000.0 * 60.0 * 60.0)) ]
+                        in
+                        if model.focus == Just ( te.startdate, Duration ) then
+                            E.column [ E.spacing 8 ]
+                                [ row
+                                , EI.text [ E.width E.fill ]
+                                    { onChange = FocusDurationChanged zone
+                                    , text = model.focusduration
+                                    , placeholder = Nothing
+                                    , label = EI.labelHidden "task duration"
+                                    }
+                                ]
+
+                        else
+                            row
               }
 
             -- , { header = E.text ""
@@ -846,6 +870,7 @@ update msg model ld =
                                     , focusdescription = te.description
                                     , focusstart = Util.showTime zone (Time.millisToPosix te.startdate)
                                     , focusend = Util.showTime zone (Time.millisToPosix te.enddate)
+                                    , focusduration = R.round 2 (toFloat (te.enddate - te.startdate) / (1000.0 * 60.0 * 60.0))
                                   }
                                 , None
                                 )
@@ -861,6 +886,7 @@ update msg model ld =
                                     , focusdescription = ""
                                     , focusstart = ""
                                     , focusend = ""
+                                    , focusduration = ""
                                     , focuspay = R.round 2 (toFloat pe.duration / (1000.0 * 60.0 * 60.0))
                                   }
                                 , None
@@ -933,6 +959,34 @@ update msg model ld =
 
                 _ ->
                     ( { model | focusend = text }, None )
+
+        FocusDurationChanged zone text ->
+            case model.focus of
+                Just ( startdate, _ ) ->
+                    case Dict.get startdate model.timeentries of
+                        Just te ->
+                            case String.toFloat text of
+                                Just hours ->
+                                    let
+                                        newtime =
+                                            te.startdate + (round <| hours * 60 * 60 * 1000)
+                                    in
+                                    ( { model
+                                        | timeentries =
+                                            Dict.insert startdate { te | enddate = newtime } model.timeentries
+                                        , focusduration = text
+                                      }
+                                    , None
+                                    )
+
+                                Nothing ->
+                                    ( { model | focusduration = text }, None )
+
+                        Nothing ->
+                            ( { model | focusduration = text }, None )
+
+                _ ->
+                    ( { model | focusduration = text }, None )
 
         FocusPayChanged s ->
             ( { model
