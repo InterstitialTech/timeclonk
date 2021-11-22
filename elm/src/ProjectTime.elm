@@ -54,6 +54,10 @@ type Msg
     | OnPaymentChanged Int String
     | AddPaymentPress Int Int
     | AddPayment Int Int Int
+    | CheckAll Bool
+    | CheckItem Int Bool
+    | DeleteChecked
+    | IgnoreChecked
     | Noop
 
 
@@ -196,7 +200,13 @@ toEditTimeEntry te =
     , startdate = te.startdate
     , enddate = te.enddate
     , ignore = te.ignore
+    , checked = False
     }
+
+
+compareEditTimeEntry : EditTimeEntry -> EditTimeEntry -> Bool
+compareEditTimeEntry l r =
+    { l | checked = False } == { r | checked = False }
 
 
 toEditPayEntry : Data.PayEntry -> EditPayEntry
@@ -260,7 +270,7 @@ onSavedProjectTime te model =
 
 isDirty : Model -> Bool
 isDirty model =
-    model.timeentries
+    (model.timeentries |> Dict.map (\_ te -> { te | checked = False }))
         /= model.initialtimeentries
         || model.payentries
         /= model.initialpayentries
@@ -399,21 +409,66 @@ clonkview ld size zone model =
                 |> Dict.values
                 |> List.foldl (+) 0
                 |> TR.millisToHours
+
+        igfont =
+            \te ->
+                if te.ignore then
+                    EF.strike
+
+                else
+                    EF.regular
+
+        anychecked =
+            Dict.foldl (\_ te c -> c || te.checked) False model.timeentries
     in
-    [ E.table [ E.spacing 8, E.width E.fill ]
+    [ if anychecked then
+        E.row [ E.spacing 8 ]
+            [ E.text "checked items: "
+            , EI.button Common.buttonStyle
+                { onPress = Just <| DeleteChecked
+                , label = E.text "delete"
+                }
+            , EI.button Common.buttonStyle
+                { onPress = Just <| IgnoreChecked
+                , label = E.text "ignore"
+                }
+            ]
+
+      else
+        E.none
+    , E.table [ E.spacing 8, E.width E.fill ]
         { data = model.timeentries |> Dict.values |> List.filter (\te -> te.user == ld.userid)
         , columns =
-            [ { header = E.text "Task"
+            [ { header =
+                    EI.checkbox [ E.width E.shrink ]
+                        { onChange = CheckAll
+                        , icon = EI.defaultCheckbox
+                        , checked = Dict.foldl (\_ te ac -> ac && te.checked) True model.timeentries
+                        , label = EI.labelHidden "check all"
+                        }
+              , width = E.shrink
+              , view =
+                    \te ->
+                        EI.checkbox [ E.width E.shrink ]
+                            { onChange = CheckItem te.startdate
+                            , icon = EI.defaultCheckbox
+                            , checked = te.checked
+                            , label = EI.labelHidden "check item"
+                            }
+              }
+            , { header = E.text "Task"
               , width = E.fill
               , view =
                     \te ->
                         let
                             row =
-                                E.row [ EE.onClick <| OnRowItemClick zone te.startdate Description ]
+                                E.row [ EE.onClick <| OnRowItemClick zone te.startdate Description, igfont te ]
                                     [ E.text te.description ]
                         in
                         if model.focus == Just ( te.startdate, Description ) then
-                            E.column [ E.spacing 8 ]
+                            E.column
+                                [ E.spacing 8
+                                ]
                                 [ row
                                 , EI.text [ E.width E.fill ]
                                     { onChange = EteDescriptionChanged te.startdate
@@ -432,7 +487,7 @@ clonkview ld size zone model =
                     \te ->
                         let
                             row =
-                                E.row [ EE.onClick <| OnRowItemClick zone te.startdate Start ] [ E.text <| Util.showTime zone (Time.millisToPosix te.startdate) ]
+                                E.row [ EE.onClick <| OnRowItemClick zone te.startdate Start, igfont te ] [ E.text <| Util.showTime zone (Time.millisToPosix te.startdate) ]
                         in
                         if model.focus == Just ( te.startdate, Start ) then
                             let
@@ -479,7 +534,7 @@ clonkview ld size zone model =
                     \te ->
                         let
                             row =
-                                E.row [ EE.onClick <| OnRowItemClick zone te.startdate End ] [ E.text <| Util.showTime zone (Time.millisToPosix te.enddate) ]
+                                E.row [ EE.onClick <| OnRowItemClick zone te.startdate End, igfont te ] [ E.text <| Util.showTime zone (Time.millisToPosix te.enddate) ]
                         in
                         if model.focus == Just ( te.startdate, End ) then
                             E.column [ E.spacing 8 ]
@@ -502,13 +557,13 @@ clonkview ld size zone model =
                     \te ->
                         let
                             row =
-                                E.row [ EE.onClick <| OnRowItemClick zone te.startdate Duration ]
+                                E.row [ EE.onClick <| OnRowItemClick zone te.startdate Duration, igfont te ]
                                     [ E.text <| R.round 2 (toFloat (te.enddate - te.startdate) / (1000.0 * 60.0 * 60.0)) ]
                         in
                         if model.focus == Just ( te.startdate, Duration ) then
-                            E.column [ E.spacing 8 ]
+                            E.column [ E.spacing 8, E.width E.shrink ]
                                 [ row
-                                , EI.text [ E.width E.fill ]
+                                , EI.text [ E.width E.shrink ]
                                     { onChange = FocusDurationChanged zone
                                     , text = model.focusduration
                                     , placeholder = Nothing
@@ -788,6 +843,7 @@ update msg model ld =
                         , startdate = time
                         , enddate = time
                         , ignore = False
+                        , checked = False
                         }
                         model.timeentries
               }
@@ -1203,6 +1259,48 @@ update msg model ld =
                         , duration = payment
                         }
                         model.payentries
+              }
+            , None
+            )
+
+        CheckAll c ->
+            ( { model
+                | timeentries =
+                    Dict.map (\_ te -> { te | checked = c }) model.timeentries
+              }
+            , None
+            )
+
+        CheckItem sd c ->
+            ( { model
+                | timeentries =
+                    model.timeentries
+                        |> Dict.get sd
+                        |> Maybe.map (\te -> Dict.insert sd { te | checked = c } model.timeentries)
+                        |> Maybe.withDefault model.timeentries
+              }
+            , None
+            )
+
+        DeleteChecked ->
+            ( { model
+                | timeentries = Dict.filter (\_ te -> not te.checked) model.timeentries
+              }
+            , None
+            )
+
+        IgnoreChecked ->
+            ( { model
+                | timeentries =
+                    Dict.map
+                        (\_ te ->
+                            if te.checked then
+                                { te | ignore = not te.ignore }
+
+                            else
+                                te
+                        )
+                        model.timeentries
               }
             , None
             )

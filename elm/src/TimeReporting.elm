@@ -15,6 +15,7 @@ type alias EditTimeEntry =
     , startdate : Int
     , enddate : Int
     , ignore : Bool
+    , checked : Bool
     }
 
 
