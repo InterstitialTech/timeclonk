@@ -58,7 +58,10 @@ type Msg
     | AddPayment Int Int Int
     | CheckAll Bool
     | CheckItem Int Bool
+    | CheckPayAll Bool
+    | CheckPayItem Int Bool
     | DeleteChecked
+    | DeletePayChecked
     | IgnoreChecked
     | Noop
 
@@ -215,6 +218,7 @@ toEditPayEntry te =
     , description = te.description
     , paymentdate = te.paymentdate
     , duration = te.duration
+    , checked = False
     }
 
 
@@ -271,7 +275,7 @@ isDirty : Model -> Bool
 isDirty model =
     (model.timeentries |> Dict.map (\_ te -> { te | checked = False }))
         /= model.initialtimeentries
-        || model.payentries
+        || (model.payentries |> Dict.map (\_ pe -> { pe | checked = False }))
         /= model.initialpayentries
 
 
@@ -636,44 +640,69 @@ payview ld size zone model =
 
         tmpd =
             TR.teamMillisPerDay (Dict.values model.timeentries)
+
+        anychecked =
+            Dict.foldl (\_ pe c -> c || pe.checked) False model.payentries
     in
-    [ E.table [ E.spacing 8, E.width E.fill ]
+    [ if anychecked then
+        E.row [ E.spacing 8 ]
+            [ E.text "checked items: "
+            , EI.button Common.buttonStyle
+                { onPress = Just <| DeletePayChecked
+                , label = E.text "delete"
+                }
+            ]
+
+      else
+        E.none
+    , E.table [ E.spacing 8, E.width E.fill ]
         { data =
             Dict.toList <|
                 Dict.union (Dict.map (\i v -> TimeDay v) tmpd) (Dict.map (\i v -> PayEntry v) model.payentries)
         , columns =
-            { header = E.text "date"
-            , width = E.fill
+            { header =
+                EI.checkbox [ E.width E.shrink ]
+                    { onChange = CheckPayAll
+                    , icon = EI.defaultCheckbox
+                    , checked =
+                        Dict.foldl
+                            (\_ pe ac ->
+                                if pe.user == ld.userid then
+                                    ac && pe.checked
+
+                                else
+                                    ac
+                            )
+                            True
+                            model.payentries
+                    , label = EI.labelHidden "check all"
+                    }
+            , width = E.shrink
             , view =
                 \( date, entry ) ->
                     case entry of
-                        TimeDay td ->
-                            date
-                                |> Time.millisToPosix
-                                |> Calendar.fromPosix
-                                |> (\cdate ->
-                                        E.row []
-                                            [ E.text <|
-                                                String.fromInt (Calendar.getYear cdate)
-                                                    ++ "/"
-                                                    ++ (cdate |> Calendar.getMonth |> Calendar.monthToInt |> String.fromInt)
-                                                    ++ "/"
-                                                    ++ String.fromInt
-                                                        (Calendar.getDay cdate)
-                                            ]
-                                   )
-
                         PayEntry pe ->
-                            date
-                                |> Time.millisToPosix
-                                |> Calendar.fromPosix
-                                |> (\cdate ->
-                                        let
-                                            row =
-                                                E.row
-                                                    [ EE.onClick <| OnRowItemClick zone date PaymentDate
-                                                    , EF.bold
-                                                    ]
+                            EI.checkbox [ E.width E.shrink ]
+                                { onChange = CheckPayItem pe.paymentdate
+                                , icon = EI.defaultCheckbox
+                                , checked = pe.checked
+                                , label = EI.labelHidden "check item"
+                                }
+
+                        TimeDay _ ->
+                            E.none
+            }
+                :: { header = E.text "date"
+                   , width = E.fill
+                   , view =
+                        \( date, entry ) ->
+                            case entry of
+                                TimeDay td ->
+                                    date
+                                        |> Time.millisToPosix
+                                        |> Calendar.fromPosix
+                                        |> (\cdate ->
+                                                E.row []
                                                     [ E.text <|
                                                         String.fromInt (Calendar.getYear cdate)
                                                             ++ "/"
@@ -682,47 +711,68 @@ payview ld size zone model =
                                                             ++ String.fromInt
                                                                 (Calendar.getDay cdate)
                                                     ]
-                                        in
-                                        if model.focus == Just ( pe.paymentdate, PaymentDate ) then
-                                            let
-                                                ( display, mbstart ) =
-                                                    case Util.parseTime zone model.focuspaydate of
-                                                        Err e ->
-                                                            ( Util.deadEndsToString e, Nothing )
+                                           )
 
-                                                        Ok Nothing ->
-                                                            ( "invalid", Nothing )
+                                PayEntry pe ->
+                                    date
+                                        |> Time.millisToPosix
+                                        |> Calendar.fromPosix
+                                        |> (\cdate ->
+                                                let
+                                                    row =
+                                                        E.row
+                                                            [ EE.onClick <| OnRowItemClick zone date PaymentDate
+                                                            , EF.bold
+                                                            ]
+                                                            [ E.text <|
+                                                                String.fromInt (Calendar.getYear cdate)
+                                                                    ++ "/"
+                                                                    ++ (cdate |> Calendar.getMonth |> Calendar.monthToInt |> String.fromInt)
+                                                                    ++ "/"
+                                                                    ++ String.fromInt
+                                                                        (Calendar.getDay cdate)
+                                                            ]
+                                                in
+                                                if model.focus == Just ( pe.paymentdate, PaymentDate ) then
+                                                    let
+                                                        ( display, mbstart ) =
+                                                            case Util.parseTime zone model.focuspaydate of
+                                                                Err e ->
+                                                                    ( Util.deadEndsToString e, Nothing )
 
-                                                        Ok (Just dt) ->
-                                                            ( Util.showTime zone dt, Just dt )
-                                            in
-                                            E.column [ E.spacing 8 ]
-                                                [ row
-                                                , EI.text [ E.width E.fill ]
-                                                    { onChange = FocusPayDateChanged zone
-                                                    , text = model.focuspaydate
-                                                    , placeholder = Nothing
-                                                    , label = EI.labelHidden "payment date"
-                                                    }
-                                                , E.text display
-                                                , case mbstart of
-                                                    Just start ->
-                                                        EI.button Common.buttonStyle
-                                                            { onPress = Just <| ChangePayDate (Time.posixToMillis start)
-                                                            , label = E.text "ok"
+                                                                Ok Nothing ->
+                                                                    ( "invalid", Nothing )
+
+                                                                Ok (Just dt) ->
+                                                                    ( Util.showTime zone dt, Just dt )
+                                                    in
+                                                    E.column [ E.spacing 8 ]
+                                                        [ row
+                                                        , EI.text [ E.width E.fill ]
+                                                            { onChange = FocusPayDateChanged zone
+                                                            , text = model.focuspaydate
+                                                            , placeholder = Nothing
+                                                            , label = EI.labelHidden "payment date"
                                                             }
+                                                        , E.text display
+                                                        , case mbstart of
+                                                            Just start ->
+                                                                EI.button Common.buttonStyle
+                                                                    { onPress = Just <| ChangePayDate (Time.posixToMillis start)
+                                                                    , label = E.text "ok"
+                                                                    }
 
-                                                    Nothing ->
-                                                        EI.button Common.disabledButtonStyle
-                                                            { onPress = Nothing
-                                                            , label = E.text "ok"
-                                                            }
-                                                ]
+                                                            Nothing ->
+                                                                EI.button Common.disabledButtonStyle
+                                                                    { onPress = Nothing
+                                                                    , label = E.text "ok"
+                                                                    }
+                                                        ]
 
-                                        else
-                                            row
-                                   )
-            }
+                                                else
+                                                    row
+                                           )
+                   }
                 :: (model.members
                         |> List.map
                             (\member ->
@@ -764,10 +814,6 @@ payview ld size zone model =
                                                                 , text = model.focuspay
                                                                 , placeholder = Nothing
                                                                 , label = EI.labelHidden "payment"
-                                                                }
-                                                            , EI.button Common.buttonStyle
-                                                                { onPress = Just <| DeletePay date
-                                                                , label = E.text "delete"
                                                                 }
                                                             ]
 
@@ -1343,6 +1389,7 @@ update msg model ld =
                         , description = "payment"
                         , paymentdate = paydate
                         , duration = payment
+                        , checked = False
                         }
                         model.payentries
               }
@@ -1372,6 +1419,36 @@ update msg model ld =
                         |> Dict.get sd
                         |> Maybe.map (\te -> Dict.insert sd { te | checked = c } model.timeentries)
                         |> Maybe.withDefault model.timeentries
+              }
+            , None
+            )
+
+        CheckPayAll c ->
+            ( { model
+                | payentries =
+                    Dict.map
+                        (\_ pe ->
+                            { pe | checked = c }
+                        )
+                        model.payentries
+              }
+            , None
+            )
+
+        CheckPayItem sd c ->
+            ( { model
+                | payentries =
+                    model.payentries
+                        |> Dict.get sd
+                        |> Maybe.map (\pe -> Dict.insert sd { pe | checked = c } model.payentries)
+                        |> Maybe.withDefault model.payentries
+              }
+            , None
+            )
+
+        DeletePayChecked ->
+            ( { model
+                | payentries = Dict.filter (\_ pe -> not pe.checked) model.payentries
               }
             , None
             )

@@ -25,6 +25,7 @@ type alias EditPayEntry =
     , description : String
     , paymentdate : Int
     , duration : Int
+    , checked : Bool
     }
 
 
