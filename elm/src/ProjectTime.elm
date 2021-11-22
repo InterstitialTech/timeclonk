@@ -208,11 +208,6 @@ toEditTimeEntry te =
     }
 
 
-compareEditTimeEntry : EditTimeEntry -> EditTimeEntry -> Bool
-compareEditTimeEntry l r =
-    { l | checked = False } == { r | checked = False }
-
-
 toEditPayEntry : Data.PayEntry -> EditPayEntry
 toEditPayEntry te =
     { id = Just te.id
