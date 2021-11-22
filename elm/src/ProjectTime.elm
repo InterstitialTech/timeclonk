@@ -589,19 +589,6 @@ clonkview ld size zone model =
                         else
                             row
               }
-
-            -- , { header = E.text ""
-            --   , width = E.shrink
-            --   , view =
-            --         \te ->
-            --             if model.focus == Just (te.startdate then
-            --                 EI.button Common.buttonStyle
-            --                     { onPress = Just (DeleteClonk te.startdate)
-            --                     , label = E.text "delete"
-            --                     }
-            --             else
-            --                 E.none
-            --   }
             ]
         }
     , E.row [ E.width E.fill, E.spacing 8 ]
@@ -688,7 +675,10 @@ payview ld size zone model =
                                 |> (\cdate ->
                                         let
                                             row =
-                                                E.row [ EE.onClick <| OnRowItemClick zone date PaymentDate ]
+                                                E.row
+                                                    [ EE.onClick <| OnRowItemClick zone date PaymentDate
+                                                    , EF.bold
+                                                    ]
                                                     [ E.text <|
                                                         String.fromInt (Calendar.getYear cdate)
                                                             ++ "/"
