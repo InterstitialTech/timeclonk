@@ -45,7 +45,16 @@ eteMillis ete =
 
 totalMillis : List EditTimeEntry -> Int
 totalMillis etes =
-    List.foldl (\ete sum -> eteMillis ete + sum) 0 etes
+    List.foldl
+        (\ete sum ->
+            if ete.ignore then
+                sum
+
+            else
+                eteMillis ete + sum
+        )
+        0
+        etes
 
 
 millisPerDay : Time.Posix -> Time.Posix -> List ( Calendar.Date, Int )
@@ -81,7 +90,7 @@ millisPerDay from to =
     else
         ( fromdate, 24 * 60 * 60 * 1000 - (fromdt |> DateTime.getTime |> Clock.toMillis) )
             :: msecstill (Calendar.incrementDay fromdate) todate
-            ++ [ ( todate, fromdt |> DateTime.getTime |> Clock.toMillis ) ]
+            ++ [ ( todate, todt |> DateTime.getTime |> Clock.toMillis ) ]
 
 
 type alias Mpd =
@@ -115,6 +124,7 @@ teamMillisPerDay etes =
             Dict.empty
     in
     etes
+        |> List.filter (.ignore >> not)
         |> List.foldl (\ete mpds -> userMillisPerDay ete ++ mpds) []
         |> List.foldl
             (\mpd dict ->
@@ -155,6 +165,7 @@ payTotes entries =
 timeTotes : List EditTimeEntry -> Dict Int Int
 timeTotes entries =
     entries
+        |> List.filter (.ignore >> not)
         |> List.foldl
             (\entry sums ->
                 case Dict.get entry.user sums of

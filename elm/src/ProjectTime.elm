@@ -443,7 +443,17 @@ clonkview ld size zone model =
                     EI.checkbox [ E.width E.shrink ]
                         { onChange = CheckAll
                         , icon = EI.defaultCheckbox
-                        , checked = Dict.foldl (\_ te ac -> ac && te.checked) True model.timeentries
+                        , checked =
+                            Dict.foldl
+                                (\_ te ac ->
+                                    if te.user == ld.userid then
+                                        ac && te.checked
+
+                                    else
+                                        ac
+                                )
+                                True
+                                model.timeentries
                         , label = EI.labelHidden "check all"
                         }
               , width = E.shrink
@@ -641,7 +651,9 @@ payview ld size zone model =
             TR.teamMillisPerDay (Dict.values model.timeentries)
     in
     [ E.table [ E.spacing 8, E.width E.fill ]
-        { data = Dict.toList <| Dict.union (Dict.map (\i v -> TimeDay v) tmpd) (Dict.map (\i v -> PayEntry v) model.payentries)
+        { data =
+            Dict.toList <|
+                Dict.union (Dict.map (\i v -> TimeDay v) tmpd) (Dict.map (\i v -> PayEntry v) model.payentries)
         , columns =
             { header = E.text "date"
             , width = E.fill
@@ -1266,7 +1278,15 @@ update msg model ld =
         CheckAll c ->
             ( { model
                 | timeentries =
-                    Dict.map (\_ te -> { te | checked = c }) model.timeentries
+                    Dict.map
+                        (\_ te ->
+                            if te.user == ld.userid then
+                                { te | checked = c }
+
+                            else
+                                te
+                        )
+                        model.timeentries
               }
             , None
             )
