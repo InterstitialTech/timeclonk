@@ -14,6 +14,7 @@ type alias EditTimeEntry =
     , description : String
     , startdate : Int
     , enddate : Int
+    , ignore : Bool
     }
 
 

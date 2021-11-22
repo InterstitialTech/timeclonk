@@ -897,7 +897,7 @@ pub fn time_entries(
   projectid: i64,
 ) -> Result<Vec<TimeEntry>, Box<dyn Error>> {
   let mut pstmt = conn.prepare(
-    "select te.id, te.project, te.user, te.description, te.startdate, te.enddate, te.createdate, te.changeddate, te.creator
+    "select te.id, te.project, te.user, te.description, te.startdate, te.enddate, te.ignore, te.createdate, te.changeddate, te.creator
           from timeentry te, projectmember pm where
     te.project = ?1 and
     te.project = pm.project and
@@ -913,9 +913,10 @@ pub fn time_entries(
           description: row.get(3)?,
           startdate: row.get(4)?,
           enddate: row.get(5)?,
-          createdate: row.get(6)?,
-          changeddate: row.get(7)?,
-          creator: row.get(8)?,
+          ignore: row.get(6)?,
+          createdate: row.get(7)?,
+          changeddate: row.get(8)?,
+          creator: row.get(9)?,
         })
       })?
       .filter_map(|x| x.ok())
@@ -1041,15 +1042,16 @@ pub fn save_time_entry(
             description = ?3,
             startdate = ?4,
             enddate = ?5,
-            changeddate = ?6
-          where id = ?7",
-        params![spt.project, spt.user, spt.description, spt.startdate, spt.enddate, now, id],
+            ignore = ?6,
+            changeddate = ?7
+          where id = ?8",
+        params![spt.project, spt.user, spt.description, spt.startdate, spt.enddate, spt.ignore, now, id],
       )?,
     None =>
       conn.execute(
-        "insert into timeentry (project, user, description, startdate, enddate, createdate, changeddate, creator)
-         values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-        params![spt.project, spt.user, spt.description, spt.startdate, spt.enddate, now, now, uid],
+        "insert into timeentry (project, user, description, startdate, enddate, ignore, createdate, changeddate, creator)
+         values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        params![spt.project, spt.user, spt.description, spt.startdate, spt.enddate, spt.ignore, now, now, uid],
       )?,
   };
   let id = conn.last_insert_rowid();

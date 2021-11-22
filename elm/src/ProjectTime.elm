@@ -184,6 +184,7 @@ toEditTimeEntry te =
     , description = te.description
     , startdate = te.startdate
     , enddate = te.enddate
+    , ignore = te.ignore
     }
 
 
@@ -205,6 +206,7 @@ toSaveTimeEntry model ete =
     , description = ete.description
     , startdate = ete.startdate
     , enddate = ete.enddate
+    , ignore = ete.ignore
     }
 
 
@@ -729,6 +731,7 @@ update msg model ld =
                         , user = ld.userid
                         , startdate = time
                         , enddate = time
+                        , ignore = False
                         }
                         model.timeentries
               }
