@@ -447,33 +447,27 @@ clonkview ld size zone model =
                                         Ok (Just dt) ->
                                             ( Util.showTime zone dt, Just dt )
                             in
-                            EK.column [ E.spacing 8 ]
-                                [ ( "start-row", row )
-                                , ( "start-date-edit"
-                                  , EI.text [ E.width E.fill ]
-                                        { onChange = FocusStartChanged zone
-                                        , text = model.focusstart
-                                        , placeholder = Nothing
-                                        , label = EI.labelHidden "task start date"
-                                        }
-                                  )
-                                , ( "start-date-display"
-                                  , E.text display
-                                  )
-                                , ( "start-ok"
-                                  , case mbstart of
-                                        Just start ->
-                                            EI.button Common.buttonStyle
-                                                { onPress = Just <| ChangeStart (Time.posixToMillis start)
-                                                , label = E.text "ok"
-                                                }
+                            E.column [ E.spacing 8 ]
+                                [ row
+                                , EI.text [ E.width E.fill ]
+                                    { onChange = FocusStartChanged zone
+                                    , text = model.focusstart
+                                    , placeholder = Nothing
+                                    , label = EI.labelHidden "task start date"
+                                    }
+                                , E.text display
+                                , case mbstart of
+                                    Just start ->
+                                        EI.button Common.buttonStyle
+                                            { onPress = Just <| ChangeStart (Time.posixToMillis start)
+                                            , label = E.text "ok"
+                                            }
 
-                                        Nothing ->
-                                            EI.button Common.disabledButtonStyle
-                                                { onPress = Nothing
-                                                , label = E.text "ok"
-                                                }
-                                  )
+                                    Nothing ->
+                                        EI.button Common.disabledButtonStyle
+                                            { onPress = Nothing
+                                            , label = E.text "ok"
+                                            }
                                 ]
 
                         else
