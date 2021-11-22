@@ -45,7 +45,9 @@ type Msg
     | FocusEndChanged Time.Zone String
     | FocusDurationChanged Time.Zone String
     | FocusPayChanged String
+    | FocusPayDateChanged Time.Zone String
     | ChangeStart Int
+    | ChangePayDate Int
     | SetViewMode ViewMode
     | OnRowItemClick Time.Zone Int FocusColumn
     | OnDistributionChanged String
@@ -71,6 +73,7 @@ type FocusColumn
     | Start
     | End
     | Duration
+    | PaymentDate
     | PaymentAmount
 
 
@@ -88,6 +91,7 @@ type alias Model =
     , focusdescription : String
     , focus : Maybe ( Int, FocusColumn )
     , focuspay : String
+    , focuspaydate : String
     , distributionhours : String
     , distribution : Maybe (Dict Int String)
     , viewmode : ViewMode
@@ -302,6 +306,7 @@ init ld pt =
     , focusdescription = ""
     , focus = Nothing
     , focuspay = ""
+    , focuspaydate = ""
     , distributionhours = ""
     , distribution = Nothing
     }
@@ -658,21 +663,80 @@ payview ld size zone model =
             { header = E.text "date"
             , width = E.fill
             , view =
-                \( date, _ ) ->
-                    date
-                        |> Time.millisToPosix
-                        |> Calendar.fromPosix
-                        |> (\cdate ->
-                                E.row [ EE.onClick <| OnRowItemClick zone date PaymentAmount ]
-                                    [ E.text <|
-                                        String.fromInt (Calendar.getYear cdate)
-                                            ++ "/"
-                                            ++ (cdate |> Calendar.getMonth |> Calendar.monthToInt |> String.fromInt)
-                                            ++ "/"
-                                            ++ String.fromInt
-                                                (Calendar.getDay cdate)
-                                    ]
-                           )
+                \( date, entry ) ->
+                    case entry of
+                        TimeDay td ->
+                            date
+                                |> Time.millisToPosix
+                                |> Calendar.fromPosix
+                                |> (\cdate ->
+                                        E.row []
+                                            [ E.text <|
+                                                String.fromInt (Calendar.getYear cdate)
+                                                    ++ "/"
+                                                    ++ (cdate |> Calendar.getMonth |> Calendar.monthToInt |> String.fromInt)
+                                                    ++ "/"
+                                                    ++ String.fromInt
+                                                        (Calendar.getDay cdate)
+                                            ]
+                                   )
+
+                        PayEntry pe ->
+                            date
+                                |> Time.millisToPosix
+                                |> Calendar.fromPosix
+                                |> (\cdate ->
+                                        let
+                                            row =
+                                                E.row [ EE.onClick <| OnRowItemClick zone date PaymentDate ]
+                                                    [ E.text <|
+                                                        String.fromInt (Calendar.getYear cdate)
+                                                            ++ "/"
+                                                            ++ (cdate |> Calendar.getMonth |> Calendar.monthToInt |> String.fromInt)
+                                                            ++ "/"
+                                                            ++ String.fromInt
+                                                                (Calendar.getDay cdate)
+                                                    ]
+                                        in
+                                        if model.focus == Just ( pe.paymentdate, PaymentDate ) then
+                                            let
+                                                ( display, mbstart ) =
+                                                    case Util.parseTime zone model.focuspaydate of
+                                                        Err e ->
+                                                            ( Util.deadEndsToString e, Nothing )
+
+                                                        Ok Nothing ->
+                                                            ( "invalid", Nothing )
+
+                                                        Ok (Just dt) ->
+                                                            ( Util.showTime zone dt, Just dt )
+                                            in
+                                            E.column [ E.spacing 8 ]
+                                                [ row
+                                                , EI.text [ E.width E.fill ]
+                                                    { onChange = FocusPayDateChanged zone
+                                                    , text = model.focuspaydate
+                                                    , placeholder = Nothing
+                                                    , label = EI.labelHidden "payment date"
+                                                    }
+                                                , E.text display
+                                                , case mbstart of
+                                                    Just start ->
+                                                        EI.button Common.buttonStyle
+                                                            { onPress = Just <| ChangePayDate (Time.posixToMillis start)
+                                                            , label = E.text "ok"
+                                                            }
+
+                                                    Nothing ->
+                                                        EI.button Common.disabledButtonStyle
+                                                            { onPress = Nothing
+                                                            , label = E.text "ok"
+                                                            }
+                                                ]
+
+                                        else
+                                            row
+                                   )
             }
                 :: (model.members
                         |> List.map
@@ -950,6 +1014,7 @@ update msg model ld =
                                     , focusend = ""
                                     , focusduration = ""
                                     , focuspay = R.round 2 (toFloat pe.duration / (1000.0 * 60.0 * 60.0))
+                                    , focuspaydate = Util.showTime zone (Time.millisToPosix pe.paymentdate)
                                   }
                                 , None
                                 )
@@ -989,6 +1054,30 @@ update msg model ld =
                                         |> Dict.remove startdate
                                 , focus = Nothing
                                 , focusstart = ""
+                              }
+                            , None
+                            )
+
+                        Nothing ->
+                            ( model, None )
+
+                Nothing ->
+                    ( model, None )
+
+        FocusPayDateChanged zone text ->
+            ( { model | focuspaydate = text }, None )
+
+        ChangePayDate newtime ->
+            case model.focus of
+                Just ( paymentdate, _ ) ->
+                    case Dict.get paymentdate model.payentries of
+                        Just pe ->
+                            ( { model
+                                | payentries =
+                                    Dict.insert newtime { pe | paymentdate = newtime } model.payentries
+                                        |> Dict.remove paymentdate
+                                , focus = Nothing
+                                , focuspaydate = ""
                               }
                             , None
                             )

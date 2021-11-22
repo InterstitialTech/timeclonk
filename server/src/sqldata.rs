@@ -968,7 +968,7 @@ pub fn save_pay_entry(
     Some(id) =>
         conn.execute(
           "update payentry set
-            project =?1
+              project =?1
             , user =?2
             , description =?3
             , duration =?4
