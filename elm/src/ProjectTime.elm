@@ -45,7 +45,7 @@ type Msg
     | FocusEndChanged Time.Zone String
     | FocusPayChanged String
     | SetViewMode ViewMode
-    | OnRowClick Time.Zone Int
+    | OnRowItemClick Time.Zone Int FocusColumn
     | OnDistributionChanged String
     | ClearDistribution
     | CalcDistribution
@@ -60,6 +60,14 @@ type ViewMode
     | Payment
 
 
+type FocusColumn
+    = Description
+    | Start
+    | End
+    | Duration
+    | PaymentAmount
+
+
 type alias Model =
     { project : Data.Project
     , members : List Data.ProjectMember
@@ -71,7 +79,7 @@ type alias Model =
     , focusstart : String
     , focusend : String
     , focusdescription : String
-    , focusrow : Maybe Int
+    , focus : Maybe ( Int, FocusColumn )
     , focuspay : String
     , distributionhours : String
     , distribution : Maybe (Dict Int String)
@@ -278,7 +286,7 @@ init ld pt =
     , focusstart = ""
     , focusend = ""
     , focusdescription = ""
-    , focusrow = Nothing
+    , focus = Nothing
     , focuspay = ""
     , distributionhours = ""
     , distribution = Nothing
@@ -397,9 +405,9 @@ clonkview ld size zone model =
                     \te ->
                         let
                             row =
-                                E.row [ EE.onClick <| OnRowClick zone te.startdate ] [ E.text te.description ]
+                                E.row [ EE.onClick <| OnRowItemClick zone te.startdate Description ] [ E.text te.description ]
                         in
-                        if model.focusrow == Just te.startdate then
+                        if model.focus == Just ( te.startdate, Description ) then
                             E.column []
                                 [ row
                                 , EI.text [ E.width E.fill ]
@@ -419,9 +427,9 @@ clonkview ld size zone model =
                     \te ->
                         let
                             row =
-                                E.row [ EE.onClick <| OnRowClick zone te.startdate ] [ E.text <| Util.showTime zone (Time.millisToPosix te.startdate) ]
+                                E.row [ EE.onClick <| OnRowItemClick zone te.startdate Start ] [ E.text <| Util.showTime zone (Time.millisToPosix te.startdate) ]
                         in
-                        if model.focusrow == Just te.startdate then
+                        if model.focus == Just ( te.startdate, Start ) then
                             EK.column []
                                 [ ( "start-row", row )
                                 , ( "start-date-edit"
@@ -443,9 +451,9 @@ clonkview ld size zone model =
                     \te ->
                         let
                             row =
-                                E.row [ EE.onClick <| OnRowClick zone te.startdate ] [ E.text <| Util.showTime zone (Time.millisToPosix te.enddate) ]
+                                E.row [ EE.onClick <| OnRowItemClick zone te.startdate End ] [ E.text <| Util.showTime zone (Time.millisToPosix te.enddate) ]
                         in
-                        if model.focusrow == Just te.startdate then
+                        if model.focus == Just ( te.startdate, End ) then
                             E.column []
                                 [ row
                                 , EI.text [ E.width E.fill ]
@@ -463,19 +471,19 @@ clonkview ld size zone model =
               , width = E.shrink
               , view = \te -> E.text <| R.round 2 (toFloat (te.enddate - te.startdate) / (1000.0 * 60.0 * 60.0))
               }
-            , { header = E.text ""
-              , width = E.shrink
-              , view =
-                    \te ->
-                        if model.focusrow == Just te.startdate then
-                            EI.button Common.buttonStyle
-                                { onPress = Just (DeleteClonk te.startdate)
-                                , label = E.text "delete"
-                                }
 
-                        else
-                            E.none
-              }
+            -- , { header = E.text ""
+            --   , width = E.shrink
+            --   , view =
+            --         \te ->
+            --             if model.focus == Just (te.startdate then
+            --                 EI.button Common.buttonStyle
+            --                     { onPress = Just (DeleteClonk te.startdate)
+            --                     , label = E.text "delete"
+            --                     }
+            --             else
+            --                 E.none
+            --   }
             ]
         }
     , E.row [ E.width E.fill, E.spacing 8 ]
@@ -540,7 +548,7 @@ payview ld size zone model =
                         |> Time.millisToPosix
                         |> Calendar.fromPosix
                         |> (\cdate ->
-                                E.row [ EE.onClick <| OnRowClick zone date ]
+                                E.row [ EE.onClick <| OnRowItemClick zone date PaymentAmount ]
                                     [ E.text <|
                                         String.fromInt (Calendar.getYear cdate)
                                             ++ "/"
@@ -563,7 +571,7 @@ payview ld size zone model =
                                                 case Dict.get member.id ums of
                                                     Just millis ->
                                                         if millis > 0 then
-                                                            E.row [ EE.onClick <| OnRowClick zone date ]
+                                                            E.row [ EE.onClick <| OnRowItemClick zone date PaymentAmount ]
                                                                 [ E.text <| R.round 2 (toFloat millis / (1000.0 * 60.0 * 60.0))
                                                                 ]
 
@@ -582,9 +590,9 @@ payview ld size zone model =
                                                         p =
                                                             E.el [ EF.bold ] <| E.text <| s ++ " pmt"
                                                     in
-                                                    if model.focusrow == Just date then
+                                                    if model.focus == Just ( date, PaymentAmount ) then
                                                         E.column []
-                                                            [ E.row [ EE.onClick <| OnRowClick zone date ]
+                                                            [ E.row [ EE.onClick <| OnRowItemClick zone date PaymentAmount ]
                                                                 [ p
                                                                 ]
                                                             , EI.text [ E.width E.fill ]
@@ -600,7 +608,7 @@ payview ld size zone model =
                                                             ]
 
                                                     else
-                                                        E.row [ EE.onClick <| OnRowClick zone date ]
+                                                        E.row [ EE.onClick <| OnRowItemClick zone date PaymentAmount ]
                                                             [ p
                                                             ]
 
@@ -794,9 +802,9 @@ update msg model ld =
             , None
             )
 
-        OnRowClick zone i ->
-            if model.focusrow == Just i then
-                ( { model | focusrow = Nothing }, None )
+        OnRowItemClick zone i fc ->
+            if model.focus == Just ( i, fc ) then
+                ( { model | focus = Nothing }, None )
 
             else
                 case model.viewmode of
@@ -804,7 +812,7 @@ update msg model ld =
                         case Dict.get i model.timeentries of
                             Just te ->
                                 ( { model
-                                    | focusrow = Just i
+                                    | focus = Just ( i, fc )
                                     , focusdescription = te.description
                                     , focusstart = Util.showTime zone (Time.millisToPosix te.startdate)
                                     , focusend = Util.showTime zone (Time.millisToPosix te.enddate)
@@ -819,7 +827,7 @@ update msg model ld =
                         case Dict.get i model.payentries of
                             Just pe ->
                                 ( { model
-                                    | focusrow = Just i
+                                    | focus = Just ( i, fc )
                                     , focusdescription = ""
                                     , focusstart = ""
                                     , focusend = ""
@@ -832,8 +840,8 @@ update msg model ld =
                                 ( model, None )
 
         FocusDescriptionChanged text ->
-            case model.focusrow of
-                Just startdate ->
+            case model.focus of
+                Just ( startdate, _ ) ->
                     ( { model
                         | timeentries =
                             case Dict.get startdate model.timeentries of
@@ -850,8 +858,8 @@ update msg model ld =
                     ( model, None )
 
         FocusStartChanged zone text ->
-            case ( model.focusrow, Util.parseTime zone text ) of
-                ( Just startdate, Ok (Just time) ) ->
+            case ( model.focus, Util.parseTime zone text ) of
+                ( Just ( startdate, _ ), Ok (Just time) ) ->
                     case Dict.get startdate model.timeentries of
                         Just te ->
                             let
@@ -862,7 +870,7 @@ update msg model ld =
                                 | timeentries =
                                     Dict.insert newtime { te | startdate = newtime } model.timeentries
                                         |> Dict.remove startdate
-                                , focusrow = Just <| newtime
+                                , focus = Just ( newtime, Start )
                                 , focusstart = text
                               }
                             , None
@@ -875,8 +883,8 @@ update msg model ld =
                     ( { model | focusstart = text }, None )
 
         FocusEndChanged zone text ->
-            case ( model.focusrow, Util.parseTime zone text ) of
-                ( Just startdate, Ok (Just time) ) ->
+            case ( model.focus, Util.parseTime zone text ) of
+                ( Just ( startdate, _ ), Ok (Just time) ) ->
                     case Dict.get startdate model.timeentries of
                         Just te ->
                             let
@@ -903,7 +911,8 @@ update msg model ld =
                 , payentries =
                     case String.toFloat s of
                         Just f ->
-                            model.focusrow
+                            model.focus
+                                |> Maybe.map Tuple.first
                                 |> Maybe.andThen (\r -> Dict.get r model.payentries)
                                 |> Maybe.map (\pe -> Dict.insert pe.paymentdate { pe | duration = round <| f * 60 * 60 * 1000 } model.payentries)
                                 |> Maybe.withDefault model.payentries
