@@ -129,6 +129,7 @@ type alias TimeEntry =
     , description : String
     , startdate : Int
     , enddate : Int
+    , ignore : Bool
     , createdate : Int
     , changeddate : Int
     , creator : Int
@@ -142,6 +143,7 @@ type alias SaveTimeEntry =
     , description : String
     , startdate : Int
     , enddate : Int
+    , ignore : Bool
     }
 
 
@@ -346,6 +348,7 @@ decodeTimeEntry =
         |> andMap (JD.field "description" JD.string)
         |> andMap (JD.field "startdate" JD.int)
         |> andMap (JD.field "enddate" JD.int)
+        |> andMap (JD.field "ignore" JD.bool)
         |> andMap (JD.field "createdate" JD.int)
         |> andMap (JD.field "changeddate" JD.int)
         |> andMap (JD.field "creator" JD.int)
@@ -363,6 +366,7 @@ encodeSaveTimeEntry e =
             , ( "description", JE.string e.description )
             , ( "startdate", JE.int e.startdate )
             , ( "enddate", JE.int e.enddate )
+            , ( "ignore", JE.bool e.ignore )
             ]
 
 

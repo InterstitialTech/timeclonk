@@ -124,6 +124,7 @@ pub struct TimeEntry {
   pub description: String,
   pub startdate: i64,
   pub enddate: i64,
+  pub ignore: bool,
   pub createdate: i64,
   pub changeddate: i64,
   pub creator: i64,
@@ -137,6 +138,7 @@ pub struct SaveTimeEntry {
   pub description: String,
   pub startdate: i64,
   pub enddate: i64,
+  pub ignore: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

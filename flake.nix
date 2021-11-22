@@ -64,7 +64,7 @@
               cp ${elm-stuff}/main.js $out/share/timeclonk/static
               cp -r ${rust-stuff}/bin $out
               mv $out/bin/timeclonk-server $out/bin/.timeclonk-server
-              makeWrapper $out/bin/.timeclonk-server $out/bin/timeclonk-server --set ZKNOTES_STATIC_PATH $out/share/timeclonk/static;
+              makeWrapper $out/bin/.timeclonk-server $out/bin/timeclonk-server --set TIMECLONK_STATIC_PATH $out/share/timeclonk/static;
               '';
           };
           defaultPackage = packages.${pname};
