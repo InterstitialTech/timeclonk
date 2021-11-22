@@ -44,6 +44,7 @@ type Msg
     | FocusStartChanged Time.Zone String
     | FocusEndChanged Time.Zone String
     | FocusPayChanged String
+    | ChangeStart Int
     | SetViewMode ViewMode
     | OnRowItemClick Time.Zone Int FocusColumn
     | OnDistributionChanged String
@@ -408,7 +409,7 @@ clonkview ld size zone model =
                                 E.row [ EE.onClick <| OnRowItemClick zone te.startdate Description ] [ E.text te.description ]
                         in
                         if model.focus == Just ( te.startdate, Description ) then
-                            E.column []
+                            E.column [ E.spacing 8 ]
                                 [ row
                                 , EI.text [ E.width E.fill ]
                                     { onChange = EteDescriptionChanged te.startdate
@@ -430,8 +431,23 @@ clonkview ld size zone model =
                                 E.row [ EE.onClick <| OnRowItemClick zone te.startdate Start ] [ E.text <| Util.showTime zone (Time.millisToPosix te.startdate) ]
                         in
                         if model.focus == Just ( te.startdate, Start ) then
-                            EK.column []
+                            let
+                                ( display, mbstart ) =
+                                    case Util.parseTime zone model.focusstart of
+                                        Err e ->
+                                            ( Util.deadEndsToString e, Nothing )
+
+                                        Ok Nothing ->
+                                            ( "invalid", Nothing )
+
+                                        Ok (Just dt) ->
+                                            ( Util.showTime zone dt, Just dt )
+                            in
+                            EK.column [ E.spacing 8 ]
                                 [ ( "start-row", row )
+                                , ( "start-date-display"
+                                  , E.text display
+                                  )
                                 , ( "start-date-edit"
                                   , EI.text [ E.width E.fill ]
                                         { onChange = FocusStartChanged zone
@@ -439,6 +455,20 @@ clonkview ld size zone model =
                                         , placeholder = Nothing
                                         , label = EI.labelHidden "task start date"
                                         }
+                                  )
+                                , ( "start-ok"
+                                  , case mbstart of
+                                        Just start ->
+                                            EI.button Common.buttonStyle
+                                                { onPress = Just <| ChangeStart (Time.posixToMillis start)
+                                                , label = E.text "ok"
+                                                }
+
+                                        Nothing ->
+                                            EI.button Common.disabledButtonStyle
+                                                { onPress = Nothing
+                                                , label = E.text "ok"
+                                                }
                                   )
                                 ]
 
@@ -454,7 +484,7 @@ clonkview ld size zone model =
                                 E.row [ EE.onClick <| OnRowItemClick zone te.startdate End ] [ E.text <| Util.showTime zone (Time.millisToPosix te.enddate) ]
                         in
                         if model.focus == Just ( te.startdate, End ) then
-                            E.column []
+                            E.column [ E.spacing 8 ]
                                 [ row
                                 , EI.text [ E.width E.fill ]
                                     { onChange = FocusEndChanged zone
@@ -858,29 +888,28 @@ update msg model ld =
                     ( model, None )
 
         FocusStartChanged zone text ->
-            case ( model.focus, Util.parseTime zone text ) of
-                ( Just ( startdate, _ ), Ok (Just time) ) ->
+            ( { model | focusstart = text }, None )
+
+        ChangeStart newtime ->
+            case model.focus of
+                Just ( startdate, _ ) ->
                     case Dict.get startdate model.timeentries of
                         Just te ->
-                            let
-                                newtime =
-                                    Time.posixToMillis time
-                            in
                             ( { model
                                 | timeentries =
                                     Dict.insert newtime { te | startdate = newtime } model.timeentries
                                         |> Dict.remove startdate
-                                , focus = Just ( newtime, Start )
-                                , focusstart = text
+                                , focus = Nothing
+                                , focusstart = ""
                               }
                             , None
                             )
 
                         Nothing ->
-                            ( { model | focusstart = text }, None )
+                            ( model, None )
 
-                _ ->
-                    ( { model | focusstart = text }, None )
+                Nothing ->
+                    ( model, None )
 
         FocusEndChanged zone text ->
             case ( model.focus, Util.parseTime zone text ) of
