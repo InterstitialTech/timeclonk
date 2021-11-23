@@ -363,18 +363,20 @@ view ld size zone model =
                     { onPress = Just SettingsPress, label = E.text "settings" }
                 ]
             , E.row [ E.spacing 8 ] [ E.text "project:", E.el [ EF.bold ] <| E.text model.project.name ]
-            , E.row [ E.spacing 8 ]
+            , E.row [ E.spacing 8 ] <|
                 [ EI.button Common.buttonStyle { onPress = Just DonePress, label = E.text "<-" }
                 , EI.button Common.buttonStyle { onPress = Just EditPress, label = E.text "edit project" }
-                , EI.button
-                    (if isdirty then
-                        Common.buttonStyle ++ [ EBk.color TC.darkYellow ]
-
-                     else
-                        Common.buttonStyle
-                    )
-                    { onPress = Just SavePress, label = E.text "save" }
                 ]
+                    ++ (if isdirty then
+                            [ EI.button Common.buttonStyle { onPress = Just RevertPress, label = E.text "revert" }
+                            , EI.button
+                                (Common.buttonStyle ++ [ EBk.color TC.darkYellow ])
+                                { onPress = Just SavePress, label = E.text "save" }
+                            ]
+
+                        else
+                            []
+                       )
             , viewModeBar model
             ]
                 ++ (case model.viewmode of
@@ -923,7 +925,12 @@ update msg model ld =
             ( model, Save (toSaveProjectTime model) )
 
         RevertPress ->
-            ( model, None )
+            ( { model
+                | timeentries = model.initialtimeentries
+                , payentries = model.initialpayentries
+              }
+            , None
+            )
 
         EditPress ->
             ( model, Edit )
