@@ -1039,41 +1039,15 @@ actualupdate msg model =
                     ( { model | state = ProjectListing nm login }, Cmd.none )
 
         ( ProjectEditMsg ms, ProjectEdit st login ) ->
-            let
-                ( nm, cmd ) =
-                    ProjectEdit.update ms st login
-            in
-            case cmd of
-                ProjectEdit.Save s ->
-                    ( { model | state = ProjectEdit nm login }
-                    , sendUIMsg model.location <| UI.SaveProjectEdit s
-                    )
+            handleProjectEdit model (ProjectEdit.update ms st login) login
 
-                ProjectEdit.New ->
-                    ( { model | state = ProjectEdit ProjectEdit.initNew login }
-                    , Cmd.none
-                    )
+        ( WkMsg rkey, ProjectEdit ptm login ) ->
+            case rkey of
+                Ok key ->
+                    handleProjectEdit model (ProjectEdit.onWkKeyPress key ptm login) login
 
-                ProjectEdit.AddMember ->
-                    ( { model | state = ProjectEdit nm login }
-                    , sendUIMsg model.location <| UI.GetAllMembers
-                    )
-
-                ProjectEdit.Done ->
-                    ( { model | state = ProjectEdit nm login }
-                    , sendUIMsg model.location <| UI.GetProjectList login.userid
-                    )
-
-                ProjectEdit.Settings ->
-                    ( { model
-                        | state =
-                            UserSettings (UserSettings.init login model.fontsize) login model.state
-                      }
-                    , Cmd.none
-                    )
-
-                ProjectEdit.None ->
-                    ( { model | state = ProjectEdit nm login }, Cmd.none )
+                Err _ ->
+                    ( model, Cmd.none )
 
         ( WkMsg rkey, ProjectTime ptm login ) ->
             case rkey of
@@ -1090,6 +1064,41 @@ actualupdate msg model =
             ( unexpectedMsg model x
             , Cmd.none
             )
+
+
+handleProjectEdit : Model -> ( ProjectEdit.Model, ProjectEdit.Command ) -> Data.LoginData -> ( Model, Cmd Msg )
+handleProjectEdit model ( nm, cmd ) login =
+    case cmd of
+        ProjectEdit.Save s ->
+            ( { model | state = ProjectEdit nm login }
+            , sendUIMsg model.location <| UI.SaveProjectEdit s
+            )
+
+        ProjectEdit.New ->
+            ( { model | state = ProjectEdit ProjectEdit.initNew login }
+            , Cmd.none
+            )
+
+        ProjectEdit.AddMember ->
+            ( { model | state = ProjectEdit nm login }
+            , sendUIMsg model.location <| UI.GetAllMembers
+            )
+
+        ProjectEdit.Done ->
+            ( { model | state = ProjectEdit nm login }
+            , sendUIMsg model.location <| UI.GetProjectList login.userid
+            )
+
+        ProjectEdit.Settings ->
+            ( { model
+                | state =
+                    UserSettings (UserSettings.init login model.fontsize) login model.state
+              }
+            , Cmd.none
+            )
+
+        ProjectEdit.None ->
+            ( { model | state = ProjectEdit nm login }, Cmd.none )
 
 
 handleProjectTime : Model -> ( ProjectTime.Model, ProjectTime.Command ) -> Data.LoginData -> ( Model, Cmd Msg )

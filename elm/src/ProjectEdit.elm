@@ -52,6 +52,20 @@ type Command
     | None
 
 
+onWkKeyPress : WK.Key -> Model -> Data.LoginData -> ( Model, Command )
+onWkKeyPress key model ld =
+    case Toop.T4 key.key key.ctrl key.alt key.shift of
+        Toop.T4 "s" True False False ->
+            if isDirty model then
+                update SavePress model ld
+
+            else
+                ( model, None )
+
+        _ ->
+            ( model, None )
+
+
 toSaveProject : Model -> Data.SaveProject
 toSaveProject model =
     { id = model.id
@@ -188,18 +202,19 @@ view ld size model =
                     (E.alignRight :: Common.buttonStyle)
                     { onPress = Just SettingsPress, label = E.text "settings" }
                 ]
-            , E.row [ E.spacing 8 ]
+            , E.row [ E.spacing 8 ] <|
                 [ EI.button Common.buttonStyle { onPress = Just DonePress, label = E.text "<-" }
                 , EI.button Common.buttonStyle { onPress = Just NewPress, label = E.text "new" }
-                , EI.button
-                    (if isdirty then
-                        Common.buttonStyle ++ [ EBk.color TC.darkYellow ]
-
-                     else
-                        Common.buttonStyle
-                    )
-                    { onPress = Just SavePress, label = E.text "save" }
                 ]
+                    ++ (if isdirty then
+                            [ EI.button
+                                (Common.buttonStyle ++ [ EBk.color TC.darkYellow ])
+                                { onPress = Just SavePress, label = E.text "save" }
+                            ]
+
+                        else
+                            []
+                       )
             , E.column
                 [ E.padding 8
                 , EBd.rounded 10
