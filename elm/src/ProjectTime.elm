@@ -110,6 +110,20 @@ type Command
     | None
 
 
+onWkKeyPress : WK.Key -> Model -> Data.LoginData -> ( Model, Command )
+onWkKeyPress key model ld =
+    case Toop.T4 key.key key.ctrl key.alt key.shift of
+        Toop.T4 "s" True False False ->
+            if isDirty model then
+                update SavePress model ld
+
+            else
+                ( model, None )
+
+        _ ->
+            ( model, None )
+
+
 toSaveProjectTime : Model -> Data.SaveProjectTime
 toSaveProjectTime model =
     let

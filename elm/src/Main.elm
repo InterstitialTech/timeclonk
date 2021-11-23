@@ -1075,47 +1075,56 @@ actualupdate msg model =
                 ProjectEdit.None ->
                     ( { model | state = ProjectEdit nm login }, Cmd.none )
 
+        ( WkMsg rkey, ProjectTime ptm login ) ->
+            case rkey of
+                Ok key ->
+                    handleProjectTime model (ProjectTime.onWkKeyPress key ptm login) login
+
+                Err _ ->
+                    ( model, Cmd.none )
+
         ( ProjectTimeMsg ms, ProjectTime st login ) ->
-            let
-                ( nm, cmd ) =
-                    ProjectTime.update ms st login
-            in
-            case cmd of
-                ProjectTime.Save s ->
-                    ( { model | state = ProjectTime nm login }
-                    , sendUIMsg model.location <| UI.SaveProjectTime s
-                    )
-
-                ProjectTime.Edit ->
-                    ( { model | state = ProjectEdit (ProjectEdit.initEdit st.project st.members) login }
-                    , Cmd.none
-                    )
-
-                ProjectTime.GetTime tomsg ->
-                    ( { model | state = ProjectTime nm login }
-                    , Task.perform (Time.posixToMillis >> tomsg >> ProjectTimeMsg) Time.now
-                    )
-
-                ProjectTime.Done ->
-                    ( { model | state = ProjectTime nm login }
-                    , sendUIMsg model.location <| UI.GetProjectList login.userid
-                    )
-
-                ProjectTime.Settings ->
-                    ( { model
-                        | state =
-                            UserSettings (UserSettings.init login model.fontsize) login model.state
-                      }
-                    , Cmd.none
-                    )
-
-                ProjectTime.None ->
-                    ( { model | state = ProjectTime nm login }, Cmd.none )
+            handleProjectTime model (ProjectTime.update ms st login) login
 
         ( x, y ) ->
             ( unexpectedMsg model x
             , Cmd.none
             )
+
+
+handleProjectTime : Model -> ( ProjectTime.Model, ProjectTime.Command ) -> Data.LoginData -> ( Model, Cmd Msg )
+handleProjectTime model ( nm, cmd ) login =
+    case cmd of
+        ProjectTime.Save s ->
+            ( { model | state = ProjectTime nm login }
+            , sendUIMsg model.location <| UI.SaveProjectTime s
+            )
+
+        ProjectTime.Edit ->
+            ( { model | state = ProjectEdit (ProjectEdit.initEdit nm.project nm.members) login }
+            , Cmd.none
+            )
+
+        ProjectTime.GetTime tomsg ->
+            ( { model | state = ProjectTime nm login }
+            , Task.perform (Time.posixToMillis >> tomsg >> ProjectTimeMsg) Time.now
+            )
+
+        ProjectTime.Done ->
+            ( { model | state = ProjectTime nm login }
+            , sendUIMsg model.location <| UI.GetProjectList login.userid
+            )
+
+        ProjectTime.Settings ->
+            ( { model
+                | state =
+                    UserSettings (UserSettings.init login model.fontsize) login model.state
+              }
+            , Cmd.none
+            )
+
+        ProjectTime.None ->
+            ( { model | state = ProjectTime nm login }, Cmd.none )
 
 
 handleLogin : Model -> ( Login.Model, Login.Cmd ) -> ( Model, Cmd Msg )
