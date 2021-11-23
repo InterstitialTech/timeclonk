@@ -847,12 +847,30 @@ payview ld size zone model =
     , E.table [ E.paddingXY 0 10, E.spacing 8, E.width E.fill ]
         { data = [ ( "total time", timetotes ), ( "total pay", paytotes ), ( "total unpaid", unpaidtotes ) ]
         , columns =
-            { header = E.text "totals"
-            , width = E.fill
+            -- dummy checkboxes for alignment.  alpha 0 hides them.
+            { header =
+                EI.checkbox [ E.width E.shrink, E.alpha 0.0 ]
+                    { onChange = \_ -> Noop
+                    , icon = EI.defaultCheckbox
+                    , checked = False
+                    , label = EI.labelHidden "alignment checkbox"
+                    }
+            , width = E.shrink
             , view =
-                \( title, _ ) ->
-                    E.text title
+                \_ ->
+                    EI.checkbox [ E.width E.shrink, E.alpha 0.0 ]
+                        { onChange = \_ -> Noop
+                        , icon = EI.defaultCheckbox
+                        , checked = False
+                        , label = EI.labelHidden "alignment checkbox"
+                        }
             }
+                :: { header = E.text "totals"
+                   , width = E.fill
+                   , view =
+                        \( title, _ ) ->
+                            E.text title
+                   }
                 :: (model.members
                         |> List.map
                             (\member ->
