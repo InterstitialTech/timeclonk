@@ -32,7 +32,7 @@ type Msg
 
 
 type alias Model =
-    { id : Maybe Int
+    { id : Maybe Data.ProjectId
     , name : String
     , description : String
     , public : Bool

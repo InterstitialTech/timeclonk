@@ -190,7 +190,7 @@ type alias ListProject =
 
 
 type alias Project =
-    { id : Int
+    { id : ProjectId
     , name : String
     , description : String
     , public : Bool
@@ -200,7 +200,7 @@ type alias Project =
 
 
 type alias SaveProject =
-    { id : Maybe Int
+    { id : Maybe ProjectId
     , name : String
     , description : String
     , public : Bool
@@ -208,7 +208,7 @@ type alias SaveProject =
 
 
 type alias SavedProject =
-    { id : Int
+    { id : ProjectId
     , changeddate : Int
     }
 
@@ -259,7 +259,7 @@ type alias TimeEntry =
 
 type alias SaveTimeEntry =
     { id : Maybe Int
-    , project : Int
+    , project : ProjectId
     , user : UserId
     , description : String
     , startdate : Int
@@ -283,7 +283,7 @@ type alias PayEntry =
 
 type alias SavePayEntry =
     { id : Maybe Int
-    , project : Int
+    , project : ProjectId
     , user : UserId
     , duration : Int
     , paymentdate : Int
@@ -292,7 +292,7 @@ type alias SavePayEntry =
 
 
 type alias SaveProjectTime =
-    { project : Int
+    { project : ProjectId
     , savetimeentries : List SaveTimeEntry
     , deletetimeentries : List Int
     , savepayentries : List SavePayEntry
@@ -389,7 +389,7 @@ encodeSaveProject sp =
         , ( "public", JE.bool sp.public )
         ]
             ++ (sp.id
-                    |> Maybe.map (\id -> [ ( "id", JE.int id ) ])
+                    |> Maybe.map (\id -> [ ( "id", JE.int (getProjectIdVal id) ) ])
                     |> Maybe.withDefault []
                )
 
@@ -397,7 +397,7 @@ encodeSaveProject sp =
 decodeProject : JD.Decoder Project
 decodeProject =
     JD.succeed Project
-        |> andMap (JD.field "id" JD.int)
+        |> andMap (JD.field "id" JD.int |> JD.map makeProjectId)
         |> andMap (JD.field "name" JD.string)
         |> andMap (JD.field "description" JD.string)
         |> andMap (JD.field "public" JD.bool)
@@ -408,7 +408,7 @@ decodeProject =
 decodeSavedProject : JD.Decoder SavedProject
 decodeSavedProject =
     JD.succeed SavedProject
-        |> andMap (JD.field "id" JD.int)
+        |> andMap (JD.field "id" JD.int |> JD.map makeProjectId)
         |> andMap (JD.field "changeddate" JD.int)
 
 
@@ -452,7 +452,7 @@ decodeSavedProjectEdit =
 encodeSaveProjectTime : SaveProjectTime -> JE.Value
 encodeSaveProjectTime t =
     JE.object
-        [ ( "project", JE.int t.project )
+        [ ( "project", JE.int (getProjectIdVal t.project) )
         , ( "savetimeentries", JE.list encodeSaveTimeEntry t.savetimeentries )
         , ( "deletetimeentries", JE.list JE.int t.deletetimeentries )
         , ( "savepayentries", JE.list encodeSavePayEntry t.savepayentries )
@@ -482,7 +482,7 @@ encodeSaveTimeEntry e =
             |> Maybe.map (\id -> (::) ( "id", JE.int id ))
             |> Maybe.withDefault identity
         )
-            [ ( "project", JE.int e.project )
+            [ ( "project", JE.int (getProjectIdVal e.project) )
             , ( "user", JE.int (getUserIdVal e.user) )
             , ( "description", JE.string e.description )
             , ( "startdate", JE.int e.startdate )
@@ -512,7 +512,7 @@ encodeSavePayEntry e =
             |> Maybe.map (\id -> (::) ( "id", JE.int id ))
             |> Maybe.withDefault identity
         )
-            [ ( "project", JE.int e.project )
+            [ ( "project", JE.int (getProjectIdVal e.project) )
             , ( "user", JE.int (getUserIdVal e.user) )
             , ( "duration", JE.int e.duration )
             , ( "paymentdate", JE.int e.paymentdate )
