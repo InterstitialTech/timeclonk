@@ -1,10 +1,131 @@
-module Data exposing (..)
+module Data exposing
+    ( ChangeEmail
+    , ChangePassword
+    , ListProject
+    , Login
+    , LoginData
+    , PayEntry
+    , PayEntryId
+    , Project
+    , ProjectEdit
+    , ProjectId
+    , ProjectMember
+    , ProjectTime
+    , Registration
+    , ResetPassword
+    , SavePayEntry
+    , SaveProject
+    , SaveProjectEdit
+    , SaveProjectMember
+    , SaveProjectTime
+    , SaveTimeEntry
+    , SavedProject
+    , SavedProjectEdit
+    , SetPassword
+    , TimeEntry
+    , TimeEntryId
+    , UserId
+    , decodeListProject
+    , decodeLoginData
+    , decodePayEntry
+    , decodeProject
+    , decodeProjectEdit
+    , decodeProjectMember
+    , decodeProjectTime
+    , decodeSavedProject
+    , decodeSavedProjectEdit
+    , decodeTimeEntry
+    , encodeChangeEmail
+    , encodeChangePassword
+    , encodeLogin
+    , encodeRegistration
+    , encodeResetPassword
+    , encodeSavePayEntry
+    , encodeSaveProject
+    , encodeSaveProjectEdit
+    , encodeSaveProjectMember
+    , encodeSaveProjectTime
+    , encodeSaveTimeEntry
+    , encodeSetPassword
+    , getPayEntryIdVal
+    , getProjectIdVal
+    , getTimeEntryIdVal
+    , getUserIdVal
+    , makePayEntryId
+    , makeProjectId
+    , makeTimeEntryId
+    , makeUserId
+    )
 
 import Json.Decode as JD
 import Json.Encode as JE
 import UUID exposing (UUID)
 import Url.Builder as UB
 import Util exposing (andMap)
+
+
+type UserId
+    = UserId Int
+
+
+makeUserId : Int -> UserId
+makeUserId i =
+    UserId i
+
+
+getUserIdVal : UserId -> Int
+getUserIdVal uid =
+    case uid of
+        UserId i ->
+            i
+
+
+type ProjectId
+    = ProjectId Int
+
+
+makeProjectId : Int -> ProjectId
+makeProjectId i =
+    ProjectId i
+
+
+getProjectIdVal : ProjectId -> Int
+getProjectIdVal uid =
+    case uid of
+        ProjectId i ->
+            i
+
+
+type PayEntryId
+    = PayEntryId Int
+
+
+makePayEntryId : Int -> PayEntryId
+makePayEntryId i =
+    PayEntryId i
+
+
+getPayEntryIdVal : PayEntryId -> Int
+getPayEntryIdVal uid =
+    case uid of
+        PayEntryId i ->
+            i
+
+
+type TimeEntryId
+    = TimeEntryId Int
+
+
+makeTimeEntryId : Int -> TimeEntryId
+makeTimeEntryId i =
+    TimeEntryId i
+
+
+getTimeEntryIdVal : TimeEntryId -> Int
+getTimeEntryIdVal uid =
+    case uid of
+        TimeEntryId i ->
+            i
 
 
 
@@ -51,7 +172,7 @@ type alias ChangeEmail =
 
 
 type alias LoginData =
-    { userid : Int
+    { userid : UserId
     , name : String
     }
 
@@ -93,7 +214,7 @@ type alias SavedProject =
 
 
 type alias ProjectMember =
-    { id : Int
+    { id : UserId
     , name : String
     }
 
@@ -105,7 +226,7 @@ type alias ProjectEdit =
 
 
 type alias SaveProjectMember =
-    { id : Int
+    { id : UserId
     , delete : Bool
     }
 
@@ -125,7 +246,7 @@ type alias SavedProjectEdit =
 type alias TimeEntry =
     { id : Int
     , project : Int
-    , user : Int
+    , user : UserId
     , description : String
     , startdate : Int
     , enddate : Int
@@ -139,7 +260,7 @@ type alias TimeEntry =
 type alias SaveTimeEntry =
     { id : Maybe Int
     , project : Int
-    , user : Int
+    , user : UserId
     , description : String
     , startdate : Int
     , enddate : Int
@@ -150,7 +271,7 @@ type alias SaveTimeEntry =
 type alias PayEntry =
     { id : Int
     , project : Int
-    , user : Int
+    , user : UserId
     , duration : Int
     , paymentdate : Int
     , description : String
@@ -163,7 +284,7 @@ type alias PayEntry =
 type alias SavePayEntry =
     { id : Maybe Int
     , project : Int
-    , user : Int
+    , user : UserId
     , duration : Int
     , paymentdate : Int
     , description : String
@@ -245,7 +366,7 @@ encodeChangeEmail l =
 decodeLoginData : JD.Decoder LoginData
 decodeLoginData =
     JD.succeed LoginData
-        |> andMap (JD.field "userid" JD.int)
+        |> andMap (JD.field "userid" JD.int |> JD.map makeUserId)
         |> andMap (JD.field "name" JD.string)
 
 
@@ -294,7 +415,7 @@ decodeSavedProject =
 decodeProjectMember : JD.Decoder ProjectMember
 decodeProjectMember =
     JD.succeed ProjectMember
-        |> andMap (JD.field "id" JD.int)
+        |> andMap (JD.field "id" JD.int |> JD.map makeUserId)
         |> andMap (JD.field "name" JD.string)
 
 
@@ -308,7 +429,7 @@ decodeProjectEdit =
 encodeSaveProjectMember : SaveProjectMember -> JE.Value
 encodeSaveProjectMember m =
     JE.object
-        [ ( "id", JE.int m.id )
+        [ ( "id", JE.int (getUserIdVal m.id) )
         , ( "delete", JE.bool m.delete )
         ]
 
@@ -344,7 +465,7 @@ decodeTimeEntry =
     JD.succeed TimeEntry
         |> andMap (JD.field "id" JD.int)
         |> andMap (JD.field "project" JD.int)
-        |> andMap (JD.field "user" JD.int)
+        |> andMap (JD.field "user" JD.int |> JD.map makeUserId)
         |> andMap (JD.field "description" JD.string)
         |> andMap (JD.field "startdate" JD.int)
         |> andMap (JD.field "enddate" JD.int)
@@ -362,7 +483,7 @@ encodeSaveTimeEntry e =
             |> Maybe.withDefault identity
         )
             [ ( "project", JE.int e.project )
-            , ( "user", JE.int e.user )
+            , ( "user", JE.int (getUserIdVal e.user) )
             , ( "description", JE.string e.description )
             , ( "startdate", JE.int e.startdate )
             , ( "enddate", JE.int e.enddate )
@@ -375,7 +496,7 @@ decodePayEntry =
     JD.succeed PayEntry
         |> andMap (JD.field "id" JD.int)
         |> andMap (JD.field "project" JD.int)
-        |> andMap (JD.field "user" JD.int)
+        |> andMap (JD.field "user" JD.int |> JD.map makeUserId)
         |> andMap (JD.field "duration" JD.int)
         |> andMap (JD.field "paymentdate" JD.int)
         |> andMap (JD.field "description" JD.string)
@@ -392,7 +513,7 @@ encodeSavePayEntry e =
             |> Maybe.withDefault identity
         )
             [ ( "project", JE.int e.project )
-            , ( "user", JE.int e.user )
+            , ( "user", JE.int (getUserIdVal e.user) )
             , ( "duration", JE.int e.duration )
             , ( "paymentdate", JE.int e.paymentdate )
             , ( "description", JE.string e.description )

@@ -35,9 +35,11 @@ import ResetPassword
 import Route exposing (Route(..), parseUrl, routeTitle, routeUrl)
 import SelectString as SS
 import ShowMessage
+import TDict exposing (TDict)
 import TangoColors as TC
 import Task exposing (Task)
 import Time
+import TimeReporting as TR
 import UUID exposing (UUID)
 import Url exposing (Url)
 import Url.Builder as UB
@@ -97,7 +99,7 @@ type alias Flags =
     , debugstring : String
     , width : Int
     , height : Int
-    , login : Maybe Data.LoginData
+    , login : Maybe { userid : Int, name : String }
     }
 
 
@@ -932,16 +934,16 @@ actualupdate msg model =
                                 ProjectEdit s l ->
                                     let
                                         alms =
-                                            x |> List.map (\m -> ( m.id, m )) |> Dict.fromList
+                                            x |> List.map (\m -> ( m.id, m )) |> TDict.insertList TR.emptyUmDict
 
                                         somems =
-                                            Dict.diff alms s.members
+                                            TDict.diff alms s.members
                                     in
                                     ( { model
                                         | state =
                                             SelectDialog
                                                 (SS.init
-                                                    { choices = somems |> Dict.values |> List.map (\m -> ( m, m.name ))
+                                                    { choices = somems |> TDict.values |> List.map (\m -> ( m, m.name ))
                                                     , selected = Nothing
                                                     , search = ""
                                                     }
@@ -1224,7 +1226,7 @@ init flags url key zone fontsize =
                         PubShowMessage { message = "loading..." } Nothing
 
                     Just l ->
-                        ShowMessage { message = "loading..." } l Nothing
+                        ShowMessage { message = "loading..." } { userid = Data.makeUserId l.userid, name = l.name } Nothing
             , size = { width = flags.width, height = flags.height }
             , location = flags.location
             , appname = flags.appname

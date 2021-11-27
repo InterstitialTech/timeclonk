@@ -2,7 +2,7 @@ module ProjectTime exposing (..)
 
 import Calendar
 import Common
-import Data
+import Data exposing (UserId)
 import Dialog as D
 import Dict exposing (Dict)
 import Element as E exposing (Element)
@@ -16,6 +16,7 @@ import Element.Region
 import Round as R
 import SelectString
 import Set
+import TDict exposing (TDict)
 import TangoColors as TC
 import TcCommon as TC
 import Time
@@ -53,9 +54,9 @@ type Msg
     | OnDistributionChanged String
     | ClearDistribution
     | CalcDistribution
-    | OnPaymentChanged Int String
-    | AddPaymentPress Int Int
-    | AddPayment Int Int Int
+    | OnPaymentChanged UserId String
+    | AddPaymentPress UserId Int
+    | AddPayment UserId Int Int
     | CheckAll Bool
     | CheckItem Int Bool
     | CheckPayAll Bool
@@ -96,7 +97,7 @@ type alias Model =
     , focuspay : String
     , focuspaydate : String
     , distributionhours : String
-    , distribution : Maybe (Dict Int String)
+    , distribution : Maybe (TDict UserId Int String)
     , viewmode : ViewMode
     }
 
@@ -420,13 +421,13 @@ clonkview ld size zone model =
 
         mypay =
             paytotes
-                |> Dict.get ld.userid
+                |> TDict.get ld.userid
                 |> Maybe.withDefault 0
                 |> TR.millisToHours
 
         teampay =
             paytotes
-                |> Dict.values
+                |> TDict.values
                 |> List.foldl (+) 0
                 |> TR.millisToHours
 
@@ -583,7 +584,6 @@ clonkview ld size zone model =
             , { header = E.text "Duration"
               , width = E.shrink
               , view =
-                    -- \te -> E.text <| R.round 2 (toFloat (te.enddate - te.startdate) / (1000.0 * 60.0 * 60.0))
                     \te ->
                         let
                             row =
@@ -628,7 +628,7 @@ clonkview ld size zone model =
 
 
 type Entry
-    = TimeDay (Dict Int Int)
+    = TimeDay (TDict UserId Int Int)
     | PayEntry EditPayEntry
 
 
@@ -643,16 +643,16 @@ payview ld size zone model =
 
         unpaidtotes =
             timetotes
-                |> Dict.foldl
+                |> TDict.foldl
                     (\k v up ->
-                        case Dict.get k paytotes of
+                        case TDict.get k paytotes of
                             Just p ->
-                                Dict.insert k (v - p) up
+                                TDict.insert k (v - p) up
 
                             Nothing ->
-                                Dict.insert k v up
+                                TDict.insert k v up
                     )
-                    Dict.empty
+                    TR.emptyUserTimeDict
 
         tmpd =
             TR.teamMillisPerDay (Dict.values model.timeentries)
@@ -722,7 +722,11 @@ payview ld size zone model =
                                                     [ E.text <|
                                                         String.fromInt (Calendar.getYear cdate)
                                                             ++ "/"
-                                                            ++ (cdate |> Calendar.getMonth |> Calendar.monthToInt |> String.fromInt)
+                                                            ++ (cdate
+                                                                    |> Calendar.getMonth
+                                                                    |> Calendar.monthToInt
+                                                                    |> String.fromInt
+                                                               )
                                                             ++ "/"
                                                             ++ String.fromInt
                                                                 (Calendar.getDay cdate)
@@ -798,7 +802,7 @@ payview ld size zone model =
                                     \( date, e ) ->
                                         case e of
                                             TimeDay ums ->
-                                                case Dict.get member.id ums of
+                                                case TDict.get member.id ums of
                                                     Just millis ->
                                                         if millis > 0 then
                                                             E.row [ EE.onClick <| OnRowItemClick zone date PaymentAmount ]
@@ -878,7 +882,7 @@ payview ld size zone model =
                                 , width = E.fill
                                 , view =
                                     \( _, totes ) ->
-                                        Dict.get member.id totes
+                                        TDict.get member.id totes
                                             |> Maybe.map (\t -> E.text <| R.round 2 <| TR.millisToHours t)
                                             |> Maybe.withDefault E.none
                                 }
@@ -899,16 +903,16 @@ payview ld size zone model =
         Just dist ->
             let
                 md =
-                    model.members |> List.map (\m -> ( m.id, m )) |> Dict.fromList
+                    model.members |> List.map (\m -> ( m.id, m )) |> TDict.insertList TR.emptyUmDict
             in
             E.table [ E.spacing 8, E.width E.fill ]
-                { data = dist |> Dict.toList
+                { data = dist |> TDict.toList
                 , columns =
                     [ { header = E.text "User"
                       , width = E.shrink
                       , view =
                             \( id, _ ) ->
-                                case Dict.get id md of
+                                case TDict.get id md of
                                     Just m ->
                                         E.el [ E.centerY ] <| E.text m.name
 
@@ -1245,7 +1249,8 @@ update msg model ld =
                         paytotes =
                             TR.payTotes (Dict.values model.payentries)
 
-                        ( tmpd, fintotes ) =
+                        meh : ( Dict Int (TDict.TDict UserId Int Int), TDict.TDict UserId Int Int )
+                        meh =
                             utmpd
                                 |> Dict.toList
                                 |> List.foldl
@@ -1254,20 +1259,20 @@ update msg model ld =
                                         let
                                             ( upday, newtotes ) =
                                                 utime
-                                                    |> Dict.toList
+                                                    |> TDict.toList
                                                     |> List.foldl
                                                         -- for each day subtract user time from the payment totals.
                                                         (\( user, time ) ( utim, ptots ) ->
-                                                            case Dict.get user ptots of
+                                                            case TDict.get user ptots of
                                                                 Just ptime ->
                                                                     if ptime - time < 0 then
-                                                                        ( Dict.insert user (time - ptime) utim
-                                                                        , Dict.insert user 0 ptots
+                                                                        ( TDict.insert user (time - ptime) utim
+                                                                        , TDict.insert user 0 ptots
                                                                         )
 
                                                                     else
-                                                                        ( Dict.remove user utim
-                                                                        , Dict.insert user (ptime - time) ptots
+                                                                        ( TDict.remove user utim
+                                                                        , TDict.insert user (ptime - time) ptots
                                                                         )
 
                                                                 Nothing ->
@@ -1279,8 +1284,18 @@ update msg model ld =
                                     )
                                     ( [], paytotes )
                                 |> (\( t, tots ) ->
-                                        ( t |> List.filter (\( i, d ) -> not <| Dict.isEmpty d) |> Dict.fromList, tots )
+                                        ( t
+                                            |> List.filter
+                                                (\( i, d ) ->
+                                                    not <| TDict.isEmpty d
+                                                )
+                                            |> Dict.fromList
+                                        , tots
+                                        )
                                    )
+
+                        ( tmpd, fintotes ) =
+                            meh
 
                         -- total millseconds to distribute this time.
                         distmillis =
@@ -1299,10 +1314,10 @@ update msg model ld =
                                     (\( date, day ) ( sum, distamt ) ->
                                         let
                                             daysum =
-                                                day |> Dict.values |> List.foldl (+) 0
+                                                day |> TDict.values |> List.foldl (+) 0
 
                                             sumsum =
-                                                sum |> Dict.values |> List.foldl (+) 0
+                                                sum |> TDict.values |> List.foldl (+) 0
                                         in
                                         if daysum + sumsum > distamt then
                                             -- do last-day distrib.
@@ -1333,10 +1348,10 @@ update msg model ld =
                                                                             if millis < avg then
                                                                                 ( dd
                                                                                 , sd
-                                                                                    |> Dict.get user
+                                                                                    |> TDict.get user
                                                                                     |> Maybe.map (\amt -> amt + millis)
                                                                                     |> Maybe.withDefault millis
-                                                                                    |> (\ms -> Dict.insert user ms sd)
+                                                                                    |> (\ms -> TDict.insert user ms sd)
                                                                                 , da - millis
                                                                                 )
 
@@ -1353,10 +1368,10 @@ update msg model ld =
                                                             ( List.foldl
                                                                 (\user sd ->
                                                                     sd
-                                                                        |> Dict.get user
+                                                                        |> TDict.get user
                                                                         |> Maybe.map (\amt -> amt + avg)
                                                                         |> Maybe.withDefault avg
-                                                                        |> (\ms -> Dict.insert user ms sd)
+                                                                        |> (\ms -> TDict.insert user ms sd)
                                                                 )
                                                                 sumdict
                                                                 (List.map Tuple.first outer_dd)
@@ -1369,31 +1384,31 @@ update msg model ld =
                                                         else
                                                             distbelowavg outer_dd outer_sd outer_da
                                             in
-                                            distbelowavg (Dict.toList day) sum distamt
+                                            distbelowavg (TDict.toList day) sum distamt
 
                                         else
                                             ( day
-                                                |> Dict.toList
+                                                |> TDict.toList
                                                 |> List.foldl
                                                     (\( user, millis ) newsum ->
-                                                        case Dict.get user newsum of
+                                                        case TDict.get user newsum of
                                                             Just oldsum ->
-                                                                Dict.insert user (millis + oldsum) newsum
+                                                                TDict.insert user (millis + oldsum) newsum
 
                                                             Nothing ->
-                                                                Dict.insert user millis newsum
+                                                                TDict.insert user millis newsum
                                                     )
                                                     sum
                                             , distamt - daysum
                                             )
                                     )
-                                    ( Dict.empty, distmillis )
+                                    ( TR.emptyUserTimeDict, distmillis )
                     in
                     ( { model
                         | distribution =
                             Just
                                 (Tuple.first dist
-                                    |> Dict.map (\_ i -> R.round 2 (toFloat i / (60 * 60 * 1000)))
+                                    |> TDict.map (\_ i -> R.round 2 (toFloat i / (60 * 60 * 1000)))
                                 )
                       }
                     , None
@@ -1408,7 +1423,7 @@ update msg model ld =
                     ( { model
                         | distribution =
                             Just <|
-                                Dict.insert member text dist
+                                TDict.insert member text dist
                       }
                     , None
                     )

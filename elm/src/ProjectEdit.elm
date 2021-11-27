@@ -1,7 +1,7 @@
 module ProjectEdit exposing (..)
 
 import Common
-import Data
+import Data exposing (UserId)
 import Dialog as D
 import Dict exposing (Dict)
 import Element as E exposing (Element)
@@ -11,6 +11,7 @@ import Element.Font as EF
 import Element.Input as EI
 import Element.Region
 import SelectString
+import TDict exposing (TDict)
 import TangoColors as TC
 import TcCommon as TC
 import Toop
@@ -37,9 +38,9 @@ type alias Model =
     , public : Bool
     , createdate : Maybe Int
     , changeddate : Maybe Int
-    , members : Dict Int Data.ProjectMember
+    , members : TDict UserId Int Data.ProjectMember
     , initialProject : Maybe Data.Project
-    , initialMembers : Dict Int Data.ProjectMember
+    , initialMembers : TDict UserId Int Data.ProjectMember
     }
 
 
@@ -79,22 +80,27 @@ toSaveProjectEdit : Model -> Data.SaveProjectEdit
 toSaveProjectEdit model =
     { project = toSaveProject model
     , members =
-        (Dict.diff model.members model.initialMembers
-            |> Dict.values
+        (TDict.diff model.members model.initialMembers
+            |> TDict.values
             |> List.map (\m -> { id = m.id, delete = False })
         )
-            ++ (Dict.diff model.initialMembers model.members
-                    |> Dict.values
+            ++ (TDict.diff model.initialMembers model.members
+                    |> TDict.values
                     |> List.map (\m -> { id = m.id, delete = True })
                )
     }
+
+
+emptyUmDict : TDict UserId Int Data.ProjectMember
+emptyUmDict =
+    TDict.empty Data.getUserIdVal Data.makeUserId
 
 
 onSavedProjectEdit : Data.SavedProjectEdit -> Model -> Model
 onSavedProjectEdit spe model =
     let
         mbrs =
-            spe.members |> List.map (\m -> ( m.id, m )) |> Dict.fromList
+            spe.members |> List.map (\m -> ( m.id, m )) |> TDict.insertList emptyUmDict
     in
     { model
         | id = Just spe.project.id
@@ -111,7 +117,7 @@ onSavedProjectEdit spe model =
 
 addMember : Data.ProjectMember -> Model -> Model
 addMember pm model =
-    { model | members = Dict.insert pm.id pm model.members }
+    { model | members = TDict.insert pm.id pm model.members }
 
 
 isDirty : Model -> Bool
@@ -146,9 +152,9 @@ initNew =
     , public = False
     , createdate = Nothing
     , changeddate = Nothing
-    , members = Dict.empty
+    , members = emptyUmDict
     , initialProject = Nothing
-    , initialMembers = Dict.empty
+    , initialMembers = emptyUmDict
     }
 
 
@@ -158,7 +164,7 @@ initEdit proj members =
         mbs =
             members
                 |> List.map (\m -> ( m.id, m ))
-                |> Dict.fromList
+                |> TDict.insertList emptyUmDict
     in
     { id = Just proj.id
     , name = proj.name
@@ -268,7 +274,7 @@ view ld size model =
                     [ E.el [ EF.bold ] <| E.text "members"
                     , EI.button Common.buttonStyle { onPress = Just AddMemberPress, label = E.text "add" }
                     ]
-                    :: (model.members |> Dict.values |> List.map (\m -> E.text m.name))
+                    :: (model.members |> TDict.values |> List.map (\m -> E.text m.name))
                 )
             ]
 

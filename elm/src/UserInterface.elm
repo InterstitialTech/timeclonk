@@ -1,6 +1,6 @@
 module UserInterface exposing (SendMsg(..), ServerResponse(..), encodeEmail, encodeSendMsg, serverResponseDecoder, showServerResponse)
 
-import Data
+import Data exposing (UserId)
 import Json.Decode as JD
 import Json.Encode as JE
 
@@ -17,7 +17,7 @@ type SendMsg
     | Logout
     | ChangePassword Data.ChangePassword
     | ChangeEmail Data.ChangeEmail
-    | GetProjectList Int
+    | GetProjectList UserId
     | GetProjectEdit Int
     | SaveProjectEdit Data.SaveProjectEdit
     | GetProjectTime Int
@@ -178,7 +178,7 @@ encodeSendMsg sm =
         GetProjectList uid ->
             JE.object
                 [ ( "what", JE.string "GetProjectList" )
-                , ( "data", JE.int uid )
+                , ( "data", JE.int (Data.getUserIdVal uid) )
                 ]
 
         GetProjectEdit pid ->

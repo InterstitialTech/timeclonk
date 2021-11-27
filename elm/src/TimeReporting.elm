@@ -2,15 +2,17 @@ module TimeReporting exposing (..)
 
 import Calendar
 import Clock
+import Data exposing (UserId)
 import DateTime
 import Dict exposing (Dict)
 import Round as R
+import TDict exposing (TDict)
 import Time
 
 
 type alias EditTimeEntry =
     { id : Maybe Int
-    , user : Int
+    , user : UserId
     , description : String
     , startdate : Int
     , enddate : Int
@@ -21,7 +23,7 @@ type alias EditTimeEntry =
 
 type alias EditPayEntry =
     { id : Maybe Int
-    , user : Int
+    , user : UserId
     , description : String
     , paymentdate : Int
     , duration : Int
@@ -96,7 +98,7 @@ millisPerDay from to =
 
 type alias Mpd =
     { date : Calendar.Date
-    , user : Int
+    , user : UserId
     , millis : Int
     }
 
@@ -113,16 +115,16 @@ userMillisPerDay ete =
             )
 
 
-teamMillisPerDay : List EditTimeEntry -> Dict Int (Dict Int Int)
+teamMillisPerDay : List EditTimeEntry -> Dict Int (TDict UserId Int Int)
 teamMillisPerDay etes =
     let
-        e : Dict Int (Dict Int Int)
+        e : Dict Int (TDict UserId Int Int)
         e =
             Dict.empty
 
-        um : Dict Int Int
+        um : TDict UserId Int Int
         um =
-            Dict.empty
+            emptyUserTimeDict
     in
     etes
         |> List.filter (.ignore >> not)
@@ -135,45 +137,55 @@ teamMillisPerDay etes =
                 in
                 case Dict.get mlis dict of
                     Just byuser ->
-                        case Dict.get mpd.user byuser of
+                        case TDict.get mpd.user byuser of
                             Just umillis ->
-                                Dict.insert mlis (Dict.insert mpd.user (umillis + mpd.millis) byuser) dict
+                                Dict.insert mlis (TDict.insert mpd.user (umillis + mpd.millis) byuser) dict
 
                             Nothing ->
-                                Dict.insert mlis (Dict.insert mpd.user mpd.millis byuser) dict
+                                Dict.insert mlis (TDict.insert mpd.user mpd.millis byuser) dict
 
                     Nothing ->
-                        Dict.insert mlis (Dict.insert mpd.user mpd.millis um) dict
+                        Dict.insert mlis (TDict.insert mpd.user mpd.millis um) dict
             )
             e
 
 
-payTotes : List EditPayEntry -> Dict Int Int
+payTotes : List EditPayEntry -> TDict UserId Int Int
 payTotes entries =
     entries
         |> List.foldl
             (\entry sums ->
-                case Dict.get entry.user sums of
+                case TDict.get entry.user sums of
                     Just sum ->
-                        Dict.insert entry.user (sum + entry.duration) sums
+                        TDict.insert entry.user (sum + entry.duration) sums
 
                     Nothing ->
-                        Dict.insert entry.user entry.duration sums
+                        TDict.insert entry.user entry.duration sums
             )
-            Dict.empty
+            emptyUserTimeDict
 
 
-timeTotes : List EditTimeEntry -> Dict Int Int
+emptyUmDict : TDict UserId Int Data.ProjectMember
+emptyUmDict =
+    TDict.empty Data.getUserIdVal Data.makeUserId
+
+
+emptyUserTimeDict : TDict UserId Int Int
+emptyUserTimeDict =
+    TDict.empty Data.getUserIdVal Data.makeUserId
+
+
+timeTotes : List EditTimeEntry -> TDict UserId Int Int
 timeTotes entries =
     entries
         |> List.filter (.ignore >> not)
         |> List.foldl
             (\entry sums ->
-                case Dict.get entry.user sums of
+                case TDict.get entry.user sums of
                     Just sum ->
-                        Dict.insert entry.user (sum + entry.enddate - entry.startdate) sums
+                        TDict.insert entry.user (sum + entry.enddate - entry.startdate) sums
 
                     Nothing ->
-                        Dict.insert entry.user (entry.enddate - entry.startdate) sums
+                        TDict.insert entry.user (entry.enddate - entry.startdate) sums
             )
-            Dict.empty
+            emptyUserTimeDict
