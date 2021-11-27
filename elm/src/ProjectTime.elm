@@ -17,6 +17,7 @@ import Round as R
 import SelectString
 import Set
 import TDict exposing (TDict)
+import TSet exposing (TSet)
 import TangoColors as TC
 import TcCommon as TC
 import Time
@@ -111,6 +112,16 @@ type Command
     | None
 
 
+emptyTimeEntryIdSet : TSet Data.TimeEntryId Int
+emptyTimeEntryIdSet =
+    TSet.empty Data.getTimeEntryIdVal Data.makeTimeEntryId
+
+
+emptyPayEntryIdSet : TSet Data.PayEntryId Int
+emptyPayEntryIdSet =
+    TSet.empty Data.getPayEntryIdVal Data.makePayEntryId
+
+
 onWkKeyPress : WK.Key -> Model -> Data.LoginData -> ( Model, Command )
 onWkKeyPress key model ld =
     case Toop.T4 key.key key.ctrl key.alt key.shift of
@@ -151,7 +162,7 @@ toSaveProjectTime model =
             Dict.diff model.initialtimeentries model.timeentries
                 |> Dict.values
                 |> List.filterMap .id
-                |> Set.fromList
+                |> TSet.insertList emptyTimeEntryIdSet
 
         savepayentries =
             model.payentries
@@ -176,7 +187,7 @@ toSaveProjectTime model =
             Dict.diff model.initialpayentries model.payentries
                 |> Dict.values
                 |> List.filterMap .id
-                |> Set.fromList
+                |> TSet.insertList emptyPayEntryIdSet
     in
     { project = model.project.id
     , savetimeentries = savetimeentries
@@ -187,14 +198,14 @@ toSaveProjectTime model =
             (\ste dte ->
                 case ste.id of
                     Just id ->
-                        Set.remove id dte
+                        TSet.remove id dte
 
                     Nothing ->
                         dte
             )
             deletetimeentries
             savetimeentries
-            |> Set.toList
+            |> TSet.toList
     , savepayentries = savepayentries
 
     -- remove update ids from the delete list.
@@ -203,14 +214,14 @@ toSaveProjectTime model =
             (\ste dte ->
                 case ste.id of
                     Just id ->
-                        Set.remove id dte
+                        TSet.remove id dte
 
                     Nothing ->
                         dte
             )
             deletepayentries
             savepayentries
-            |> Set.toList
+            |> TSet.toList
     }
 
 

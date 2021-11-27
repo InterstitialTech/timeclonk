@@ -2,7 +2,7 @@ module TimeReporting exposing (..)
 
 import Calendar
 import Clock
-import Data exposing (UserId)
+import Data exposing (PayEntryId, TimeEntryId, UserId)
 import DateTime
 import Dict exposing (Dict)
 import Round as R
@@ -11,7 +11,7 @@ import Time
 
 
 type alias EditTimeEntry =
-    { id : Maybe Int
+    { id : Maybe TimeEntryId
     , user : UserId
     , description : String
     , startdate : Int
@@ -22,7 +22,7 @@ type alias EditTimeEntry =
 
 
 type alias EditPayEntry =
-    { id : Maybe Int
+    { id : Maybe PayEntryId
     , user : UserId
     , description : String
     , paymentdate : Int

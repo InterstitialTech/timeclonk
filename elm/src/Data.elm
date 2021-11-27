@@ -244,7 +244,7 @@ type alias SavedProjectEdit =
 
 
 type alias TimeEntry =
-    { id : Int
+    { id : TimeEntryId
     , project : Int
     , user : UserId
     , description : String
@@ -258,7 +258,7 @@ type alias TimeEntry =
 
 
 type alias SaveTimeEntry =
-    { id : Maybe Int
+    { id : Maybe TimeEntryId
     , project : ProjectId
     , user : UserId
     , description : String
@@ -269,8 +269,8 @@ type alias SaveTimeEntry =
 
 
 type alias PayEntry =
-    { id : Int
-    , project : Int
+    { id : PayEntryId
+    , project : ProjectId
     , user : UserId
     , duration : Int
     , paymentdate : Int
@@ -282,7 +282,7 @@ type alias PayEntry =
 
 
 type alias SavePayEntry =
-    { id : Maybe Int
+    { id : Maybe PayEntryId
     , project : ProjectId
     , user : UserId
     , duration : Int
@@ -294,9 +294,9 @@ type alias SavePayEntry =
 type alias SaveProjectTime =
     { project : ProjectId
     , savetimeentries : List SaveTimeEntry
-    , deletetimeentries : List Int
+    , deletetimeentries : List TimeEntryId
     , savepayentries : List SavePayEntry
-    , deletepayentries : List Int
+    , deletepayentries : List PayEntryId
     }
 
 
@@ -454,16 +454,16 @@ encodeSaveProjectTime t =
     JE.object
         [ ( "project", JE.int (getProjectIdVal t.project) )
         , ( "savetimeentries", JE.list encodeSaveTimeEntry t.savetimeentries )
-        , ( "deletetimeentries", JE.list JE.int t.deletetimeentries )
+        , ( "deletetimeentries", JE.list (getTimeEntryIdVal >> JE.int) t.deletetimeentries )
         , ( "savepayentries", JE.list encodeSavePayEntry t.savepayentries )
-        , ( "deletepayentries", JE.list JE.int t.deletepayentries )
+        , ( "deletepayentries", JE.list (getPayEntryIdVal >> JE.int) t.deletepayentries )
         ]
 
 
 decodeTimeEntry : JD.Decoder TimeEntry
 decodeTimeEntry =
     JD.succeed TimeEntry
-        |> andMap (JD.field "id" JD.int)
+        |> andMap (JD.field "id" JD.int |> JD.map makeTimeEntryId)
         |> andMap (JD.field "project" JD.int)
         |> andMap (JD.field "user" JD.int |> JD.map makeUserId)
         |> andMap (JD.field "description" JD.string)
@@ -479,7 +479,7 @@ encodeSaveTimeEntry : SaveTimeEntry -> JE.Value
 encodeSaveTimeEntry e =
     JE.object <|
         (e.id
-            |> Maybe.map (\id -> (::) ( "id", JE.int id ))
+            |> Maybe.map (\id -> (::) ( "id", JE.int (getTimeEntryIdVal id) ))
             |> Maybe.withDefault identity
         )
             [ ( "project", JE.int (getProjectIdVal e.project) )
@@ -494,8 +494,8 @@ encodeSaveTimeEntry e =
 decodePayEntry : JD.Decoder PayEntry
 decodePayEntry =
     JD.succeed PayEntry
-        |> andMap (JD.field "id" JD.int)
-        |> andMap (JD.field "project" JD.int)
+        |> andMap (JD.field "id" JD.int |> JD.map makePayEntryId)
+        |> andMap (JD.field "project" JD.int |> JD.map makeProjectId)
         |> andMap (JD.field "user" JD.int |> JD.map makeUserId)
         |> andMap (JD.field "duration" JD.int)
         |> andMap (JD.field "paymentdate" JD.int)
@@ -509,7 +509,7 @@ encodeSavePayEntry : SavePayEntry -> JE.Value
 encodeSavePayEntry e =
     JE.object <|
         (e.id
-            |> Maybe.map (\id -> (::) ( "id", JE.int id ))
+            |> Maybe.map (\id -> (::) ( "id", JE.int (getPayEntryIdVal id) ))
             |> Maybe.withDefault identity
         )
             [ ( "project", JE.int (getProjectIdVal e.project) )
