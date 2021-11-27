@@ -184,7 +184,7 @@ type alias LoginData =
 
 
 type alias ListProject =
-    { id : Int
+    { id : ProjectId
     , name : String
     }
 
@@ -245,7 +245,7 @@ type alias SavedProjectEdit =
 
 type alias TimeEntry =
     { id : TimeEntryId
-    , project : Int
+    , project : ProjectId
     , user : UserId
     , description : String
     , startdate : Int
@@ -253,7 +253,7 @@ type alias TimeEntry =
     , ignore : Bool
     , createdate : Int
     , changeddate : Int
-    , creator : Int
+    , creator : UserId
     }
 
 
@@ -277,7 +277,7 @@ type alias PayEntry =
     , description : String
     , createdate : Int
     , changeddate : Int
-    , creator : Int
+    , creator : UserId
     }
 
 
@@ -377,7 +377,7 @@ decodeLoginData =
 decodeListProject : JD.Decoder ListProject
 decodeListProject =
     JD.succeed ListProject
-        |> andMap (JD.field "id" JD.int)
+        |> andMap (JD.field "id" JD.int |> JD.map makeProjectId)
         |> andMap (JD.field "name" JD.string)
 
 
@@ -464,7 +464,7 @@ decodeTimeEntry : JD.Decoder TimeEntry
 decodeTimeEntry =
     JD.succeed TimeEntry
         |> andMap (JD.field "id" JD.int |> JD.map makeTimeEntryId)
-        |> andMap (JD.field "project" JD.int)
+        |> andMap (JD.field "project" JD.int |> JD.map makeProjectId)
         |> andMap (JD.field "user" JD.int |> JD.map makeUserId)
         |> andMap (JD.field "description" JD.string)
         |> andMap (JD.field "startdate" JD.int)
@@ -472,7 +472,7 @@ decodeTimeEntry =
         |> andMap (JD.field "ignore" JD.bool)
         |> andMap (JD.field "createdate" JD.int)
         |> andMap (JD.field "changeddate" JD.int)
-        |> andMap (JD.field "creator" JD.int)
+        |> andMap (JD.field "creator" JD.int |> JD.map makeUserId)
 
 
 encodeSaveTimeEntry : SaveTimeEntry -> JE.Value
@@ -502,7 +502,7 @@ decodePayEntry =
         |> andMap (JD.field "description" JD.string)
         |> andMap (JD.field "createdate" JD.int)
         |> andMap (JD.field "changeddate" JD.int)
-        |> andMap (JD.field "creator" JD.int)
+        |> andMap (JD.field "creator" JD.int |> JD.map makeUserId)
 
 
 encodeSavePayEntry : SavePayEntry -> JE.Value

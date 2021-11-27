@@ -98,7 +98,7 @@ view ld size model =
                                         ]
                                         [ E.link
                                             [ E.height <| E.px 30 ]
-                                            { url = Route.routeUrl (Route.ProjectTimeR n.id)
+                                            { url = Route.routeUrl (Route.ProjectTimeR (Data.getProjectIdVal n.id))
                                             , label = E.text n.name
                                             }
                                         ]
