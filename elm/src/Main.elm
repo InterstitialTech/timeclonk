@@ -71,6 +71,7 @@ type Msg
     | ProjectListingMsg ProjectListing.Msg
     | ProjectEditMsg ProjectEdit.Msg
     | ProjectTimeMsg ProjectTime.Msg
+    | FileLoaded (String -> Msg) F.File
     | Noop
 
 
@@ -248,6 +249,9 @@ showMessage msg =
 
         WindowSize _ ->
             "WindowSize"
+
+        FileLoaded _ _ ->
+            "FileLoaded"
 
         Noop ->
             "Noop"
@@ -763,6 +767,11 @@ actualupdate msg model =
         ( LoginMsg lm, Login ls ) ->
             handleLogin model (Login.update lm ls)
 
+        ( FileLoaded toMsg file, _ ) ->
+            ( model
+            , Task.perform toMsg (F.toString file)
+            )
+
         ( UserReplyData urd, state ) ->
             case urd of
                 Err e ->
@@ -1132,6 +1141,11 @@ handleProjectTime model ( nm, cmd ) login =
                     UserSettings (UserSettings.init login model.fontsize) login model.state
               }
             , Cmd.none
+            )
+
+        ProjectTime.GetCsv ->
+            ( { model | state = ProjectTime nm login }
+            , FS.file [ "text/csv" ] (FileLoaded (ProjectTimeMsg << ProjectTime.CsvString))
             )
 
         ProjectTime.None ->

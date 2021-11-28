@@ -2,6 +2,7 @@ module ProjectTime exposing (..)
 
 import Calendar
 import Common
+import Csv
 import Data exposing (UserId)
 import Dialog as D
 import Dict exposing (Dict)
@@ -13,6 +14,8 @@ import Element.Font as EF
 import Element.Input as EI
 import Element.Keyed as EK
 import Element.Region
+import File exposing (File)
+import File.Select as FS
 import Round as R
 import SelectString
 import Set
@@ -34,6 +37,8 @@ type Msg
     | DonePress
     | EditPress
     | SettingsPress
+    | ImportPress
+    | CsvString String
     | ClonkInPress
     | ClonkOutPress
     | ClonkInTime Int
@@ -108,6 +113,7 @@ type Command
     | Edit
     | Done
     | GetTime (Int -> Msg)
+    | GetCsv
     | Settings
     | None
 
@@ -392,6 +398,7 @@ view ld size zone model =
             , E.row [ E.spacing 8 ] <|
                 [ EI.button Common.buttonStyle { onPress = Just DonePress, label = E.text "<-" }
                 , EI.button Common.buttonStyle { onPress = Just EditPress, label = E.text "edit project" }
+                , EI.button Common.buttonStyle { onPress = Just ImportPress, label = E.text "import" }
                 ]
                     ++ (if isdirty then
                             [ EI.button Common.buttonStyle { onPress = Just RevertPress, label = E.text "revert" }
@@ -981,6 +988,32 @@ update msg model ld =
 
         EditPress ->
             ( model, Edit )
+
+        ImportPress ->
+            ( model, GetCsv )
+
+        CsvString file ->
+            -- let
+            --     csvdata =
+            --         Csv.parse model.massImportText
+            -- in
+            -- case csvdata of
+            --     Ok data ->
+            --         case csvToItems data of
+            --             Ok ( items, tags ) ->
+            --                 ( { model
+            --                     | newItems = items
+            --                     , newTags = tags
+            --                     , csvError = Nothing
+            --                     , itemsCreated = Nothing
+            --                   }
+            --                 , None
+            --                 )
+            --             Err e ->
+            --                 ( { model | csvError = Just e }, None )
+            --     Err e ->
+            --         ( { model | csvError = Just [ Util.deadEndsToString e ] }, None )
+            ( model, None )
 
         SettingsPress ->
             ( model, Settings )
