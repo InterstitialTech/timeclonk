@@ -64,73 +64,9 @@ import Url.Builder as UB
 import Util exposing (andMap)
 
 
-type UserId
-    = UserId Int
-
-
-makeUserId : Int -> UserId
-makeUserId i =
-    UserId i
-
-
-getUserIdVal : UserId -> Int
-getUserIdVal uid =
-    case uid of
-        UserId i ->
-            i
-
-
-type ProjectId
-    = ProjectId Int
-
-
-makeProjectId : Int -> ProjectId
-makeProjectId i =
-    ProjectId i
-
-
-getProjectIdVal : ProjectId -> Int
-getProjectIdVal uid =
-    case uid of
-        ProjectId i ->
-            i
-
-
-type PayEntryId
-    = PayEntryId Int
-
-
-makePayEntryId : Int -> PayEntryId
-makePayEntryId i =
-    PayEntryId i
-
-
-getPayEntryIdVal : PayEntryId -> Int
-getPayEntryIdVal uid =
-    case uid of
-        PayEntryId i ->
-            i
-
-
-type TimeEntryId
-    = TimeEntryId Int
-
-
-makeTimeEntryId : Int -> TimeEntryId
-makeTimeEntryId i =
-    TimeEntryId i
-
-
-getTimeEntryIdVal : TimeEntryId -> Int
-getTimeEntryIdVal uid =
-    case uid of
-        TimeEntryId i ->
-            i
-
-
 
 ----------------------------------------
--- types sent to or from the server.
+-- user, password, registration etc.
 ----------------------------------------
 
 
@@ -306,6 +242,76 @@ type alias ProjectTime =
     , timeentries : List TimeEntry
     , payentries : List PayEntry
     }
+
+
+
+-------------------------------------------
+-- Id types.  They're all ints underneath.
+-------------------------------------------
+
+
+type UserId
+    = UserId Int
+
+
+makeUserId : Int -> UserId
+makeUserId i =
+    UserId i
+
+
+getUserIdVal : UserId -> Int
+getUserIdVal uid =
+    case uid of
+        UserId i ->
+            i
+
+
+type ProjectId
+    = ProjectId Int
+
+
+makeProjectId : Int -> ProjectId
+makeProjectId i =
+    ProjectId i
+
+
+getProjectIdVal : ProjectId -> Int
+getProjectIdVal uid =
+    case uid of
+        ProjectId i ->
+            i
+
+
+type PayEntryId
+    = PayEntryId Int
+
+
+makePayEntryId : Int -> PayEntryId
+makePayEntryId i =
+    PayEntryId i
+
+
+getPayEntryIdVal : PayEntryId -> Int
+getPayEntryIdVal uid =
+    case uid of
+        PayEntryId i ->
+            i
+
+
+type TimeEntryId
+    = TimeEntryId Int
+
+
+makeTimeEntryId : Int -> TimeEntryId
+makeTimeEntryId i =
+    TimeEntryId i
+
+
+getTimeEntryIdVal : TimeEntryId -> Int
+getTimeEntryIdVal uid =
+    case uid of
+        TimeEntryId i ->
+            i
 
 
 

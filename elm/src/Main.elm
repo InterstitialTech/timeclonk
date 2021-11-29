@@ -71,6 +71,7 @@ type Msg
     | ProjectListingMsg ProjectListing.Msg
     | ProjectEditMsg ProjectEdit.Msg
     | ProjectTimeMsg ProjectTime.Msg
+    | FileLoaded (String -> Msg) F.File
     | Noop
 
 
@@ -248,6 +249,9 @@ showMessage msg =
 
         WindowSize _ ->
             "WindowSize"
+
+        FileLoaded _ _ ->
+            "FileLoaded"
 
         Noop ->
             "Noop"
@@ -763,6 +767,11 @@ actualupdate msg model =
         ( LoginMsg lm, Login ls ) ->
             handleLogin model (Login.update lm ls)
 
+        ( FileLoaded toMsg file, _ ) ->
+            ( model
+            , Task.perform toMsg (F.toString file)
+            )
+
         ( UserReplyData urd, state ) ->
             case urd of
                 Err e ->
@@ -1054,13 +1063,13 @@ actualupdate msg model =
         ( WkMsg rkey, ProjectTime ptm login ) ->
             case rkey of
                 Ok key ->
-                    handleProjectTime model (ProjectTime.onWkKeyPress key ptm login) login
+                    handleProjectTime model (ProjectTime.onWkKeyPress key ptm login model.timezone) login
 
                 Err _ ->
                     ( model, Cmd.none )
 
         ( ProjectTimeMsg ms, ProjectTime st login ) ->
-            handleProjectTime model (ProjectTime.update ms st login) login
+            handleProjectTime model (ProjectTime.update ms st login model.timezone) login
 
         ( x, y ) ->
             ( unexpectedMsg model x
@@ -1133,6 +1142,14 @@ handleProjectTime model ( nm, cmd ) login =
               }
             , Cmd.none
             )
+
+        ProjectTime.GetCsv ->
+            ( { model | state = ProjectTime nm login }
+            , FS.file [ "text/csv" ] (FileLoaded (ProjectTimeMsg << ProjectTime.CsvString))
+            )
+
+        ProjectTime.ShowError e ->
+            ( displayMessageDialog { model | state = ProjectTime nm login } e, Cmd.none )
 
         ProjectTime.None ->
             ( { model | state = ProjectTime nm login }, Cmd.none )

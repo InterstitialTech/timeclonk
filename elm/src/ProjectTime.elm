@@ -2,6 +2,7 @@ module ProjectTime exposing (..)
 
 import Calendar
 import Common
+import Csv
 import Data exposing (UserId)
 import Dialog as D
 import Dict exposing (Dict)
@@ -13,6 +14,8 @@ import Element.Font as EF
 import Element.Input as EI
 import Element.Keyed as EK
 import Element.Region
+import File exposing (File)
+import File.Select as FS
 import Round as R
 import SelectString
 import Set
@@ -23,6 +26,7 @@ import TcCommon as TC
 import Time
 import TimeReporting as TR exposing (EditPayEntry, EditTimeEntry)
 import Toop
+import Toop.Take as TT
 import Util
 import WindowKeys as WK
 
@@ -34,6 +38,8 @@ type Msg
     | DonePress
     | EditPress
     | SettingsPress
+    | ImportPress
+    | CsvString String
     | ClonkInPress
     | ClonkOutPress
     | ClonkInTime Int
@@ -43,15 +49,15 @@ type Msg
     | EteDescriptionChanged Int String
     | EteStartChanged Int String
     | FocusDescriptionChanged String
-    | FocusStartChanged Time.Zone String
-    | FocusEndChanged Time.Zone String
-    | FocusDurationChanged Time.Zone String
+    | FocusStartChanged String
+    | FocusEndChanged String
+    | FocusDurationChanged String
     | FocusPayChanged String
-    | FocusPayDateChanged Time.Zone String
+    | FocusPayDateChanged String
     | ChangeStart Int
     | ChangePayDate Int
     | SetViewMode ViewMode
-    | OnRowItemClick Time.Zone Int FocusColumn
+    | OnRowItemClick Int FocusColumn
     | OnDistributionChanged String
     | ClearDistribution
     | CalcDistribution
@@ -108,7 +114,9 @@ type Command
     | Edit
     | Done
     | GetTime (Int -> Msg)
+    | GetCsv
     | Settings
+    | ShowError String
     | None
 
 
@@ -122,12 +130,12 @@ emptyPayEntryIdSet =
     TSet.empty Data.getPayEntryIdVal Data.makePayEntryId
 
 
-onWkKeyPress : WK.Key -> Model -> Data.LoginData -> ( Model, Command )
-onWkKeyPress key model ld =
+onWkKeyPress : WK.Key -> Model -> Data.LoginData -> Time.Zone -> ( Model, Command )
+onWkKeyPress key model ld zone =
     case Toop.T4 key.key key.ctrl key.alt key.shift of
         Toop.T4 "s" True False False ->
             if isDirty model then
-                update SavePress model ld
+                update SavePress model ld zone
 
             else
                 ( model, None )
@@ -392,6 +400,7 @@ view ld size zone model =
             , E.row [ E.spacing 8 ] <|
                 [ EI.button Common.buttonStyle { onPress = Just DonePress, label = E.text "<-" }
                 , EI.button Common.buttonStyle { onPress = Just EditPress, label = E.text "edit project" }
+                , EI.button Common.buttonStyle { onPress = Just ImportPress, label = E.text "import" }
                 ]
                     ++ (if isdirty then
                             [ EI.button Common.buttonStyle { onPress = Just RevertPress, label = E.text "revert" }
@@ -504,7 +513,7 @@ clonkview ld size zone model =
                     \te ->
                         let
                             row =
-                                E.row [ EE.onClick <| OnRowItemClick zone te.startdate Description, igfont te ]
+                                E.row [ EE.onClick <| OnRowItemClick te.startdate Description, igfont te ]
                                     [ E.text te.description ]
                         in
                         if model.focus == Just ( te.startdate, Description ) then
@@ -529,7 +538,7 @@ clonkview ld size zone model =
                     \te ->
                         let
                             row =
-                                E.row [ EE.onClick <| OnRowItemClick zone te.startdate Start, igfont te ] [ E.text <| Util.showTime zone (Time.millisToPosix te.startdate) ]
+                                E.row [ EE.onClick <| OnRowItemClick te.startdate Start, igfont te ] [ E.text <| Util.showTime zone (Time.millisToPosix te.startdate) ]
                         in
                         if model.focus == Just ( te.startdate, Start ) then
                             let
@@ -547,7 +556,7 @@ clonkview ld size zone model =
                             E.column [ E.spacing 8 ]
                                 [ row
                                 , EI.text [ E.width E.fill ]
-                                    { onChange = FocusStartChanged zone
+                                    { onChange = FocusStartChanged
                                     , text = model.focusstart
                                     , placeholder = Nothing
                                     , label = EI.labelHidden "task start date"
@@ -576,13 +585,13 @@ clonkview ld size zone model =
                     \te ->
                         let
                             row =
-                                E.row [ EE.onClick <| OnRowItemClick zone te.startdate End, igfont te ] [ E.text <| Util.showTime zone (Time.millisToPosix te.enddate) ]
+                                E.row [ EE.onClick <| OnRowItemClick te.startdate End, igfont te ] [ E.text <| Util.showTime zone (Time.millisToPosix te.enddate) ]
                         in
                         if model.focus == Just ( te.startdate, End ) then
                             E.column [ E.spacing 8 ]
                                 [ row
                                 , EI.text [ E.width E.fill ]
-                                    { onChange = FocusEndChanged zone
+                                    { onChange = FocusEndChanged
                                     , text = model.focusend
                                     , placeholder = Nothing
                                     , label = EI.labelHidden "task end date"
@@ -598,14 +607,14 @@ clonkview ld size zone model =
                     \te ->
                         let
                             row =
-                                E.row [ EE.onClick <| OnRowItemClick zone te.startdate Duration, igfont te ]
+                                E.row [ EE.onClick <| OnRowItemClick te.startdate Duration, igfont te ]
                                     [ E.text <| R.round 2 (toFloat (te.enddate - te.startdate) / (1000.0 * 60.0 * 60.0)) ]
                         in
                         if model.focus == Just ( te.startdate, Duration ) then
                             E.column [ E.spacing 8, E.width E.shrink ]
                                 [ row
                                 , EI.text [ E.width E.shrink ]
-                                    { onChange = FocusDurationChanged zone
+                                    { onChange = FocusDurationChanged
                                     , text = model.focusduration
                                     , placeholder = Nothing
                                     , label = EI.labelHidden "task duration"
@@ -752,7 +761,7 @@ payview ld size zone model =
                                                 let
                                                     row =
                                                         E.row
-                                                            [ EE.onClick <| OnRowItemClick zone date PaymentDate
+                                                            [ EE.onClick <| OnRowItemClick date PaymentDate
                                                             , EF.bold
                                                             ]
                                                             [ E.text <|
@@ -780,7 +789,7 @@ payview ld size zone model =
                                                     E.column [ E.spacing 8 ]
                                                         [ row
                                                         , EI.text [ E.width E.fill ]
-                                                            { onChange = FocusPayDateChanged zone
+                                                            { onChange = FocusPayDateChanged
                                                             , text = model.focuspaydate
                                                             , placeholder = Nothing
                                                             , label = EI.labelHidden "payment date"
@@ -816,7 +825,7 @@ payview ld size zone model =
                                                 case TDict.get member.id ums of
                                                     Just millis ->
                                                         if millis > 0 then
-                                                            E.row [ EE.onClick <| OnRowItemClick zone date PaymentAmount ]
+                                                            E.row [ EE.onClick <| OnRowItemClick date PaymentAmount ]
                                                                 [ E.text <| R.round 2 (toFloat millis / (1000.0 * 60.0 * 60.0))
                                                                 ]
 
@@ -837,7 +846,7 @@ payview ld size zone model =
                                                     in
                                                     if model.focus == Just ( date, PaymentAmount ) then
                                                         E.column []
-                                                            [ E.row [ EE.onClick <| OnRowItemClick zone date PaymentAmount ]
+                                                            [ E.row [ EE.onClick <| OnRowItemClick date PaymentAmount ]
                                                                 [ p
                                                                 ]
                                                             , EI.text [ E.width E.fill ]
@@ -849,7 +858,7 @@ payview ld size zone model =
                                                             ]
 
                                                     else
-                                                        E.row [ EE.onClick <| OnRowItemClick zone date PaymentAmount ]
+                                                        E.row [ EE.onClick <| OnRowItemClick date PaymentAmount ]
                                                             [ p
                                                             ]
 
@@ -962,8 +971,8 @@ payview ld size zone model =
     ]
 
 
-update : Msg -> Model -> Data.LoginData -> ( Model, Command )
-update msg model ld =
+update : Msg -> Model -> Data.LoginData -> Time.Zone -> ( Model, Command )
+update msg model ld zone =
     case msg of
         DescriptionChanged t ->
             ( { model | description = t }, None )
@@ -981,6 +990,39 @@ update msg model ld =
 
         EditPress ->
             ( model, Edit )
+
+        ImportPress ->
+            ( model, GetCsv )
+
+        CsvString str ->
+            case
+                Csv.parse str
+                    |> Result.mapError
+                        (List.map
+                            Util.deadEndToString
+                        )
+                    |> Result.andThen
+                        (\csv ->
+                            csvToItems zone ld.userid csv
+                        )
+                    |> Result.mapError
+                        (\strs ->
+                            List.intersperse "\n" strs
+                                |> String.concat
+                        )
+            of
+                Ok el ->
+                    ( { model
+                        | timeentries =
+                            el
+                                |> List.map (\e -> ( e.startdate, e ))
+                                |> List.foldl (\( k, v ) d -> Dict.insert k v d) model.timeentries
+                      }
+                    , None
+                    )
+
+                Err e ->
+                    ( model, ShowError e )
 
         SettingsPress ->
             ( model, Settings )
@@ -1067,7 +1109,7 @@ update msg model ld =
             , None
             )
 
-        OnRowItemClick zone i fc ->
+        OnRowItemClick i fc ->
             if model.focus == Just ( i, fc ) then
                 ( { model | focus = Nothing }, None )
 
@@ -1125,7 +1167,7 @@ update msg model ld =
                 Nothing ->
                     ( model, None )
 
-        FocusStartChanged zone text ->
+        FocusStartChanged text ->
             ( { model | focusstart = text }, None )
 
         ChangeStart newtime ->
@@ -1149,7 +1191,7 @@ update msg model ld =
                 Nothing ->
                     ( model, None )
 
-        FocusPayDateChanged zone text ->
+        FocusPayDateChanged text ->
             ( { model | focuspaydate = text }, None )
 
         ChangePayDate newtime ->
@@ -1173,7 +1215,7 @@ update msg model ld =
                 Nothing ->
                     ( model, None )
 
-        FocusEndChanged zone text ->
+        FocusEndChanged text ->
             case ( model.focus, Util.parseTime zone text ) of
                 ( Just ( startdate, _ ), Ok (Just time) ) ->
                     case Dict.get startdate model.timeentries of
@@ -1196,7 +1238,7 @@ update msg model ld =
                 _ ->
                     ( { model | focusend = text }, None )
 
-        FocusDurationChanged zone text ->
+        FocusDurationChanged text ->
             case model.focus of
                 Just ( startdate, _ ) ->
                     case Dict.get startdate model.timeentries of
@@ -1566,3 +1608,63 @@ update msg model ld =
 
         Noop ->
             ( model, None )
+
+
+csvToItems : Time.Zone -> UserId -> Csv.Csv -> Result (List String) (List EditTimeEntry)
+csvToItems zone user csv =
+    let
+        headers =
+            List.map (String.trim >> String.toLower) csv.headers
+    in
+    case TT.takeT3 headers of
+        Just ( Toop.T3 "task" "from" "to", _ ) ->
+            let
+                resitems =
+                    csv.records
+                        |> List.map (\lst -> List.map String.trim lst)
+                        |> List.foldl
+                            (\row rlst ->
+                                rlst
+                                    |> Result.andThen
+                                        (\lst ->
+                                            case TT.takeT3 row of
+                                                Nothing ->
+                                                    Err [ "each row requires 3 entries: task description, from date, and to date." ]
+
+                                                Just ( Toop.T3 task dtfrom dtto, _ ) ->
+                                                    let
+                                                        rsfrom =
+                                                            Util.parseTime zone dtfrom
+
+                                                        rsto =
+                                                            Util.parseTime zone dtto
+                                                    in
+                                                    case ( rsfrom, rsto ) of
+                                                        ( Ok (Just from), Ok (Just to) ) ->
+                                                            Ok <|
+                                                                { id = Nothing
+                                                                , user = user
+                                                                , description = task
+                                                                , startdate = Time.posixToMillis from
+                                                                , enddate = Time.posixToMillis to
+                                                                , ignore = False
+                                                                , checked = False
+                                                                }
+                                                                    :: lst
+
+                                                        ( Err e, _ ) ->
+                                                            Err [ Util.deadEndsToString e ]
+
+                                                        ( _, Err e ) ->
+                                                            Err [ Util.deadEndsToString e ]
+
+                                                        _ ->
+                                                            Err [ "invalid date" ]
+                                        )
+                            )
+                            (Ok [])
+            in
+            resitems
+
+        _ ->
+            Err [ "3 header columns required: 'task', 'from' and 'to'." ]
