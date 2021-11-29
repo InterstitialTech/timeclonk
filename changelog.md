@@ -4,7 +4,7 @@
 
 Use the 'import' button on the 'clonks' view to pull in a csv file.
 
-Files must be in a 3 column format containing task, from datetiem, and to datetime.
+Files must be in a 3 column format containing task, 'from' datetime, and 'to' datetime.
 
 Extra columns are ignored.  You have to have a header row as in the following example:
 
@@ -44,7 +44,7 @@ you can check rows in pay and clonk modes to delete them (and ignore in clonk mo
 
 instead of editing the end date, you can enter a duration number.
 
-## 2021-11-21
+## 2021-11-22
 
 ### better payment/time editing
 
