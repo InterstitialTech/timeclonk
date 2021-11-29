@@ -1063,13 +1063,13 @@ actualupdate msg model =
         ( WkMsg rkey, ProjectTime ptm login ) ->
             case rkey of
                 Ok key ->
-                    handleProjectTime model (ProjectTime.onWkKeyPress key ptm login) login
+                    handleProjectTime model (ProjectTime.onWkKeyPress key ptm login model.timezone) login
 
                 Err _ ->
                     ( model, Cmd.none )
 
         ( ProjectTimeMsg ms, ProjectTime st login ) ->
-            handleProjectTime model (ProjectTime.update ms st login) login
+            handleProjectTime model (ProjectTime.update ms st login model.timezone) login
 
         ( x, y ) ->
             ( unexpectedMsg model x
