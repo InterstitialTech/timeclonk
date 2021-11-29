@@ -1148,6 +1148,9 @@ handleProjectTime model ( nm, cmd ) login =
             , FS.file [ "text/csv" ] (FileLoaded (ProjectTimeMsg << ProjectTime.CsvString))
             )
 
+        ProjectTime.ShowError e ->
+            ( displayMessageDialog { model | state = ProjectTime nm login } e, Cmd.none )
+
         ProjectTime.None ->
             ( { model | state = ProjectTime nm login }, Cmd.none )
 

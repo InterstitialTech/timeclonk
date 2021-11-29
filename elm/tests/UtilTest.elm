@@ -41,11 +41,10 @@ suite =
                             Util.parseTime Time.utc "2021-9-8 14:39:09"
                     in
                     Expect.true "tried to parse date" (dt |> Result.map (\_ -> True) |> Result.withDefault False)
-            , test "timekeeper datetime" <|
+            , test "timekeeper datetime w dashes" <|
                 \_ ->
                     let
                         dt =
-                            -- Util.parseTime Time.utc "2021-09-08 14:39:09"
                             Util.parseTime Time.utc "2021-08-25 17:48:08"
                     in
                     Expect.true "tried to parse date" (dt |> Result.map (\_ -> True) |> Result.withDefault False)
@@ -62,13 +61,5 @@ suite =
                                     (Ok (Just (dt // 1000)))
                                     (Result.map (Maybe.map (Time.posixToMillis >> (\x -> x // 1000))) r)
                            )
-
-            -- fuzz runs the test 100 times with randomly-generated inputs!
-            -- , fuzz string "restores the original string if you run it again" <|
-            --     \randomlyGeneratedString ->
-            --         randomlyGeneratedString
-            --             |> String.reverse
-            --             |> String.reverse
-            --             |> Expect.equal randomlyGeneratedString
             ]
         ]

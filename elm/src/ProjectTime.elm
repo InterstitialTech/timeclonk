@@ -116,6 +116,7 @@ type Command
     | GetTime (Int -> Msg)
     | GetCsv
     | Settings
+    | ShowError String
     | None
 
 
@@ -994,46 +995,45 @@ update msg model ld zone =
             ( model, GetCsv )
 
         CsvString str ->
-            let
-                csvdata =
-                    Csv.parse str
+            -- let
+            --     csvdata =
+            --         Csv.parse str
+            --     etes =
+            --         Debug.log "etes" <|
+            --             case csvdata of
+            --                 Ok csv ->
+            --                     csvToItems zone ld.userid csv
+            --                 Err e ->
+            --                     Err (List.map Util.deadEndToString e)
+            -- in
+            case
+                Csv.parse str
+                    |> Result.mapError
+                        (List.map
+                            Util.deadEndToString
+                        )
+                    |> Result.andThen
+                        (\csv ->
+                            csvToItems zone ld.userid csv
+                        )
+                    |> Result.mapError
+                        (\strs ->
+                            List.intersperse "\n" strs
+                                |> String.concat
+                        )
+            of
+                Ok el ->
+                    ( { model
+                        | timeentries =
+                            el
+                                |> List.map (\e -> ( e.startdate, e ))
+                                |> List.foldl (\( k, v ) d -> Dict.insert k v d) model.timeentries
+                      }
+                    , None
+                    )
 
-                etes =
-                    Debug.log "etes" <|
-                        case csvdata of
-                            Ok csv ->
-                                csvToItems zone ld.userid csv
-
-                            Err e ->
-                                Err (List.map Util.deadEndToString e)
-
-                el =
-                    etes |> Result.withDefault []
-            in
-            -- case csvdata of
-            --     Ok data ->
-            --         case csvToItems data of
-            --             Ok ( items, tags ) ->
-            --                 ( { model
-            --                     | newItems = items
-            --                     , newTags = tags
-            --                     , csvError = Nothing
-            --                     , itemsCreated = Nothing
-            --                   }
-            --                 , None
-            --                 )
-            --             Err e ->
-            --                 ( { model | csvError = Just e }, None )
-            --     Err e ->
-            --         ( { model | csvError = Just [ Util.deadEndsToString e ] }, None )
-            ( { model
-                | timeentries =
-                    el
-                        |> List.map (\e -> ( e.startdate, e ))
-                        |> List.foldl (\( k, v ) d -> Dict.insert k v d) model.timeentries
-              }
-            , None
-            )
+                Err e ->
+                    ( model, ShowError e )
 
         SettingsPress ->
             ( model, Settings )
