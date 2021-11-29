@@ -2,10 +2,10 @@
 
 A time clock for small groups.
 
-Create projects, add users to those projects.
+Check out the [changelog](https://github.com/InterstitialTech/timeclonk/blob/main/changelog.md) for new features.
 
-Within a project, you can clock in and out, adding hours.  Or import hours from a CSV file.
+Timeclonk is for multiple users and projects.  Each user must register on the site.  Then you can create projects and add users to them.
 
-Timeclonk tracks payments to users so you can see the total unpaid hours worked on a team.
+Within a project, each user can clock in and out, adding hours.
 
-You can compute a distrubution of hours to users based on who worked their hours first.
+When its time to distribute funds to users, Timeclonk can compute a distribution of hours based on who worked their hours first.
