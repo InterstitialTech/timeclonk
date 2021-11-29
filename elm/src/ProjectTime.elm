@@ -995,17 +995,6 @@ update msg model ld zone =
             ( model, GetCsv )
 
         CsvString str ->
-            -- let
-            --     csvdata =
-            --         Csv.parse str
-            --     etes =
-            --         Debug.log "etes" <|
-            --             case csvdata of
-            --                 Ok csv ->
-            --                     csvToItems zone ld.userid csv
-            --                 Err e ->
-            --                     Err (List.map Util.deadEndToString e)
-            -- in
             case
                 Csv.parse str
                     |> Result.mapError
