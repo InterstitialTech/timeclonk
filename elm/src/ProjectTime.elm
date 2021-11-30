@@ -120,7 +120,6 @@ type Command
     | SaveCsv String
     | Settings
     | ShowError String
-
     | None
 
 
@@ -420,15 +419,15 @@ view ld size zone model =
             ]
                 ++ (case model.viewmode of
                         Clonk ->
-                            clonkview ld size zone model
+                            clonkview ld size zone isdirty model
 
                         Payment ->
                             payview ld size zone model
                    )
 
 
-clonkview : Data.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
-clonkview ld size zone model =
+clonkview : Data.LoginData -> Util.Size -> Time.Zone -> Bool -> Model -> List (Element Msg)
+clonkview ld size zone isdirty model =
     let
         teamhours =
             model.timeentries |> Dict.values |> TR.totalMillis |> TR.millisToHours
@@ -634,6 +633,16 @@ clonkview ld size zone model =
               }
             ]
         }
+    , if isdirty then
+        E.row [ E.spacing 8 ]
+            [ EI.button Common.buttonStyle { onPress = Just RevertPress, label = E.text "revert" }
+            , EI.button
+                (Common.buttonStyle ++ [ EBk.color TC.darkYellow ])
+                { onPress = Just SavePress, label = E.text "save" }
+            ]
+
+      else
+        E.none
     , E.row [ E.width E.fill, E.spacing 8 ]
         [ E.text "team unpaid hours: "
         , E.text <| R.round 2 <| teamhours - teampay
