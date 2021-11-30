@@ -1,3 +1,9 @@
+## 2021-11-30 
+
+### CSV file export
+
+Pretty straightforward.  Check rows in the clonks view, hit export, get file named 'timeclonk.csv'.
+
 ## 2021-11-29 
 
 ### CSV file import
