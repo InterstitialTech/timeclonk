@@ -17,6 +17,7 @@ import Element.Font as EF
 import Element.Input as EI
 import Element.Region
 import File as F
+import File.Download as FD
 import File.Select as FS
 import GenDialog as GD
 import Html exposing (Attribute, Html)
@@ -1146,6 +1147,11 @@ handleProjectTime model ( nm, cmd ) login =
         ProjectTime.GetCsv ->
             ( { model | state = ProjectTime nm login }
             , FS.file [ "text/csv" ] (FileLoaded (ProjectTimeMsg << ProjectTime.CsvString))
+            )
+
+        ProjectTime.SaveCsv csvstring ->
+            ( { model | state = ProjectTime nm login }
+            , FD.string "timeclonk.csv" "text/csv" csvstring
             )
 
         ProjectTime.ShowError e ->

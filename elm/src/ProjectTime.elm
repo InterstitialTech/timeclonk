@@ -15,6 +15,7 @@ import Element.Input as EI
 import Element.Keyed as EK
 import Element.Region
 import File exposing (File)
+import File.Download as FD
 import File.Select as FS
 import Round as R
 import SelectString
@@ -71,6 +72,7 @@ type Msg
     | DeleteChecked
     | DeletePayChecked
     | IgnoreChecked
+    | ExportChecked
     | Noop
 
 
@@ -115,8 +117,10 @@ type Command
     | Done
     | GetTime (Int -> Msg)
     | GetCsv
+    | SaveCsv String
     | Settings
     | ShowError String
+
     | None
 
 
@@ -472,6 +476,10 @@ clonkview ld size zone model =
             , EI.button Common.buttonStyle
                 { onPress = Just <| IgnoreChecked
                 , label = E.text "ignore"
+                }
+            , EI.button Common.buttonStyle
+                { onPress = Just <| ExportChecked
+                , label = E.text "export"
                 }
             ]
 
@@ -1601,6 +1609,23 @@ update msg model ld zone =
                         model.timeentries
               }
             , None
+            )
+
+        ExportChecked ->
+            let
+                csvstring =
+                    ("task,startdate,enddate"
+                        :: (model.timeentries
+                                |> Dict.values
+                                |> List.filter .checked
+                                |> List.map (\te -> te.description ++ "," ++ Util.showTime zone (Time.millisToPosix te.startdate) ++ "," ++ Util.showTime zone (Time.millisToPosix te.enddate))
+                           )
+                    )
+                        |> List.intersperse "\n"
+                        |> String.concat
+            in
+            ( model
+            , SaveCsv csvstring
             )
 
         DonePress ->
