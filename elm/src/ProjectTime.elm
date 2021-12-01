@@ -40,6 +40,7 @@ type Msg
     | ClonkOutTime Int
     | DeleteClonk Int
     | DeletePay Int
+    | AllocDescriptionChanged Int String
     | EteDescriptionChanged Int String
     | EteStartChanged Int String
     | FocusDescriptionChanged String
@@ -49,6 +50,10 @@ type Msg
     | FocusPayChanged String
     | FocusPayDateChanged String
     | FocusAllocationChanged String
+    | NewAllocDescriptionChanged String
+    | NewAllocHoursChanged String
+    | AddAllocationPress
+    | AddAllocation Int
     | ChangeStart Int
     | ChangePayDate Int
     | ChangeAllocationDate Int
@@ -107,6 +112,8 @@ type alias Model =
     , focuspaydate : String
     , distributionhours : String
     , distribution : Maybe (TDict UserId Int String)
+    , allocdescription : String
+    , allochours : String
     , viewmode : ViewMode
     }
 
@@ -384,6 +391,8 @@ isDirty model =
         /= model.initialtimeentries
         || (model.payentries |> Dict.map (\_ pe -> { pe | checked = False }))
         /= model.initialpayentries
+        || (model.allocations |> Dict.map (\_ e -> { e | checked = False }))
+        /= model.initialallocations
 
 
 init : Data.LoginData -> Data.ProjectTime -> Model
@@ -420,6 +429,8 @@ init ld pt =
     , focuspaydate = ""
     , distributionhours = ""
     , distribution = Nothing
+    , allocdescription = ""
+    , allochours = ""
     }
 
 
@@ -1019,7 +1030,7 @@ payview ld size zone model =
                                                             E.el [ EF.bold ] <| E.text <| s ++ " pmt"
                                                     in
                                                     if model.focus == Just ( date, PaymentAmount ) then
-                                                        E.column []
+                                                        E.column [ E.spacing 8 ]
                                                             [ E.row [ EE.onClick <| OnRowItemClick date PaymentAmount ]
                                                                 [ p
                                                                 ]
@@ -1041,7 +1052,7 @@ payview ld size zone model =
                                 }
                             )
                    )
-                ++ [ { header = E.text "allocation"
+                ++ [ { header = E.text "hours"
                      , width = E.fill
                      , view =
                         \( date, e ) ->
@@ -1052,10 +1063,10 @@ payview ld size zone model =
                                             R.round 2 (toFloat a.duration / (1000.0 * 60.0 * 60.0))
 
                                         p =
-                                            E.el [ EF.bold ] <| E.text <| s
+                                            E.el [] <| E.text <| s
                                     in
                                     if model.focus == Just ( date, PaymentAmount ) then
-                                        E.column []
+                                        E.column [ E.spacing 8 ]
                                             [ E.row [ EE.onClick <| OnRowItemClick date PaymentAmount ]
                                                 [ p
                                                 ]
@@ -1063,7 +1074,7 @@ payview ld size zone model =
                                                 { onChange = FocusAllocationChanged
                                                 , text = model.focuspay
                                                 , placeholder = Nothing
-                                                , label = EI.labelHidden "allocation"
+                                                , label = EI.labelHidden "allocation hours"
                                                 }
                                             ]
 
@@ -1302,16 +1313,38 @@ allocationview ld size zone model =
                                             row
                                    )
                    }
-                :: [ { header = E.text "allocation"
-                     , width = E.fill
-                     , view =
+                :: { header = E.text "description"
+                   , width = E.fill
+                   , view =
+                        \( date, a ) ->
+                            if model.focus == Just ( date, Description ) then
+                                E.column [ E.spacing 8 ]
+                                    [ E.row [ EE.onClick <| OnRowItemClick date Description ]
+                                        [ E.text a.description
+                                        ]
+                                    , EI.text [ E.width E.fill ]
+                                        { onChange = AllocDescriptionChanged a.allocationdate
+                                        , text = a.description
+                                        , placeholder = Nothing
+                                        , label = EI.labelHidden "allocation description"
+                                        }
+                                    ]
+
+                            else
+                                E.row [ EE.onClick <| OnRowItemClick date Description ]
+                                    [ E.text a.description
+                                    ]
+                   }
+                :: { header = E.text "allocation"
+                   , width = E.fill
+                   , view =
                         \( date, a ) ->
                             let
                                 s =
                                     R.round 2 (toFloat a.duration / (1000.0 * 60.0 * 60.0))
 
                                 p =
-                                    E.el [ EF.bold ] <| E.text <| s
+                                    E.el [] <| E.text <| s
                             in
                             if model.focus == Just ( date, PaymentAmount ) then
                                 E.column []
@@ -1330,9 +1363,27 @@ allocationview ld size zone model =
                                 E.row [ EE.onClick <| OnRowItemClick date PaymentAmount ]
                                     [ p
                                     ]
-                     }
-                   ]
+                   }
+                :: []
         }
+    , E.column [ E.width E.fill, EBk.color TC.darkGray, EBd.width 1, E.padding 8, E.spacing 8 ]
+        [ E.row [ EF.bold ] [ E.text "new allocation" ]
+        , EI.text []
+            { onChange = NewAllocDescriptionChanged
+            , text = model.allocdescription
+            , placeholder = Nothing
+            , label = EI.labelLeft [] <| E.text "description"
+            }
+        , E.row [ E.spacing 8 ]
+            [ EI.text []
+                { onChange = NewAllocHoursChanged
+                , text = model.allochours
+                , placeholder = Nothing
+                , label = EI.labelLeft [] <| E.text "hours"
+                }
+            , EI.button Common.buttonStyle { onPress = Just AddAllocationPress, label = E.text "add" }
+            ]
+        ]
     , E.table [ E.paddingXY 0 10, E.spacing 8, E.width E.fill ]
         { data =
             [ ( "total time", timetote )
@@ -1360,13 +1411,13 @@ allocationview ld size zone model =
                         , label = EI.labelHidden "alignment checkbox"
                         }
             }
-                :: { header = E.text "totals"
+                :: { header = E.el [ EF.bold ] <| E.text "totals"
                    , width = E.fill
                    , view =
                         \( title, _ ) ->
                             E.text title
                    }
-                :: { header = E.text "total"
+                :: { header = E.none
                    , width = E.fill
                    , view =
                         \( _, tote ) -> E.text <| R.round 2 <| TR.millisToHours tote
@@ -1514,6 +1565,19 @@ update msg model ld zone =
             , None
             )
 
+        AllocDescriptionChanged date text ->
+            ( { model
+                | allocations =
+                    case Dict.get date model.allocations of
+                        Just te ->
+                            Dict.insert date { te | description = text } model.allocations
+
+                        Nothing ->
+                            model.allocations
+              }
+            , None
+            )
+
         OnRowItemClick i fc ->
             if model.focus == Just ( i, fc ) then
                 ( { model | focus = Nothing }, None )
@@ -1559,10 +1623,10 @@ update msg model ld zone =
                             Just pe ->
                                 ( { model
                                     | focus = Just ( i, fc )
-                                    , focusdescription = ""
+                                    , focusdescription = pe.description
                                     , focusstart = ""
                                     , focusend = ""
-                                    , focusduration = ""
+                                    , focusduration = R.round 2 (toFloat pe.duration / (1000.0 * 60.0 * 60.0))
                                     , focuspay = R.round 2 (toFloat pe.duration / (1000.0 * 60.0 * 60.0))
                                     , focuspaydate = Util.showTime zone (Time.millisToPosix pe.allocationdate)
                                   }
@@ -1745,6 +1809,35 @@ update msg model ld zone =
               }
             , None
             )
+
+        NewAllocDescriptionChanged s ->
+            ( { model | allocdescription = s }, None )
+
+        NewAllocHoursChanged s ->
+            ( { model | allochours = s }, None )
+
+        AddAllocationPress ->
+            ( model, GetTime AddAllocation )
+
+        AddAllocation now ->
+            case String.toFloat model.allochours of
+                Just hours ->
+                    ( { model
+                        | allocations =
+                            Dict.insert now
+                                { id = Nothing
+                                , description = model.allocdescription
+                                , allocationdate = now
+                                , duration = hours * 60 * 60 * 1000 |> round
+                                , checked = False
+                                }
+                                model.allocations
+                      }
+                    , None
+                    )
+
+                Nothing ->
+                    ( model, None )
 
         OnDistributionChanged text ->
             ( { model | distributionhours = text }, None )
