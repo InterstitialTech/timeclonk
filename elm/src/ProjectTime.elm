@@ -547,6 +547,12 @@ clonkview ld size zone isdirty model =
                 |> List.foldl (+) 0
                 |> TR.millisToHours
 
+        teamalloc =
+            model.allocations
+                |> Dict.values
+                |> List.foldl (\e t -> t + e.duration) 0
+                |> TR.millisToHours
+
         igfont =
             \te ->
                 if te.ignore then
@@ -742,6 +748,10 @@ clonkview ld size zone isdirty model =
     , E.row [ E.width E.fill, E.spacing 8 ]
         [ E.text "team unpaid hours: "
         , E.text <| R.round 2 <| teamhours - teampay
+        ]
+    , E.row [ E.width E.fill, E.spacing 8 ]
+        [ E.text "team allocated hours: "
+        , E.text <| R.round 2 <| teamalloc - teamhours
         ]
     , E.row [ E.width E.fill, E.spacing 8 ]
         [ E.text "my unpaid hours: "
