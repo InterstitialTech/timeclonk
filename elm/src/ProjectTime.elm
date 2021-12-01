@@ -25,7 +25,7 @@ import TSet exposing (TSet)
 import TangoColors as TC
 import TcCommon as TC
 import Time
-import TimeReporting as TR exposing (EditPayEntry, EditTimeEntry)
+import TimeReporting as TR exposing (EditPayEntry, EditTimeEntry, csvToEditTimeEntries, eteToCsv)
 import Toop
 import Toop.Take as TT
 import Util
@@ -1020,7 +1020,7 @@ update msg model ld zone =
                         )
                     |> Result.andThen
                         (\csv ->
-                            csvToItems zone ld.userid csv
+                            csvToEditTimeEntries zone ld.userid csv
                         )
                     |> Result.mapError
                         (\strs ->
@@ -1621,20 +1621,8 @@ update msg model ld zone =
             )
 
         ExportChecked ->
-            let
-                csvstring =
-                    ("task,startdate,enddate"
-                        :: (model.timeentries
-                                |> Dict.values
-                                |> List.filter .checked
-                                |> List.map (\te -> te.description ++ "," ++ Util.showTime zone (Time.millisToPosix te.startdate) ++ "," ++ Util.showTime zone (Time.millisToPosix te.enddate))
-                           )
-                    )
-                        |> List.intersperse "\n"
-                        |> String.concat
-            in
             ( model
-            , SaveCsv csvstring
+            , SaveCsv (eteToCsv zone model.timeentries)
             )
 
         DonePress ->
@@ -1642,63 +1630,3 @@ update msg model ld zone =
 
         Noop ->
             ( model, None )
-
-
-csvToItems : Time.Zone -> UserId -> Csv.Csv -> Result (List String) (List EditTimeEntry)
-csvToItems zone user csv =
-    let
-        headers =
-            List.map (String.trim >> String.toLower) csv.headers
-    in
-    case TT.takeT3 headers of
-        Just ( Toop.T3 "task" "from" "to", _ ) ->
-            let
-                resitems =
-                    csv.records
-                        |> List.map (\lst -> List.map String.trim lst)
-                        |> List.foldl
-                            (\row rlst ->
-                                rlst
-                                    |> Result.andThen
-                                        (\lst ->
-                                            case TT.takeT3 row of
-                                                Nothing ->
-                                                    Err [ "each row requires 3 entries: task description, from date, and to date." ]
-
-                                                Just ( Toop.T3 task dtfrom dtto, _ ) ->
-                                                    let
-                                                        rsfrom =
-                                                            Util.parseTime zone dtfrom
-
-                                                        rsto =
-                                                            Util.parseTime zone dtto
-                                                    in
-                                                    case ( rsfrom, rsto ) of
-                                                        ( Ok (Just from), Ok (Just to) ) ->
-                                                            Ok <|
-                                                                { id = Nothing
-                                                                , user = user
-                                                                , description = task
-                                                                , startdate = Time.posixToMillis from
-                                                                , enddate = Time.posixToMillis to
-                                                                , ignore = False
-                                                                , checked = False
-                                                                }
-                                                                    :: lst
-
-                                                        ( Err e, _ ) ->
-                                                            Err [ Util.deadEndsToString e ]
-
-                                                        ( _, Err e ) ->
-                                                            Err [ Util.deadEndsToString e ]
-
-                                                        _ ->
-                                                            Err [ "invalid date" ]
-                                        )
-                            )
-                            (Ok [])
-            in
-            resitems
-
-        _ ->
-            Err [ "3 header columns required: 'task', 'from' and 'to'." ]

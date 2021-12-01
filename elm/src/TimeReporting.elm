@@ -2,12 +2,16 @@ module TimeReporting exposing (..)
 
 import Calendar
 import Clock
+import Csv
 import Data exposing (PayEntryId, TimeEntryId, UserId)
 import DateTime
 import Dict exposing (Dict)
 import Round as R
 import TDict exposing (TDict)
 import Time
+import Toop
+import Toop.Take as TT
+import Util
 
 
 type alias EditTimeEntry =
@@ -189,3 +193,83 @@ timeTotes entries =
                         TDict.insert entry.user (entry.enddate - entry.startdate) sums
             )
             emptyUserTimeDict
+
+
+csvToEditTimeEntries : Time.Zone -> UserId -> Csv.Csv -> Result (List String) (List EditTimeEntry)
+csvToEditTimeEntries zone user csv =
+    let
+        headers =
+            List.map (String.trim >> String.toLower) csv.headers
+    in
+    case TT.takeT3 headers of
+        Just ( Toop.T3 "task" "from" "to", _ ) ->
+            let
+                resitems =
+                    csv.records
+                        |> List.map (\lst -> List.map String.trim lst)
+                        |> List.foldl
+                            (\row rlst ->
+                                rlst
+                                    |> Result.andThen
+                                        (\lst ->
+                                            case TT.takeT3 row of
+                                                Nothing ->
+                                                    Err [ "each row requires 3 entries: task description, from date, and to date." ]
+
+                                                Just ( Toop.T3 task dtfrom dtto, _ ) ->
+                                                    let
+                                                        rsfrom =
+                                                            Util.parseTime zone dtfrom
+
+                                                        rsto =
+                                                            Util.parseTime zone dtto
+                                                    in
+                                                    case ( rsfrom, rsto ) of
+                                                        ( Ok (Just from), Ok (Just to) ) ->
+                                                            Ok <|
+                                                                { id = Nothing
+                                                                , user = user
+                                                                , description = task
+                                                                , startdate = Time.posixToMillis from
+                                                                , enddate = Time.posixToMillis to
+                                                                , ignore = False
+                                                                , checked = False
+                                                                }
+                                                                    :: lst
+
+                                                        ( Err e, _ ) ->
+                                                            Err [ Util.deadEndsToString e ]
+
+                                                        ( _, Err e ) ->
+                                                            Err [ Util.deadEndsToString e ]
+
+                                                        _ ->
+                                                            Err [ "invalid date" ]
+                                        )
+                            )
+                            (Ok [])
+            in
+            resitems
+
+        _ ->
+            Err [ "3 header columns required: 'task', 'from' and 'to'." ]
+
+
+eteToCsv : Time.Zone -> Dict Int EditTimeEntry -> String
+eteToCsv zone timeentries =
+    ("task,startdate,enddate"
+        :: (timeentries
+                |> Dict.values
+                |> List.filter .checked
+                |> List.map
+                    (\te ->
+                        te.description
+                            ++ ","
+                            ++ Util.showTime zone (Time.millisToPosix te.startdate)
+                            ++ ","
+                            ++ Util.showTime zone (Time.millisToPosix te.enddate)
+                    )
+           )
+    )
+        |> List.intersperse "\n"
+        |> String.concat
