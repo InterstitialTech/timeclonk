@@ -56,6 +56,7 @@ type Msg
     | AddAllocation Int
     | ChangeStart Int
     | ChangePayDate Int
+    | ToggleNewAlloc
     | ChangeAllocationDate Int
     | SetViewMode ViewMode
     | OnRowItemClick Int FocusColumn
@@ -112,6 +113,7 @@ type alias Model =
     , focuspaydate : String
     , distributionhours : String
     , distribution : Maybe (TDict UserId Int String)
+    , shownewalloc : Bool
     , allocdescription : String
     , allochours : String
     , viewmode : ViewMode
@@ -429,6 +431,7 @@ init ld pt =
     , focuspaydate = ""
     , distributionhours = ""
     , distribution = Nothing
+    , shownewalloc = False
     , allocdescription = ""
     , allochours = ""
     }
@@ -1262,7 +1265,6 @@ allocationview ld size zone model =
                                             row =
                                                 E.row
                                                     [ EE.onClick <| OnRowItemClick date PaymentDate
-                                                    , EF.bold
                                                     ]
                                                     [ E.text <|
                                                         String.fromInt (Calendar.getYear cdate)
@@ -1366,24 +1368,36 @@ allocationview ld size zone model =
                    }
                 :: []
         }
-    , E.column [ E.width E.fill, EBk.color TC.darkGray, EBd.width 1, E.padding 8, E.spacing 8 ]
-        [ E.row [ EF.bold ] [ E.text "new allocation" ]
-        , EI.text []
-            { onChange = NewAllocDescriptionChanged
-            , text = model.allocdescription
-            , placeholder = Nothing
-            , label = EI.labelLeft [] <| E.text "description"
-            }
-        , E.row [ E.spacing 8 ]
-            [ EI.text []
-                { onChange = NewAllocHoursChanged
-                , text = model.allochours
+    , if model.shownewalloc then
+        E.column [ E.width E.fill, EBk.color TC.darkGray, EBd.width 1, E.padding 8, E.spacing 8 ]
+            [ E.row [ EF.bold, E.width E.fill ]
+                [ E.text "new allocation"
+                , EI.button (E.alignRight :: Common.buttonStyle)
+                    { onPress = Just ToggleNewAlloc, label = E.text "-" }
+                ]
+            , EI.text []
+                { onChange = NewAllocDescriptionChanged
+                , text = model.allocdescription
                 , placeholder = Nothing
-                , label = EI.labelLeft [] <| E.text "hours"
+                , label = EI.labelLeft [] <| E.text "description"
                 }
-            , EI.button Common.buttonStyle { onPress = Just AddAllocationPress, label = E.text "add" }
+            , E.row [ E.spacing 8 ]
+                [ EI.text []
+                    { onChange = NewAllocHoursChanged
+                    , text = model.allochours
+                    , placeholder = Nothing
+                    , label = EI.labelLeft [] <| E.text "hours"
+                    }
+                , EI.button Common.buttonStyle { onPress = Just AddAllocationPress, label = E.text "add" }
+                ]
             ]
-        ]
+
+      else
+        E.row [ EF.bold, E.width E.fill ]
+            [ E.text "new allocation"
+            , EI.button (E.alignRight :: Common.buttonStyle)
+                { onPress = Just ToggleNewAlloc, label = E.text "+" }
+            ]
     , E.table [ E.paddingXY 0 10, E.spacing 8, E.width E.fill ]
         { data =
             [ ( "total time", timetote )
@@ -1722,6 +1736,9 @@ update msg model ld zone =
 
                 Nothing ->
                     ( model, None )
+
+        ToggleNewAlloc ->
+            ( { model | shownewalloc = not model.shownewalloc }, None )
 
         FocusEndChanged text ->
             case ( model.focus, Util.parseTime zone text ) of
