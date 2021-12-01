@@ -19,7 +19,7 @@ import TSet exposing (TSet)
 import TangoColors as TC
 import TcCommon as TC
 import Time
-import TimeReporting as TR exposing (EditPayEntry, EditTimeEntry, csvToEditTimeEntries, eteToCsv)
+import TimeReporting as TR exposing (EditAllocation, EditPayEntry, EditTimeEntry, csvToEditTimeEntries, eteToCsv)
 import Toop
 import Util
 import WindowKeys as WK
@@ -48,8 +48,10 @@ type Msg
     | FocusDurationChanged String
     | FocusPayChanged String
     | FocusPayDateChanged String
+    | FocusAllocationChanged String
     | ChangeStart Int
     | ChangePayDate Int
+    | ChangeAllocationDate Int
     | SetViewMode ViewMode
     | OnRowItemClick Int FocusColumn
     | OnDistributionChanged String
@@ -62,6 +64,7 @@ type Msg
     | CheckItem Int Bool
     | CheckPayAll Bool
     | CheckPayItem Int Bool
+    | CheckAllocationItem Int Bool
     | DeleteChecked
     | DeletePayChecked
     | IgnoreChecked
@@ -91,6 +94,8 @@ type alias Model =
     , initialtimeentries : Dict Int EditTimeEntry
     , payentries : Dict Int EditPayEntry
     , initialpayentries : Dict Int EditPayEntry
+    , allocations : Dict Int EditAllocation
+    , initialallocations : Dict Int EditAllocation
     , focusstart : String
     , focusend : String
     , focusduration : String
@@ -124,6 +129,11 @@ emptyTimeEntryIdSet =
 emptyPayEntryIdSet : TSet Data.PayEntryId Int
 emptyPayEntryIdSet =
     TSet.empty Data.getPayEntryIdVal Data.makePayEntryId
+
+
+emptyAllocationIdSet : TSet Data.AllocationId Int
+emptyAllocationIdSet =
+    TSet.empty Data.getAllocationIdVal Data.makeAllocationId
 
 
 onWkKeyPress : WK.Key -> Model -> Data.LoginData -> Time.Zone -> ( Model, Command )
@@ -192,13 +202,37 @@ toSaveProjectTime model =
                 |> Dict.values
                 |> List.filterMap .id
                 |> TSet.insertList emptyPayEntryIdSet
+
+        saveallocations =
+            model.allocations
+                |> Dict.values
+                |> List.foldl
+                    (\pe saves ->
+                        case Dict.get pe.allocationdate model.initialallocations of
+                            Just ipe ->
+                                if pe /= ipe then
+                                    pe :: saves
+
+                                else
+                                    saves
+
+                            Nothing ->
+                                pe :: saves
+                    )
+                    []
+                |> List.map (toSaveAllocation model)
+
+        deleteallocations =
+            Dict.diff model.initialallocations model.allocations
+                |> Dict.values
+                |> List.filterMap .id
+                |> TSet.insertList emptyAllocationIdSet
     in
     { project = model.project.id
     , savetimeentries = savetimeentries
-
-    -- remove update ids from the delete list.
     , deletetimeentries =
         List.foldl
+            -- remove update ids from the delete list.
             (\ste dte ->
                 case ste.id of
                     Just id ->
@@ -211,10 +245,9 @@ toSaveProjectTime model =
             savetimeentries
             |> TSet.toList
     , savepayentries = savepayentries
-
-    -- remove update ids from the delete list.
     , deletepayentries =
         List.foldl
+            -- remove update ids from the delete list.
             (\ste dte ->
                 case ste.id of
                     Just id ->
@@ -225,6 +258,21 @@ toSaveProjectTime model =
             )
             deletepayentries
             savepayentries
+            |> TSet.toList
+    , saveallocations = saveallocations
+    , deleteallocations =
+        List.foldl
+            -- remove update ids from the delete list.
+            (\ste dte ->
+                case ste.id of
+                    Just id ->
+                        TSet.remove id dte
+
+                    Nothing ->
+                        dte
+            )
+            deleteallocations
+            saveallocations
             |> TSet.toList
     }
 
@@ -252,6 +300,16 @@ toEditPayEntry te =
     }
 
 
+toEditAllocation : Data.Allocation -> EditAllocation
+toEditAllocation e =
+    { id = Just e.id
+    , description = e.description
+    , allocationdate = e.allocationdate
+    , duration = e.duration
+    , checked = False
+    }
+
+
 toSaveTimeEntry : Model -> EditTimeEntry -> Data.SaveTimeEntry
 toSaveTimeEntry model ete =
     { id = ete.id
@@ -275,6 +333,16 @@ toSavePayEntry model ete =
     }
 
 
+toSaveAllocation : Model -> EditAllocation -> Data.SaveAllocation
+toSaveAllocation model e =
+    { id = e.id
+    , project = model.project.id
+    , description = e.description
+    , allocationdate = e.allocationdate
+    , duration = e.duration
+    }
+
+
 toEteDict : List Data.TimeEntry -> Dict Int EditTimeEntry
 toEteDict te =
     te
@@ -286,6 +354,13 @@ toEpeDict : List Data.PayEntry -> Dict Int EditPayEntry
 toEpeDict pe =
     pe
         |> List.map (toEditPayEntry >> (\epe -> ( epe.paymentdate, epe )))
+        |> Dict.fromList
+
+
+toEaDict : List Data.Allocation -> Dict Int EditAllocation
+toEaDict a =
+    a
+        |> List.map (toEditAllocation >> (\ea -> ( ea.allocationdate, ea )))
         |> Dict.fromList
 
 
@@ -318,6 +393,9 @@ init ld pt =
         iepes =
             toEpeDict pt.payentries
 
+        ieas =
+            toEaDict pt.allocations
+
         description =
             ietes |> Dict.toList |> List.filter (\( _, e ) -> e.user == ld.userid) |> List.reverse |> List.head |> Maybe.map (\( _, ete ) -> ete.description) |> Maybe.withDefault ""
     in
@@ -328,6 +406,8 @@ init ld pt =
     , initialtimeentries = ietes
     , payentries = iepes
     , initialpayentries = iepes
+    , allocations = ieas
+    , initialallocations = ieas
     , viewmode = Clonk
     , focusstart = ""
     , focusend = ""
@@ -663,6 +743,7 @@ clonkview ld size zone isdirty model =
 type Entry
     = TimeDay (TDict UserId Int Int)
     | PayEntry EditPayEntry
+    | Allocation EditAllocation
 
 
 payview : Data.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
@@ -707,7 +788,10 @@ payview ld size zone model =
     , E.table [ E.spacing 8, E.width E.fill ]
         { data =
             Dict.toList <|
-                Dict.union (Dict.map (\i v -> TimeDay v) tmpd) (Dict.map (\i v -> PayEntry v) model.payentries)
+                Dict.union (Dict.map (\i v -> TimeDay v) tmpd) <|
+                    Dict.union
+                        (Dict.map (\i v -> PayEntry v) model.payentries)
+                        (Dict.map (\i v -> Allocation v) model.allocations)
         , columns =
             { header =
                 EI.checkbox [ E.width E.shrink ]
@@ -735,6 +819,14 @@ payview ld size zone model =
                                 { onChange = CheckPayItem pe.paymentdate
                                 , icon = EI.defaultCheckbox
                                 , checked = pe.checked
+                                , label = EI.labelHidden "check item"
+                                }
+
+                        Allocation e ->
+                            EI.checkbox [ E.width E.shrink ]
+                                { onChange = CheckAllocationItem e.allocationdate
+                                , icon = EI.defaultCheckbox
+                                , checked = e.checked
                                 , label = EI.labelHidden "check item"
                                 }
 
@@ -825,6 +917,66 @@ payview ld size zone model =
                                                 else
                                                     row
                                            )
+
+                                Allocation a ->
+                                    date
+                                        |> Time.millisToPosix
+                                        |> Calendar.fromPosix
+                                        |> (\cdate ->
+                                                let
+                                                    row =
+                                                        E.row
+                                                            [ EE.onClick <| OnRowItemClick date PaymentDate
+                                                            , EF.bold
+                                                            ]
+                                                            [ E.text <|
+                                                                String.fromInt (Calendar.getYear cdate)
+                                                                    ++ "/"
+                                                                    ++ (cdate |> Calendar.getMonth |> Calendar.monthToInt |> String.fromInt)
+                                                                    ++ "/"
+                                                                    ++ String.fromInt
+                                                                        (Calendar.getDay cdate)
+                                                            ]
+                                                in
+                                                if model.focus == Just ( a.allocationdate, PaymentDate ) then
+                                                    let
+                                                        ( display, mbstart ) =
+                                                            case Util.parseTime zone model.focuspaydate of
+                                                                Err e ->
+                                                                    ( Util.deadEndsToString e, Nothing )
+
+                                                                Ok Nothing ->
+                                                                    ( "invalid", Nothing )
+
+                                                                Ok (Just dt) ->
+                                                                    ( Util.showTime zone dt, Just dt )
+                                                    in
+                                                    E.column [ E.spacing 8 ]
+                                                        [ row
+                                                        , EI.text [ E.width E.fill ]
+                                                            { onChange = FocusPayDateChanged
+                                                            , text = model.focuspaydate
+                                                            , placeholder = Nothing
+                                                            , label = EI.labelHidden "payment date"
+                                                            }
+                                                        , E.text display
+                                                        , case mbstart of
+                                                            Just start ->
+                                                                EI.button Common.buttonStyle
+                                                                    { onPress = Just <| ChangeAllocationDate (Time.posixToMillis start)
+                                                                    , label = E.text "ok"
+                                                                    }
+
+                                                            Nothing ->
+                                                                EI.button Common.disabledButtonStyle
+                                                                    { onPress = Nothing
+                                                                    , label = E.text "ok"
+                                                                    }
+                                                        ]
+
+                                                else
+                                                    row
+                                           )
                    }
                 :: (model.members
                         |> List.map
@@ -834,6 +986,9 @@ payview ld size zone model =
                                 , view =
                                     \( date, e ) ->
                                         case e of
+                                            Allocation _ ->
+                                                E.none
+
                                             TimeDay ums ->
                                                 case TDict.get member.id ums of
                                                     Just millis ->
@@ -880,6 +1035,41 @@ payview ld size zone model =
                                 }
                             )
                    )
+                ++ [ { header = E.text "allocation"
+                     , width = E.fill
+                     , view =
+                        \( date, e ) ->
+                            case e of
+                                Allocation a ->
+                                    let
+                                        s =
+                                            R.round 2 (toFloat a.duration / (1000.0 * 60.0 * 60.0))
+
+                                        p =
+                                            E.el [ EF.bold ] <| E.text <| s
+                                    in
+                                    if model.focus == Just ( date, PaymentAmount ) then
+                                        E.column []
+                                            [ E.row [ EE.onClick <| OnRowItemClick date PaymentAmount ]
+                                                [ p
+                                                ]
+                                            , EI.text [ E.width E.fill ]
+                                                { onChange = FocusAllocationChanged
+                                                , text = model.focuspay
+                                                , placeholder = Nothing
+                                                , label = EI.labelHidden "allocation"
+                                                }
+                                            ]
+
+                                    else
+                                        E.row [ EE.onClick <| OnRowItemClick date PaymentAmount ]
+                                            [ p
+                                            ]
+
+                                _ ->
+                                    E.none
+                     }
+                   ]
         }
     , E.table [ E.paddingXY 0 10, E.spacing 8, E.width E.fill ]
         { data = [ ( "total time", timetotes ), ( "total pay", paytotes ), ( "total unpaid", unpaidtotes ) ]
@@ -1228,6 +1418,27 @@ update msg model ld zone =
                 Nothing ->
                     ( model, None )
 
+        ChangeAllocationDate newtime ->
+            case model.focus of
+                Just ( allocationdate, _ ) ->
+                    case Dict.get allocationdate model.allocations of
+                        Just pe ->
+                            ( { model
+                                | allocations =
+                                    Dict.insert newtime { pe | allocationdate = newtime } model.allocations
+                                        |> Dict.remove allocationdate
+                                , focus = Nothing
+                                , focuspaydate = ""
+                              }
+                            , None
+                            )
+
+                        Nothing ->
+                            ( model, None )
+
+                Nothing ->
+                    ( model, None )
+
         FocusEndChanged text ->
             case ( model.focus, Util.parseTime zone text ) of
                 ( Just ( startdate, _ ), Ok (Just time) ) ->
@@ -1293,6 +1504,24 @@ update msg model ld zone =
 
                         Nothing ->
                             model.payentries
+              }
+            , None
+            )
+
+        FocusAllocationChanged s ->
+            ( { model
+                | focuspay = s
+                , allocations =
+                    case String.toFloat s of
+                        Just f ->
+                            model.focus
+                                |> Maybe.map Tuple.first
+                                |> Maybe.andThen (\r -> Dict.get r model.allocations)
+                                |> Maybe.map (\e -> Dict.insert e.allocationdate { e | duration = round <| f * 60 * 60 * 1000 } model.allocations)
+                                |> Maybe.withDefault model.allocations
+
+                        Nothing ->
+                            model.allocations
               }
             , None
             )
@@ -1562,6 +1791,17 @@ update msg model ld zone =
                         |> Dict.get sd
                         |> Maybe.map (\pe -> Dict.insert sd { pe | checked = c } model.payentries)
                         |> Maybe.withDefault model.payentries
+              }
+            , None
+            )
+
+        CheckAllocationItem sd c ->
+            ( { model
+                | allocations =
+                    model.allocations
+                        |> Dict.get sd
+                        |> Maybe.map (\pe -> Dict.insert sd { pe | checked = c } model.allocations)
+                        |> Maybe.withDefault model.allocations
               }
             , None
             )

@@ -3,7 +3,7 @@ module TimeReporting exposing (..)
 import Calendar
 import Clock
 import Csv
-import Data exposing (PayEntryId, TimeEntryId, UserId)
+import Data exposing (AllocationId, PayEntryId, TimeEntryId, UserId)
 import DateTime
 import Dict exposing (Dict)
 import Round as R
@@ -30,6 +30,15 @@ type alias EditPayEntry =
     , user : UserId
     , description : String
     , paymentdate : Int
+    , duration : Int
+    , checked : Bool
+    }
+
+
+type alias EditAllocation =
+    { id : Maybe AllocationId
+    , description : String
+    , allocationdate : Int
     , duration : Int
     , checked : Bool
     }
