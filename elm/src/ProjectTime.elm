@@ -4,7 +4,6 @@ import Calendar
 import Common
 import Csv
 import Data exposing (UserId)
-import Dialog as D
 import Dict exposing (Dict)
 import Element as E exposing (Element)
 import Element.Background as EBk
@@ -14,12 +13,7 @@ import Element.Font as EF
 import Element.Input as EI
 import Element.Keyed as EK
 import Element.Region
-import File exposing (File)
-import File.Download as FD
-import File.Select as FS
 import Round as R
-import SelectString
-import Set
 import TDict exposing (TDict)
 import TSet exposing (TSet)
 import TangoColors as TC
@@ -27,7 +21,6 @@ import TcCommon as TC
 import Time
 import TimeReporting as TR exposing (EditPayEntry, EditTimeEntry, csvToEditTimeEntries, eteToCsv)
 import Toop
-import Toop.Take as TT
 import Util
 import WindowKeys as WK
 
@@ -604,6 +597,9 @@ clonkview ld size zone isdirty model =
                                     , label = EI.labelHidden "task end date"
                                     }
                                 ]
+
+                        else if te.startdate == te.enddate then
+                            E.none
 
                         else
                             row

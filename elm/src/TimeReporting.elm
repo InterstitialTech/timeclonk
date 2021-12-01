@@ -255,6 +255,8 @@ csvToEditTimeEntries zone user csv =
             Err [ "3 header columns required: 'task', 'from' and 'to'." ]
 
 
+{-| just export the checked Etes
+-}
 eteToCsv : Time.Zone -> Dict Int EditTimeEntry -> String
 eteToCsv zone timeentries =
     ("task,startdate,enddate"
