@@ -1183,30 +1183,23 @@ payview ld size zone model =
 allocationview : Data.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
 allocationview ld size zone model =
     let
-        paytotes =
-            model.payentries |> Dict.values |> TR.payTotes
+        paytote =
+            model.payentries
+                |> Dict.values
+                |> List.foldl (\e t -> t + e.duration) 0
 
-        timetotes =
-            model.timeentries |> Dict.values |> TR.timeTotes
+        timetote =
+            model.timeentries
+                |> Dict.values
+                |> List.foldl (\e t -> t + e.enddate - e.startdate) 0
 
-        unpaidtotes =
-            timetotes
-                |> TDict.foldl
-                    (\k v up ->
-                        case TDict.get k paytotes of
-                            Just p ->
-                                TDict.insert k (v - p) up
-
-                            Nothing ->
-                                TDict.insert k v up
-                    )
-                    TR.emptyUserTimeDict
-
-        tmpd =
-            TR.teamMillisPerDay (Dict.values model.timeentries)
+        alloctote =
+            model.allocations
+                |> Dict.values
+                |> List.foldl (\e t -> t + e.duration) 0
 
         anychecked =
-            Dict.foldl (\_ pe c -> c || pe.checked) False model.payentries
+            Dict.foldl (\_ e c -> c || e.checked) False model.payentries
     in
     [ if anychecked then
         E.row [ E.spacing 8 ]
@@ -1341,7 +1334,13 @@ allocationview ld size zone model =
                    ]
         }
     , E.table [ E.paddingXY 0 10, E.spacing 8, E.width E.fill ]
-        { data = [ ( "total time", timetotes ), ( "total pay", paytotes ), ( "total unpaid", unpaidtotes ) ]
+        { data =
+            [ ( "total time", timetote )
+            , ( "total pay", paytote )
+            , ( "total allocated", alloctote )
+            , ( "total unallocated", alloctote - timetote )
+            , ( "total unpaid", timetote - paytote )
+            ]
         , columns =
             -- dummy checkboxes for alignment.  alpha 0 hides them.
             { header =
@@ -1367,19 +1366,12 @@ allocationview ld size zone model =
                         \( title, _ ) ->
                             E.text title
                    }
-                :: (model.members
-                        |> List.map
-                            (\member ->
-                                { header = E.text member.name
-                                , width = E.fill
-                                , view =
-                                    \( _, totes ) ->
-                                        TDict.get member.id totes
-                                            |> Maybe.map (\t -> E.text <| R.round 2 <| TR.millisToHours t)
-                                            |> Maybe.withDefault E.none
-                                }
-                            )
-                   )
+                :: { header = E.text "total"
+                   , width = E.fill
+                   , view =
+                        \( _, tote ) -> E.text <| R.round 2 <| TR.millisToHours tote
+                   }
+                :: []
         }
     ]
 
