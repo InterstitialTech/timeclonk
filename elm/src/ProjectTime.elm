@@ -63,6 +63,7 @@ type Msg
     | CheckAll Bool
     | CheckItem Int Bool
     | CheckPayAll Bool
+    | CheckAllocAll Bool
     | CheckPayItem Int Bool
     | CheckAllocationItem Int Bool
     | DeleteChecked
@@ -73,8 +74,9 @@ type Msg
 
 
 type ViewMode
-    = Clonk
-    | Payment
+    = Clonks
+    | Payments
+    | Allocations
 
 
 type FocusColumn
@@ -408,7 +410,7 @@ init ld pt =
     , initialpayentries = iepes
     , allocations = ieas
     , initialallocations = ieas
-    , viewmode = Clonk
+    , viewmode = Clonks
     , focusstart = ""
     , focusend = ""
     , focusduration = ""
@@ -436,8 +438,9 @@ viewModeBar model =
                     { onPress = Just (SetViewMode vm), label = E.text text }
     in
     E.row [ E.width E.fill, E.spacing 8 ]
-        [ vbt Clonk "Clonks"
-        , vbt Payment "Payments"
+        [ vbt Clonks "Clonks"
+        , vbt Payments "Payments"
+        , vbt Allocations "Allocations"
         ]
 
 
@@ -491,11 +494,14 @@ view ld size zone model =
             , viewModeBar model
             ]
                 ++ (case model.viewmode of
-                        Clonk ->
+                        Clonks ->
                             clonkview ld size zone isdirty model
 
-                        Payment ->
+                        Payments ->
                             payview ld size zone model
+
+                        Allocations ->
+                            allocationview ld size zone model
                    )
 
 
@@ -1174,6 +1180,210 @@ payview ld size zone model =
     ]
 
 
+allocationview : Data.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
+allocationview ld size zone model =
+    let
+        paytotes =
+            model.payentries |> Dict.values |> TR.payTotes
+
+        timetotes =
+            model.timeentries |> Dict.values |> TR.timeTotes
+
+        unpaidtotes =
+            timetotes
+                |> TDict.foldl
+                    (\k v up ->
+                        case TDict.get k paytotes of
+                            Just p ->
+                                TDict.insert k (v - p) up
+
+                            Nothing ->
+                                TDict.insert k v up
+                    )
+                    TR.emptyUserTimeDict
+
+        tmpd =
+            TR.teamMillisPerDay (Dict.values model.timeentries)
+
+        anychecked =
+            Dict.foldl (\_ pe c -> c || pe.checked) False model.payentries
+    in
+    [ if anychecked then
+        E.row [ E.spacing 8 ]
+            [ E.text "checked items: "
+            , EI.button Common.buttonStyle
+                { onPress = Just <| DeletePayChecked
+                , label = E.text "delete"
+                }
+            ]
+
+      else
+        E.none
+    , E.table [ E.spacing 8, E.width E.fill ]
+        { data =
+            Dict.toList model.allocations
+        , columns =
+            { header =
+                EI.checkbox [ E.width E.shrink ]
+                    { onChange = CheckAllocAll
+                    , icon = EI.defaultCheckbox
+                    , checked =
+                        Dict.foldl
+                            (\_ pe ac ->
+                                ac && pe.checked
+                            )
+                            True
+                            model.allocations
+                    , label = EI.labelHidden "check all"
+                    }
+            , width = E.shrink
+            , view =
+                \( date, e ) ->
+                    EI.checkbox [ E.width E.shrink ]
+                        { onChange = CheckAllocationItem e.allocationdate
+                        , icon = EI.defaultCheckbox
+                        , checked = e.checked
+                        , label = EI.labelHidden "check item"
+                        }
+            }
+                :: { header = E.text "date"
+                   , width = E.fill
+                   , view =
+                        \( date, a ) ->
+                            date
+                                |> Time.millisToPosix
+                                |> Calendar.fromPosix
+                                |> (\cdate ->
+                                        let
+                                            row =
+                                                E.row
+                                                    [ EE.onClick <| OnRowItemClick date PaymentDate
+                                                    , EF.bold
+                                                    ]
+                                                    [ E.text <|
+                                                        String.fromInt (Calendar.getYear cdate)
+                                                            ++ "/"
+                                                            ++ (cdate |> Calendar.getMonth |> Calendar.monthToInt |> String.fromInt)
+                                                            ++ "/"
+                                                            ++ String.fromInt
+                                                                (Calendar.getDay cdate)
+                                                    ]
+                                        in
+                                        if model.focus == Just ( a.allocationdate, PaymentDate ) then
+                                            let
+                                                ( display, mbstart ) =
+                                                    case Util.parseTime zone model.focuspaydate of
+                                                        Err e ->
+                                                            ( Util.deadEndsToString e, Nothing )
+
+                                                        Ok Nothing ->
+                                                            ( "invalid", Nothing )
+
+                                                        Ok (Just dt) ->
+                                                            ( Util.showTime zone dt, Just dt )
+                                            in
+                                            E.column [ E.spacing 8 ]
+                                                [ row
+                                                , EI.text [ E.width E.fill ]
+                                                    { onChange = FocusPayDateChanged
+                                                    , text = model.focuspaydate
+                                                    , placeholder = Nothing
+                                                    , label = EI.labelHidden "payment date"
+                                                    }
+                                                , E.text display
+                                                , case mbstart of
+                                                    Just start ->
+                                                        EI.button Common.buttonStyle
+                                                            { onPress = Just <| ChangeAllocationDate (Time.posixToMillis start)
+                                                            , label = E.text "ok"
+                                                            }
+
+                                                    Nothing ->
+                                                        EI.button Common.disabledButtonStyle
+                                                            { onPress = Nothing
+                                                            , label = E.text "ok"
+                                                            }
+                                                ]
+
+                                        else
+                                            row
+                                   )
+                   }
+                :: [ { header = E.text "allocation"
+                     , width = E.fill
+                     , view =
+                        \( date, a ) ->
+                            let
+                                s =
+                                    R.round 2 (toFloat a.duration / (1000.0 * 60.0 * 60.0))
+
+                                p =
+                                    E.el [ EF.bold ] <| E.text <| s
+                            in
+                            if model.focus == Just ( date, PaymentAmount ) then
+                                E.column []
+                                    [ E.row [ EE.onClick <| OnRowItemClick date PaymentAmount ]
+                                        [ p
+                                        ]
+                                    , EI.text [ E.width E.fill ]
+                                        { onChange = FocusAllocationChanged
+                                        , text = model.focuspay
+                                        , placeholder = Nothing
+                                        , label = EI.labelHidden "allocation"
+                                        }
+                                    ]
+
+                            else
+                                E.row [ EE.onClick <| OnRowItemClick date PaymentAmount ]
+                                    [ p
+                                    ]
+                     }
+                   ]
+        }
+    , E.table [ E.paddingXY 0 10, E.spacing 8, E.width E.fill ]
+        { data = [ ( "total time", timetotes ), ( "total pay", paytotes ), ( "total unpaid", unpaidtotes ) ]
+        , columns =
+            -- dummy checkboxes for alignment.  alpha 0 hides them.
+            { header =
+                EI.checkbox [ E.width E.shrink, E.alpha 0.0 ]
+                    { onChange = \_ -> Noop
+                    , icon = EI.defaultCheckbox
+                    , checked = False
+                    , label = EI.labelHidden "alignment checkbox"
+                    }
+            , width = E.shrink
+            , view =
+                \_ ->
+                    EI.checkbox [ E.width E.shrink, E.alpha 0.0 ]
+                        { onChange = \_ -> Noop
+                        , icon = EI.defaultCheckbox
+                        , checked = False
+                        , label = EI.labelHidden "alignment checkbox"
+                        }
+            }
+                :: { header = E.text "totals"
+                   , width = E.fill
+                   , view =
+                        \( title, _ ) ->
+                            E.text title
+                   }
+                :: (model.members
+                        |> List.map
+                            (\member ->
+                                { header = E.text member.name
+                                , width = E.fill
+                                , view =
+                                    \( _, totes ) ->
+                                        TDict.get member.id totes
+                                            |> Maybe.map (\t -> E.text <| R.round 2 <| TR.millisToHours t)
+                                            |> Maybe.withDefault E.none
+                                }
+                            )
+                   )
+        }
+    ]
+
+
 update : Msg -> Model -> Data.LoginData -> Time.Zone -> ( Model, Command )
 update msg model ld zone =
     case msg of
@@ -1318,7 +1528,7 @@ update msg model ld zone =
 
             else
                 case model.viewmode of
-                    Clonk ->
+                    Clonks ->
                         case Dict.get i model.timeentries of
                             Just te ->
                                 ( { model
@@ -1334,7 +1544,7 @@ update msg model ld zone =
                             Nothing ->
                                 ( model, None )
 
-                    Payment ->
+                    Payments ->
                         case Dict.get i model.payentries of
                             Just pe ->
                                 ( { model
@@ -1345,6 +1555,24 @@ update msg model ld zone =
                                     , focusduration = ""
                                     , focuspay = R.round 2 (toFloat pe.duration / (1000.0 * 60.0 * 60.0))
                                     , focuspaydate = Util.showTime zone (Time.millisToPosix pe.paymentdate)
+                                  }
+                                , None
+                                )
+
+                            Nothing ->
+                                ( model, None )
+
+                    Allocations ->
+                        case Dict.get i model.allocations of
+                            Just pe ->
+                                ( { model
+                                    | focus = Just ( i, fc )
+                                    , focusdescription = ""
+                                    , focusstart = ""
+                                    , focusend = ""
+                                    , focusduration = ""
+                                    , focuspay = R.round 2 (toFloat pe.duration / (1000.0 * 60.0 * 60.0))
+                                    , focuspaydate = Util.showTime zone (Time.millisToPosix pe.allocationdate)
                                   }
                                 , None
                                 )
@@ -1780,6 +2008,18 @@ update msg model ld zone =
                             { pe | checked = c }
                         )
                         model.payentries
+              }
+            , None
+            )
+
+        CheckAllocAll c ->
+            ( { model
+                | allocations =
+                    Dict.map
+                        (\_ a ->
+                            { a | checked = c }
+                        )
+                        model.allocations
               }
             , None
             )
