@@ -717,7 +717,7 @@ clonkview ld size zone isdirty model =
                         let
                             row =
                                 E.row [ EE.onClick <| OnRowItemClick te.startdate Duration, igfont te ]
-                                    [ E.text <| R.round 2 (toFloat (te.enddate - te.startdate) / (1000.0 * 60.0 * 60.0)) ]
+                                    [ E.text <| millisAsHours (te.enddate - te.startdate) ]
                         in
                         if model.focus == Just ( te.startdate, Duration ) then
                             E.column [ E.spacing 8, E.width E.shrink ]
@@ -745,18 +745,31 @@ clonkview ld size zone isdirty model =
 
       else
         E.none
-    , E.row [ E.width E.fill, E.spacing 8 ]
-        [ E.text "team unpaid hours: "
-        , E.text <| R.round 2 <| teamhours - teampay
-        ]
-    , E.row [ E.width E.fill, E.spacing 8 ]
-        [ E.text "team allocated hours: "
-        , E.text <| R.round 2 <| teamalloc - teamhours
-        ]
-    , E.row [ E.width E.fill, E.spacing 8 ]
-        [ E.text "my unpaid hours: "
-        , E.text <| R.round 2 <| myhours - mypay
-        ]
+    , E.table [ E.spacing 8, E.width E.fill ]
+        { data =
+            [ ( "team unpaid hours: "
+              , R.round 2 <| teamhours - teampay
+              )
+            , ( "team allocated hours: "
+              , R.round 2 <| teamalloc - teamhours
+              )
+            , ( "my unpaid hours: "
+              , R.round 2 <| myhours - mypay
+              )
+            ]
+        , columns =
+            [ { header = E.none
+              , width = E.shrink
+              , view =
+                    \( title, entry ) -> E.text title
+              }
+            , { header = E.none
+              , width = E.shrink
+              , view =
+                    \( title, entry ) -> E.text entry
+              }
+            ]
+        }
     , E.row [ E.width E.fill, E.spacing 8 ]
         [ EI.text [ E.width E.fill ]
             { onChange = DescriptionChanged
@@ -774,6 +787,11 @@ type Entry
     = TimeDay (TDict UserId Int Int)
     | PayEntry EditPayEntry
     | Allocation EditAllocation
+
+
+millisAsHours : Int -> String
+millisAsHours millis =
+    R.round 2 (toFloat millis / (1000.0 * 60.0 * 60.0))
 
 
 payview : Data.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
@@ -797,6 +815,11 @@ payview ld size zone model =
                                 TDict.insert k v up
                     )
                     TR.emptyUserTimeDict
+
+        alloctote =
+            model.allocations
+                |> Dict.values
+                |> List.foldl (\e t -> t + e.duration) 0
 
         tmpd =
             TR.teamMillisPerDay (Dict.values model.timeentries)
@@ -973,7 +996,7 @@ payview ld size zone model =
                                                     Just millis ->
                                                         if millis > 0 then
                                                             E.row [ EE.onClick <| OnRowItemClick date PaymentAmount ]
-                                                                [ E.text <| R.round 2 (toFloat millis / (1000.0 * 60.0 * 60.0))
+                                                                [ E.text <| millisAsHours millis
                                                                 ]
 
                                                         else
@@ -986,7 +1009,7 @@ payview ld size zone model =
                                                 if epe.user == member.id then
                                                     let
                                                         s =
-                                                            R.round 2 (toFloat epe.duration / (1000.0 * 60.0 * 60.0))
+                                                            millisAsHours epe.duration
 
                                                         p =
                                                             E.el [ EF.bold ] <| E.text <| s ++ " pmt"
@@ -1014,7 +1037,25 @@ payview ld size zone model =
                                 }
                             )
                    )
-                ++ [ { header = E.el [] <| E.text "allocations"
+                ++ [ { header = E.text "team"
+                     , width = E.fill
+                     , view =
+                        \( date, e ) ->
+                            case e of
+                                Allocation _ ->
+                                    E.none
+
+                                TimeDay ums ->
+                                    ums
+                                        |> TDict.values
+                                        |> List.foldl (+) 0
+                                        |> E.text
+                                        << millisAsHours
+
+                                PayEntry epe ->
+                                    E.none
+                     }
+                   , { header = E.el [] <| E.text "allocations"
                      , width = E.fill
                      , view =
                         \( date, e ) ->
@@ -1022,7 +1063,7 @@ payview ld size zone model =
                                 Allocation a ->
                                     let
                                         s =
-                                            R.round 2 (toFloat a.duration / (1000.0 * 60.0 * 60.0))
+                                            millisAsHours a.duration
                                     in
                                     E.el [] <| E.text <| s
 
@@ -1066,11 +1107,33 @@ payview ld size zone model =
                                 , view =
                                     \( _, totes ) ->
                                         TDict.get member.id totes
-                                            |> Maybe.map (\t -> E.text <| R.round 2 <| TR.millisToHours t)
+                                            |> Maybe.map (\t -> E.text <| millisAsHours t)
                                             |> Maybe.withDefault E.none
                                 }
                             )
                    )
+                ++ [ { header = E.column [] [ E.text "team" ]
+                     , width = E.fill
+                     , view =
+                        \( _, tote ) ->
+                            tote
+                                |> TDict.values
+                                |> List.foldl (+) 0
+                                >> millisAsHours
+                                >> E.text
+                     }
+                   , { header = E.column [] [ E.text "allocation", E.text "- team" ]
+                     , width = E.fill
+                     , view =
+                        \( _, tote ) ->
+                            tote
+                                |> TDict.values
+                                |> List.foldl (+) 0
+                                |> (-) alloctote
+                                >> millisAsHours
+                                >> E.text
+                     }
+                   ]
         }
     , E.row [ E.width E.fill, E.spacing 8 ]
         [ EI.text [ E.width E.fill ]
@@ -1283,7 +1346,7 @@ allocationview ld size zone model =
                         \( date, a ) ->
                             let
                                 s =
-                                    R.round 2 (toFloat a.duration / (1000.0 * 60.0 * 60.0))
+                                    millisAsHours a.duration
 
                                 p =
                                     E.el [] <| E.text <| s
@@ -1341,10 +1404,10 @@ allocationview ld size zone model =
     , E.table [ E.paddingXY 0 10, E.spacing 8, E.width E.fill ]
         { data =
             [ ( "total time", timetote )
-            , ( "total pay", paytote )
-            , ( "total allocated", alloctote )
-            , ( "total unallocated", alloctote - timetote )
+            , ( "total paid", paytote )
             , ( "total unpaid", timetote - paytote )
+            , ( "total allocated", alloctote )
+            , ( "total allocated remaining", alloctote - timetote )
             ]
         , columns =
             -- dummy checkboxes for alignment.  alpha 0 hides them.
@@ -1374,7 +1437,7 @@ allocationview ld size zone model =
                 :: { header = E.none
                    , width = E.fill
                    , view =
-                        \( _, tote ) -> E.text <| R.round 2 <| TR.millisToHours tote
+                        \( _, tote ) -> E.text <| millisAsHours tote
                    }
                 :: []
         }
@@ -1546,7 +1609,7 @@ update msg model ld zone =
                                     , focusdescription = te.description
                                     , focusstart = Util.showTime zone (Time.millisToPosix te.startdate)
                                     , focusend = Util.showTime zone (Time.millisToPosix te.enddate)
-                                    , focusduration = R.round 2 (toFloat (te.enddate - te.startdate) / (1000.0 * 60.0 * 60.0))
+                                    , focusduration = millisAsHours (te.enddate - te.startdate)
                                   }
                                 , None
                                 )
@@ -1563,7 +1626,7 @@ update msg model ld zone =
                                     , focusstart = ""
                                     , focusend = ""
                                     , focusduration = ""
-                                    , focuspay = R.round 2 (toFloat pe.duration / (1000.0 * 60.0 * 60.0))
+                                    , focuspay = millisAsHours pe.duration
                                     , focuspaydate = Util.showTime zone (Time.millisToPosix pe.paymentdate)
                                   }
                                 , None
@@ -1580,8 +1643,8 @@ update msg model ld zone =
                                     , focusdescription = pe.description
                                     , focusstart = ""
                                     , focusend = ""
-                                    , focusduration = R.round 2 (toFloat pe.duration / (1000.0 * 60.0 * 60.0))
-                                    , focuspay = R.round 2 (toFloat pe.duration / (1000.0 * 60.0 * 60.0))
+                                    , focusduration = millisAsHours pe.duration
+                                    , focuspay = millisAsHours pe.duration
                                     , focuspaydate = Util.showTime zone (Time.millisToPosix pe.allocationdate)
                                   }
                                 , None
@@ -1973,7 +2036,7 @@ update msg model ld zone =
                         | distribution =
                             Just
                                 (Tuple.first dist
-                                    |> TDict.map (\_ i -> R.round 2 (toFloat i / (60 * 60 * 1000)))
+                                    |> TDict.map (\_ i -> millisAsHours i)
                                 )
                       }
                     , None
