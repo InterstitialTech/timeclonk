@@ -1,3 +1,15 @@
+## 2021-12-02
+
+added allocation CSV import.  uses the same import button as the clonks one.  format is:
+
+```
+description,date,hours
+Pareto Security,2020-03-12 14:42:00,44
+Gasper Vozel,2020-03-12 15:09:00,5.5
+Daniel Rafaj,2020-03-18 11:12:00,1
+Amine Chikhaoui,2020-03-18 12:31:00,1.5
+```
+
 ## 2021-12-01
 
 ### Allocations
