@@ -853,12 +853,7 @@ payview ld size zone model =
                                 }
 
                         Allocation e ->
-                            EI.checkbox [ E.width E.shrink ]
-                                { onChange = CheckAllocationItem e.allocationdate
-                                , icon = EI.defaultCheckbox
-                                , checked = e.checked
-                                , label = EI.labelHidden "check item"
-                                }
+                            E.none
 
                         TimeDay _ ->
                             E.none
@@ -953,59 +948,13 @@ payview ld size zone model =
                                         |> Time.millisToPosix
                                         |> Calendar.fromPosix
                                         |> (\cdate ->
-                                                let
-                                                    row =
-                                                        E.row
-                                                            [ EE.onClick <| OnRowItemClick date PaymentDate
-                                                            , EF.bold
-                                                            ]
-                                                            [ E.text <|
-                                                                String.fromInt (Calendar.getYear cdate)
-                                                                    ++ "/"
-                                                                    ++ (cdate |> Calendar.getMonth |> Calendar.monthToInt |> String.fromInt)
-                                                                    ++ "/"
-                                                                    ++ String.fromInt
-                                                                        (Calendar.getDay cdate)
-                                                            ]
-                                                in
-                                                if model.focus == Just ( a.allocationdate, PaymentDate ) then
-                                                    let
-                                                        ( display, mbstart ) =
-                                                            case Util.parseTime zone model.focuspaydate of
-                                                                Err e ->
-                                                                    ( Util.deadEndsToString e, Nothing )
-
-                                                                Ok Nothing ->
-                                                                    ( "invalid", Nothing )
-
-                                                                Ok (Just dt) ->
-                                                                    ( Util.showTime zone dt, Just dt )
-                                                    in
-                                                    E.column [ E.spacing 8 ]
-                                                        [ row
-                                                        , EI.text [ E.width E.fill ]
-                                                            { onChange = FocusPayDateChanged
-                                                            , text = model.focuspaydate
-                                                            , placeholder = Nothing
-                                                            , label = EI.labelHidden "payment date"
-                                                            }
-                                                        , E.text display
-                                                        , case mbstart of
-                                                            Just start ->
-                                                                EI.button Common.buttonStyle
-                                                                    { onPress = Just <| ChangeAllocationDate (Time.posixToMillis start)
-                                                                    , label = E.text "ok"
-                                                                    }
-
-                                                            Nothing ->
-                                                                EI.button Common.disabledButtonStyle
-                                                                    { onPress = Nothing
-                                                                    , label = E.text "ok"
-                                                                    }
-                                                        ]
-
-                                                else
-                                                    row
+                                                E.text <|
+                                                    String.fromInt (Calendar.getYear cdate)
+                                                        ++ "/"
+                                                        ++ (cdate |> Calendar.getMonth |> Calendar.monthToInt |> String.fromInt)
+                                                        ++ "/"
+                                                        ++ String.fromInt
+                                                            (Calendar.getDay cdate)
                                            )
                    }
                 :: (model.members
@@ -1065,7 +1014,7 @@ payview ld size zone model =
                                 }
                             )
                    )
-                ++ [ { header = E.text "hours"
+                ++ [ { header = E.el [] <| E.text "allocations"
                      , width = E.fill
                      , view =
                         \( date, e ) ->
@@ -1074,27 +1023,8 @@ payview ld size zone model =
                                     let
                                         s =
                                             R.round 2 (toFloat a.duration / (1000.0 * 60.0 * 60.0))
-
-                                        p =
-                                            E.el [] <| E.text <| s
                                     in
-                                    if model.focus == Just ( date, PaymentAmount ) then
-                                        E.column [ E.spacing 8 ]
-                                            [ E.row [ EE.onClick <| OnRowItemClick date PaymentAmount ]
-                                                [ p
-                                                ]
-                                            , EI.text [ E.width E.fill ]
-                                                { onChange = FocusAllocationChanged
-                                                , text = model.focuspay
-                                                , placeholder = Nothing
-                                                , label = EI.labelHidden "allocation hours"
-                                                }
-                                            ]
-
-                                    else
-                                        E.row [ EE.onClick <| OnRowItemClick date PaymentAmount ]
-                                            [ p
-                                            ]
+                                    E.el [] <| E.text <| s
 
                                 _ ->
                                     E.none
