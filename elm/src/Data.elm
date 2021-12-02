@@ -1,5 +1,7 @@
 module Data exposing
-    ( ChangeEmail
+    ( Allocation
+    , AllocationId
+    , ChangeEmail
     , ChangePassword
     , ListProject
     , Login
@@ -13,6 +15,7 @@ module Data exposing
     , ProjectTime
     , Registration
     , ResetPassword
+    , SaveAllocation
     , SavePayEntry
     , SaveProject
     , SaveProjectEdit
@@ -47,10 +50,12 @@ module Data exposing
     , encodeSaveProjectTime
     , encodeSaveTimeEntry
     , encodeSetPassword
+    , getAllocationIdVal
     , getPayEntryIdVal
     , getProjectIdVal
     , getTimeEntryIdVal
     , getUserIdVal
+    , makeAllocationId
     , makePayEntryId
     , makeProjectId
     , makeTimeEntryId
@@ -227,12 +232,35 @@ type alias SavePayEntry =
     }
 
 
+type alias Allocation =
+    { id : AllocationId
+    , project : ProjectId
+    , duration : Int
+    , allocationdate : Int
+    , description : String
+    , createdate : Int
+    , changeddate : Int
+    , creator : UserId
+    }
+
+
+type alias SaveAllocation =
+    { id : Maybe AllocationId
+    , project : ProjectId
+    , duration : Int
+    , allocationdate : Int
+    , description : String
+    }
+
+
 type alias SaveProjectTime =
     { project : ProjectId
     , savetimeentries : List SaveTimeEntry
     , deletetimeentries : List TimeEntryId
     , savepayentries : List SavePayEntry
     , deletepayentries : List PayEntryId
+    , saveallocations : List SaveAllocation
+    , deleteallocations : List AllocationId
     }
 
 
@@ -241,6 +269,7 @@ type alias ProjectTime =
     , members : List ProjectMember
     , timeentries : List TimeEntry
     , payentries : List PayEntry
+    , allocations : List Allocation
     }
 
 
@@ -311,6 +340,22 @@ getTimeEntryIdVal : TimeEntryId -> Int
 getTimeEntryIdVal uid =
     case uid of
         TimeEntryId i ->
+            i
+
+
+type AllocationId
+    = AllocationId Int
+
+
+makeAllocationId : Int -> AllocationId
+makeAllocationId i =
+    AllocationId i
+
+
+getAllocationIdVal : AllocationId -> Int
+getAllocationIdVal uid =
+    case uid of
+        AllocationId i ->
             i
 
 
@@ -463,6 +508,8 @@ encodeSaveProjectTime t =
         , ( "deletetimeentries", JE.list (getTimeEntryIdVal >> JE.int) t.deletetimeentries )
         , ( "savepayentries", JE.list encodeSavePayEntry t.savepayentries )
         , ( "deletepayentries", JE.list (getPayEntryIdVal >> JE.int) t.deletepayentries )
+        , ( "saveallocations", JE.list encodeSaveAllocation t.saveallocations )
+        , ( "deleteallocations", JE.list (getAllocationIdVal >> JE.int) t.deleteallocations )
         ]
 
 
@@ -526,6 +573,33 @@ encodeSavePayEntry e =
             ]
 
 
+decodeAllocation : JD.Decoder Allocation
+decodeAllocation =
+    JD.succeed Allocation
+        |> andMap (JD.field "id" JD.int |> JD.map makeAllocationId)
+        |> andMap (JD.field "project" JD.int |> JD.map makeProjectId)
+        |> andMap (JD.field "duration" JD.int)
+        |> andMap (JD.field "allocationdate" JD.int)
+        |> andMap (JD.field "description" JD.string)
+        |> andMap (JD.field "createdate" JD.int)
+        |> andMap (JD.field "changeddate" JD.int)
+        |> andMap (JD.field "creator" JD.int |> JD.map makeUserId)
+
+
+encodeSaveAllocation : SaveAllocation -> JE.Value
+encodeSaveAllocation e =
+    JE.object <|
+        (e.id
+            |> Maybe.map (\id -> (::) ( "id", JE.int (getAllocationIdVal id) ))
+            |> Maybe.withDefault identity
+        )
+            [ ( "project", JE.int (getProjectIdVal e.project) )
+            , ( "duration", JE.int e.duration )
+            , ( "allocationdate", JE.int e.allocationdate )
+            , ( "description", JE.string e.description )
+            ]
+
+
 decodeProjectTime : JD.Decoder ProjectTime
 decodeProjectTime =
     JD.succeed ProjectTime
@@ -533,3 +607,4 @@ decodeProjectTime =
         |> andMap (JD.field "members" <| JD.list decodeProjectMember)
         |> andMap (JD.field "timeentries" <| JD.list decodeTimeEntry)
         |> andMap (JD.field "payentries" <| JD.list decodePayEntry)
+        |> andMap (JD.field "allocations" <| JD.list decodeAllocation)

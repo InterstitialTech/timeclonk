@@ -148,6 +148,8 @@ pub struct SaveProjectTime {
   pub deletetimeentries: Vec<i64>,
   pub savepayentries: Vec<SavePayEntry>,
   pub deletepayentries: Vec<i64>,
+  pub saveallocations: Vec<SaveAllocation>,
+  pub deleteallocations: Vec<i64>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -156,6 +158,7 @@ pub struct ProjectTime {
   pub members: Vec<ProjectMember>,
   pub timeentries: Vec<TimeEntry>,
   pub payentries: Vec<PayEntry>,
+  pub allocations: Vec<Allocation>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -178,5 +181,26 @@ pub struct SavePayEntry {
   pub user: i64,
   pub duration: i64,
   pub paymentdate: i64,
+  pub description: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Allocation {
+  pub id: i64,
+  pub project: i64,
+  pub duration: i64,
+  pub allocationdate: i64,
+  pub description: String,
+  pub createdate: i64,
+  pub changeddate: i64,
+  pub creator: i64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SaveAllocation {
+  pub id: Option<i64>,
+  pub project: i64,
+  pub duration: i64,
+  pub allocationdate: i64,
   pub description: String,
 }

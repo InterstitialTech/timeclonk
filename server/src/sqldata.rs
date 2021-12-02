@@ -1,7 +1,7 @@
 use crate::data::{
-  ChangeEmail, ChangePassword, ListProject, LoginData, PayEntry, Project, ProjectEdit,
-  ProjectMember, ProjectTime, SavePayEntry, SaveProject, SaveProjectEdit, SaveProjectTime,
-  SaveTimeEntry, SavedProject, SavedProjectEdit, TimeEntry, User,
+  Allocation, ChangeEmail, ChangePassword, ListProject, LoginData, PayEntry, Project, ProjectEdit,
+  ProjectMember, ProjectTime, SaveAllocation, SavePayEntry, SaveProject, SaveProjectEdit,
+  SaveProjectTime, SaveTimeEntry, SavedProject, SavedProjectEdit, TimeEntry, User,
 };
 use crate::util::{is_token_expired, now};
 use barrel::backend::Sqlite;
@@ -295,6 +295,33 @@ pub fn udpate2(dbfile: &Path) -> Result<(), Box<dyn Error>> {
   Ok(())
 }
 
+pub fn udpate3() -> Migration {
+  let mut m = Migration::new();
+
+  m.create_table("allocation", |t| {
+    t.add_column(
+      "id",
+      types::integer()
+        .primary(true)
+        .increments(true)
+        .nullable(false),
+    );
+    t.add_column("project", types::foreign("project", "id").nullable(false));
+    t.add_column("description", types::text().nullable(false));
+    t.add_column("duration", types::integer().nullable(false));
+    t.add_column("allocationdate", types::integer().nullable(false));
+    t.add_column("createdate", types::integer().nullable(false));
+    t.add_column("changeddate", types::integer().nullable(false));
+    t.add_column("creator", types::foreign("user", "id").nullable(false));
+    t.add_index(
+      "allocationunq",
+      types::index(vec!["user", "allocationdate"]).unique(true),
+    );
+  });
+
+  m
+}
+
 pub fn get_single_value(conn: &Connection, name: &str) -> Result<Option<String>, Box<dyn Error>> {
   match conn.query_row(
     "select value from singlevalue where name = ?1",
@@ -344,6 +371,11 @@ pub fn dbinit(dbfile: &Path, token_expiration_ms: i64) -> Result<(), Box<dyn Err
     info!("udpate2");
     udpate2(&dbfile)?;
     set_single_value(&conn, "migration_level", "2")?;
+  }
+  if nlevel < 3 {
+    info!("udpate3");
+    conn.execute_batch(udpate3().make::<Sqlite>().as_str())?;
+    set_single_value(&conn, "migration_level", "3")?;
   }
 
   info!("db up to date.");
@@ -994,6 +1026,73 @@ pub fn delete_pay_entry(conn: &Connection, _uid: i64, peid: i64) -> Result<(), B
   Ok(())
 }
 
+pub fn allocations(
+  conn: &Connection,
+  uid: i64,
+  projectid: i64,
+) -> Result<Vec<Allocation>, Box<dyn Error>> {
+  let mut pstmt = conn.prepare(
+    "select  a.id, a.project, a.duration, a.allocationdate, a.description, a.createdate, a.changeddate, a.creator
+          from allocation a, projectmember pm where
+          a.project = ?1 and
+          a.project = pm.project and
+          pm.user = ?2",
+  )?;
+  let r = Ok(
+    pstmt
+      .query_map(params![projectid, uid], |row| {
+        Ok(Allocation {
+          id: row.get(0)?,
+          project: row.get(1)?,
+          duration: row.get(2)?,
+          allocationdate: row.get(3)?,
+          description: row.get(4)?,
+          createdate: row.get(5)?,
+          changeddate: row.get(6)?,
+          creator: row.get(7)?,
+        })
+      })?
+      .filter_map(|x| x.ok())
+      .collect(),
+  );
+  r
+}
+
+pub fn save_allocation(
+  conn: &Connection,
+  uid: i64,
+  sa: SaveAllocation,
+) -> Result<i64, Box<dyn Error>> {
+  let now = now()?;
+  match sa.id {
+    Some(id) =>
+        conn.execute(
+          "update allocation set
+              project =?1
+            , description =?2
+            , duration =?3
+            , allocationdate =?4
+            , changeddate =?5
+              where id = ?6 ",
+          params![sa.project, sa.description, sa.duration, sa.allocationdate, now, id],
+        )?,
+    None =>
+      conn.execute(
+        "insert into allocation (project, description, duration, allocationdate, createdate, changeddate, creator)
+         values (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        params![sa.project, sa.description, sa.duration, sa.allocationdate, now, now, uid],
+      )?,
+  };
+  let id = conn.last_insert_rowid();
+  Ok(id)
+}
+
+// check for user membership before calling!
+pub fn delete_allocation(conn: &Connection, _uid: i64, id: i64) -> Result<(), Box<dyn Error>> {
+  conn.execute("delete from allocation where id = ?1", params![id])?;
+  Ok(())
+}
+
 pub fn is_project_member(
   conn: &Connection,
   uid: i64,
@@ -1019,11 +1118,13 @@ pub fn read_project_time(
   let members = member_list(conn, uid, Some(projectid))?;
   let timeentries = time_entries(conn, uid, projectid)?;
   let payentries = pay_entries(conn, uid, projectid)?;
+  let allocations = allocations(conn, uid, projectid)?;
   Ok(ProjectTime {
     project: proj,
     members: members,
     timeentries: timeentries,
     payentries: payentries,
+    allocations: allocations,
   })
 }
 
@@ -1075,15 +1176,19 @@ pub fn save_project_time(
       save_time_entry(conn, uid, te)?;
     }
     for id in spt.deletetimeentries {
-      println!("deletetimeentry: {}, {}", uid, id);
       delete_time_entry(conn, uid, id)?;
     }
     for te in spt.savepayentries {
       save_pay_entry(conn, uid, te)?;
     }
     for id in spt.deletepayentries {
-      println!("deletepayentry: {}, {}", uid, id);
       delete_pay_entry(conn, uid, id)?;
+    }
+    for te in spt.saveallocations {
+      save_allocation(conn, uid, te)?;
+    }
+    for id in spt.deleteallocations {
+      delete_allocation(conn, uid, id)?;
     }
   }
 

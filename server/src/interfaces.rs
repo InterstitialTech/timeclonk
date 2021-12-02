@@ -1,14 +1,11 @@
 use crate::config::Config;
 use crate::email;
-// use crate::search;
 use crate::sqldata;
 use crate::util;
 use crate::util::is_token_expired;
 use actix_session::Session;
 use crypto_hash::{hex_digest, Algorithm};
-// use either::Either::{Left, Right};
 use log::info;
-// use simple_error::bail;
 use crate::data::{
   ChangeEmail, ChangePassword, Login, LoginData, RegistrationData, ResetPassword, SaveProjectEdit,
   SaveProjectTime, SetPassword,

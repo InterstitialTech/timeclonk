@@ -1,3 +1,16 @@
+## 2021-12-01
+
+### Allocations
+
+Allocations.  These indicate that a block of hours is allotted for working.   The idea with allocations is that
+you note the number of hours in the current contract, or the number of hours that
+have been funded, or similar.
+
+So now there are Clonks, Payments, and Allocations views on the main project page.
+
+Allocations are entered and viewed on the Allocations page.  They also
+appear in the totals on the Clonks and Payments views, to make it easy to track how many hours are left to work.
+
 ## 2021-11-30 
 
 ### CSV file export
