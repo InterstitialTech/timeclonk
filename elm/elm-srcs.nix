@@ -1,5 +1,10 @@
 {
 
+      "periodic/elm-csv" = {
+        sha256 = "1n2sz2f5g7zfy6p2ssb99iirmnc3zwfmvdrym2b16j5dvzl32jly";
+        version = "2.0.1";
+      };
+
       "mdgriffith/elm-ui" = {
         sha256 = "0ffcqv4a4ad400hwp824m3qq4jy82cqp5ghmhp1m0q7n004z6kgv";
         version = "1.1.8";
@@ -11,8 +16,8 @@
       };
 
       "bburdette/toop" = {
-        sha256 = "091pzp712fwdwqkrikd4yprs5kdfix5q297jz0y9pkpy6pgqfwqw";
-        version = "1.0.1";
+        sha256 = "10i3j97pzc903n0rwkxna6g1pf3lg4zipgrg6r2glygzazaigbs7";
+        version = "1.2.0";
       };
 
       "elm/json" = {
@@ -65,6 +70,11 @@
         version = "1.0.0";
       };
 
+      "bburdette/typed-collections" = {
+        sha256 = "1j8hkw35dkc9kcdyxz2vqdv500b9pfar55bq20ybznkbm02c6k8w";
+        version = "1.0.2";
+      };
+
       "elm/random" = {
         sha256 = "138n2455wdjwa657w6sjq18wx2r0k60ibpc4frhbqr50sncxrfdl";
         version = "1.0.0";
@@ -113,5 +123,10 @@
       "elm/virtual-dom" = {
         sha256 = "0q1v5gi4g336bzz1lgwpn5b1639lrn63d8y6k6pimcyismp2i1yg";
         version = "1.0.2";
+      };
+
+      "elm-explorations/test" = {
+        sha256 = "1fsd7bajm7qa93r5pn3mdafqh3blpzya601jbs9l238p0hmvh576";
+        version = "1.2.2";
       };
 }
