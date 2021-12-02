@@ -284,3 +284,61 @@ eteToCsv zone timeentries =
     )
         |> List.intersperse "\n"
         |> String.concat
+
+
+csvToEditAllocations : Time.Zone -> UserId -> Csv.Csv -> Result (List String) (List EditAllocation)
+csvToEditAllocations zone user csv =
+    let
+        headers =
+            List.map (String.trim >> String.toLower) csv.headers
+    in
+    case TT.takeT3 headers of
+        Just ( Toop.T3 "description" "date" "hours", _ ) ->
+            let
+                resitems =
+                    csv.records
+                        |> List.map (\lst -> List.map String.trim lst)
+                        |> List.foldl
+                            (\row rlst ->
+                                rlst
+                                    |> Result.andThen
+                                        (\lst ->
+                                            case TT.takeT3 row of
+                                                Nothing ->
+                                                    Err [ "each allocation row requires 3 entries: description, date, and decimal hours." ]
+
+                                                Just ( Toop.T3 description sdate shours, _ ) ->
+                                                    let
+                                                        pdate =
+                                                            Util.parseTime zone sdate
+
+                                                        phours =
+                                                            String.toFloat shours
+                                                    in
+                                                    case ( pdate, phours ) of
+                                                        ( Ok (Just date), Just hours ) ->
+                                                            Ok <|
+                                                                { id = Nothing
+                                                                , description = description
+                                                                , allocationdate = Time.posixToMillis date
+                                                                , duration = hours * 60 * 60 * 1000 |> round
+                                                                , checked = False
+                                                                }
+                                                                    :: lst
+
+                                                        ( Err e, _ ) ->
+                                                            Err [ Util.deadEndsToString e ]
+
+                                                        ( _, Nothing ) ->
+                                                            Err [ "invalid hours: " ++ shours ]
+
+                                                        _ ->
+                                                            Err [ "invalid date" ]
+                                        )
+                            )
+                            (Ok [])
+            in
+            resitems
+
+        _ ->
+            Err [ "3 header columns required: 'description', 'date', and 'hours'." ]

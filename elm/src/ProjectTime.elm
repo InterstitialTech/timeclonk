@@ -19,7 +19,7 @@ import TSet exposing (TSet)
 import TangoColors as TC
 import TcCommon as TC
 import Time
-import TimeReporting as TR exposing (EditAllocation, EditPayEntry, EditTimeEntry, csvToEditTimeEntries, eteToCsv)
+import TimeReporting as TR exposing (EditAllocation, EditPayEntry, EditTimeEntry, csvToEditAllocations, csvToEditTimeEntries, eteToCsv)
 import Toop
 import Util
 import WindowKeys as WK
@@ -1468,34 +1468,57 @@ update msg model ld zone =
             ( model, GetCsv )
 
         CsvString str ->
-            case
-                Csv.parse str
-                    |> Result.mapError
-                        (List.map
-                            Util.deadEndToString
-                        )
-                    |> Result.andThen
-                        (\csv ->
-                            csvToEditTimeEntries zone ld.userid csv
-                        )
-                    |> Result.mapError
-                        (\strs ->
-                            List.intersperse "\n" strs
-                                |> String.concat
-                        )
-            of
-                Ok el ->
-                    ( { model
-                        | timeentries =
-                            el
-                                |> List.map (\e -> ( e.startdate, e ))
-                                |> List.foldl (\( k, v ) d -> Dict.insert k v d) model.timeentries
-                      }
-                    , None
-                    )
+            let
+                parseItems : String -> (Csv.Csv -> Result (List String) (List item)) -> Result String (List item)
+                parseItems csvstr fn =
+                    Csv.parse csvstr
+                        |> Result.mapError
+                            (List.map
+                                Util.deadEndToString
+                            )
+                        |> Result.andThen
+                            (\csv -> fn csv
+                             -- csvToEditTimeEntries zone ld.userid csv
+                            )
+                        |> Result.mapError
+                            (\strs ->
+                                List.intersperse "\n" strs
+                                    |> String.concat
+                            )
+            in
+            case model.viewmode of
+                Clonks ->
+                    case parseItems str (csvToEditTimeEntries zone ld.userid) of
+                        Ok el ->
+                            ( { model
+                                | timeentries =
+                                    el
+                                        |> List.map (\e -> ( e.startdate, e ))
+                                        |> List.foldl (\( k, v ) d -> Dict.insert k v d) model.timeentries
+                              }
+                            , None
+                            )
 
-                Err e ->
-                    ( model, ShowError e )
+                        Err e ->
+                            ( model, ShowError e )
+
+                Allocations ->
+                    case parseItems str (csvToEditAllocations zone ld.userid) of
+                        Ok el ->
+                            ( { model
+                                | allocations =
+                                    el
+                                        |> List.map (\e -> ( e.allocationdate, e ))
+                                        |> List.foldl (\( k, v ) d -> Dict.insert k v d) model.allocations
+                              }
+                            , None
+                            )
+
+                        Err e ->
+                            ( model, ShowError e )
+
+                Payments ->
+                    ( model, ShowError "csv import is unimplemented for payments." )
 
         SettingsPress ->
             ( model, Settings )
