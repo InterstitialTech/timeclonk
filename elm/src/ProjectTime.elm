@@ -1459,6 +1459,7 @@ update msg model ld zone =
             ( { model
                 | timeentries = model.initialtimeentries
                 , payentries = model.initialpayentries
+                , allocations = model.initialallocations
               }
             , None
             )
