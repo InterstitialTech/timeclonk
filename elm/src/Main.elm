@@ -740,15 +740,21 @@ actualupdate msg model =
             case c of
                 UserSettings.Done ->
                     let
-                        pst =
-                            case prevstate of
-                                ProjectTime ptm ld ->
-                                    ProjectTime { ptm | saveonclonk = numod.saveonclonk } ld
-
-                                _ ->
-                                    prevstate
+                        _ =
+                            Debug.log "pst" prevstate
                     in
-                    ( { model | state = pst }, Cmd.none )
+                    case prevstate of
+                        ProjectTime ptm ld ->
+                            ( { model | state = ProjectTime { ptm | saveonclonk = numod.saveonclonk } ld }, Cmd.none )
+
+                        ShowMessage _ logindata Nothing ->
+                            initialPage model
+
+                        PubShowMessage _ Nothing ->
+                            initialPage model
+
+                        _ ->
+                            ( { model | state = prevstate }, Cmd.none )
 
                 UserSettings.LogOut ->
                     ( { model | state = Login (Login.initialModel Nothing model.appname model.seed) }
