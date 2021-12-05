@@ -739,10 +739,6 @@ actualupdate msg model =
             in
             case c of
                 UserSettings.Done ->
-                    let
-                        _ =
-                            Debug.log "pst" prevstate
-                    in
                     case prevstate of
                         ProjectTime ptm ld ->
                             ( { model | state = ProjectTime { ptm | saveonclonk = numod.saveonclonk } ld }, Cmd.none )
