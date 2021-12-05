@@ -117,6 +117,7 @@ type alias Model =
     , allocdescription : String
     , allochours : String
     , viewmode : ViewMode
+    , saveonclonk : Bool
     }
 
 
@@ -397,8 +398,8 @@ isDirty model =
         /= model.initialallocations
 
 
-init : Data.LoginData -> Data.ProjectTime -> Model
-init ld pt =
+init : Data.LoginData -> Data.ProjectTime -> Bool -> Model
+init ld pt saveonclonk =
     let
         ietes =
             toEteDict pt.timeentries
@@ -434,6 +435,7 @@ init ld pt =
     , shownewalloc = False
     , allocdescription = ""
     , allochours = ""
+    , saveonclonk = saveonclonk
     }
 
 
@@ -1533,34 +1535,50 @@ update msg model ld zone =
             ( model, GetTime ClonkOutTime )
 
         ClonkInTime time ->
-            ( { model
-                | timeentries =
-                    Dict.insert time
-                        { id = Nothing
-                        , description = model.description
-                        , user = ld.userid
-                        , startdate = time
-                        , enddate = time
-                        , ignore = False
-                        , checked = False
-                        }
-                        model.timeentries
-              }
-            , None
+            let
+                nm =
+                    { model
+                        | timeentries =
+                            Dict.insert time
+                                { id = Nothing
+                                , description = model.description
+                                , user = ld.userid
+                                , startdate = time
+                                , enddate = time
+                                , ignore = False
+                                , checked = False
+                                }
+                                model.timeentries
+                    }
+            in
+            ( nm
+            , if model.saveonclonk then
+                Save (toSaveProjectTime nm)
+
+              else
+                None
             )
 
         ClonkOutTime time ->
-            ( { model
-                | timeentries =
-                    model.timeentries
-                        |> Dict.values
-                        |> List.filter (.user >> (==) ld.userid)
-                        |> List.reverse
-                        >> List.head
-                        |> Maybe.map (\t -> Dict.insert t.startdate { t | enddate = time } model.timeentries)
-                        |> Maybe.withDefault model.timeentries
-              }
-            , None
+            let
+                nm =
+                    { model
+                        | timeentries =
+                            model.timeentries
+                                |> Dict.values
+                                |> List.filter (.user >> (==) ld.userid)
+                                |> List.reverse
+                                >> List.head
+                                |> Maybe.map (\t -> Dict.insert t.startdate { t | enddate = time } model.timeentries)
+                                |> Maybe.withDefault model.timeentries
+                    }
+            in
+            ( nm
+            , if model.saveonclonk then
+                Save (toSaveProjectTime nm)
+
+              else
+                None
             )
 
         EteDescriptionChanged startdate text ->

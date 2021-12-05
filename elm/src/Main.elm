@@ -121,6 +121,7 @@ type alias Model =
     , timezone : Time.Zone
     , savedRoute : SavedRoute
     , fontsize : Int
+    , saveonclonk : Bool
     }
 
 
@@ -130,6 +131,7 @@ type alias PreInitModel =
     , key : Browser.Navigation.Key
     , mbzone : Maybe Time.Zone
     , mbfontsize : Maybe Int
+    , mbsaveonclonk : Maybe Bool
     }
 
 
@@ -160,7 +162,7 @@ routeState model route =
         SettingsR ->
             case stateLogin model.state of
                 Just login ->
-                    ( UserSettings (UserSettings.init login model.fontsize) login model.state, Cmd.none )
+                    ( UserSettings (UserSettings.init login model.fontsize model.saveonclonk) login model.state, Cmd.none )
 
                 Nothing ->
                     ( (displayMessageDialog { model | state = initLogin model.appname model.seed } "can't view user settings; you're not logged in!").state, Cmd.none )
@@ -525,6 +527,9 @@ piupdate msg initmodel =
                             let
                                 default =
                                     16
+
+                                defaultsaveonclonk =
+                                    True
                             in
                             case lv.name of
                                 "fontsize" ->
@@ -540,17 +545,30 @@ piupdate msg initmodel =
                                         Nothing ->
                                             { imod | mbfontsize = Just default }
 
+                                "saveonclonk" ->
+                                    case lv.value of
+                                        Just v ->
+                                            case String.toInt v of
+                                                Just i ->
+                                                    { imod | mbsaveonclonk = Just (i == 1) }
+
+                                                Nothing ->
+                                                    { imod | mbsaveonclonk = Just defaultsaveonclonk }
+
+                                        Nothing ->
+                                            { imod | mbsaveonclonk = Just defaultsaveonclonk }
+
                                 _ ->
                                     { imod | mbfontsize = Nothing }
 
                         _ ->
                             imod
             in
-            case ( nmod.mbzone, nmod.mbfontsize ) of
-                ( Just zone, Just fontsize ) ->
+            case ( nmod.mbzone, nmod.mbfontsize, nmod.mbsaveonclonk ) of
+                ( Just zone, Just fontsize, Just saveonclonk ) ->
                     let
                         ( m, c ) =
-                            init imod.flags imod.url imod.key zone fontsize
+                            init imod.flags imod.url imod.key zone fontsize saveonclonk
                     in
                     ( Ready m, c )
 
@@ -721,7 +739,16 @@ actualupdate msg model =
             in
             case c of
                 UserSettings.Done ->
-                    ( { model | state = prevstate }, Cmd.none )
+                    let
+                        pst =
+                            case prevstate of
+                                ProjectTime ptm ld ->
+                                    ProjectTime { ptm | saveonclonk = numod.saveonclonk } ld
+
+                                _ ->
+                                    prevstate
+                    in
+                    ( { model | state = pst }, Cmd.none )
 
                 UserSettings.LogOut ->
                     ( { model | state = Login (Login.initialModel Nothing model.appname model.seed) }
@@ -752,6 +779,24 @@ actualupdate msg model =
                         , fontsize = size
                       }
                     , LS.storeLocalVal { name = "fontsize", value = String.fromInt size }
+                    )
+
+                UserSettings.ChangeSaveOnClonk b ->
+                    ( { model
+                        | state = UserSettings numod login prevstate
+                        , saveonclonk = b
+                      }
+                    , LS.storeLocalVal
+                        { name = "saveonclonk"
+                        , value =
+                            String.fromInt
+                                (if b then
+                                    1
+
+                                 else
+                                    0
+                                )
+                        }
                     )
 
                 UserSettings.None ->
@@ -926,7 +971,7 @@ actualupdate msg model =
                         UI.ProjectTime x ->
                             case stateLogin state of
                                 Just login ->
-                                    ( { model | state = ProjectTime (ProjectTime.init login x) login }, Cmd.none )
+                                    ( { model | state = ProjectTime (ProjectTime.init login x model.saveonclonk) login }, Cmd.none )
 
                                 Nothing ->
                                     ( model, Cmd.none )
@@ -1042,7 +1087,7 @@ actualupdate msg model =
                 ProjectListing.Settings ->
                     ( { model
                         | state =
-                            UserSettings (UserSettings.init login model.fontsize) login model.state
+                            UserSettings (UserSettings.init login model.fontsize model.saveonclonk) login model.state
                       }
                     , Cmd.none
                     )
@@ -1104,7 +1149,7 @@ handleProjectEdit model ( nm, cmd ) login =
         ProjectEdit.Settings ->
             ( { model
                 | state =
-                    UserSettings (UserSettings.init login model.fontsize) login model.state
+                    UserSettings (UserSettings.init login model.fontsize model.saveonclonk) login model.state
               }
             , Cmd.none
             )
@@ -1139,7 +1184,7 @@ handleProjectTime model ( nm, cmd ) login =
         ProjectTime.Settings ->
             ( { model
                 | state =
-                    UserSettings (UserSettings.init login model.fontsize) login model.state
+                    UserSettings (UserSettings.init login model.fontsize model.saveonclonk) login model.state
               }
             , Cmd.none
             )
@@ -1204,10 +1249,12 @@ preinit flags url key =
         , key = key
         , mbzone = Nothing
         , mbfontsize = Nothing
+        , mbsaveonclonk = Nothing
         }
     , Cmd.batch
         [ Task.perform Zone Time.here
         , LS.getLocalVal { for = "", name = "fontsize" }
+        , LS.getLocalVal { for = "", name = "saveonclonk" }
         ]
     )
 
@@ -1236,8 +1283,8 @@ initialPage curmodel =
            )
 
 
-init : Flags -> Url -> Browser.Navigation.Key -> Time.Zone -> Int -> ( Model, Cmd Msg )
-init flags url key zone fontsize =
+init : Flags -> Url -> Browser.Navigation.Key -> Time.Zone -> Int -> Bool -> ( Model, Cmd Msg )
+init flags url key zone fontsize saveonclonk =
     let
         seed =
             initialSeed (flags.seed + 7)
@@ -1258,6 +1305,7 @@ init flags url key zone fontsize =
             , timezone = zone
             , savedRoute = { route = Top, save = False }
             , fontsize = fontsize
+            , saveonclonk = saveonclonk
             }
 
         setkeys =

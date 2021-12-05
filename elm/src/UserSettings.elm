@@ -17,6 +17,7 @@ type Msg
     | ChangePassPress
     | ChangeEmailPress
     | SetFontSize Int
+    | SaveOnClonkChecked Bool
     | LogOutPress
 
 
@@ -26,18 +27,20 @@ type Command
     | ChangePassword
     | ChangeEmail
     | ChangeFontSize Int
+    | ChangeSaveOnClonk Bool
     | None
 
 
 type alias Model =
     { login : Data.LoginData
     , fontsize : Int
+    , saveonclonk : Bool
     }
 
 
-init : Data.LoginData -> Int -> Model
-init login fontsize =
-    { login = login, fontsize = fontsize }
+init : Data.LoginData -> Int -> Bool -> Model
+init login fontsize saveonclonk =
+    { login = login, fontsize = fontsize, saveonclonk = saveonclonk }
 
 
 view : Model -> Element Msg
@@ -47,6 +50,7 @@ view model =
             [ E.centerX
             , E.width (E.maximum 400 E.fill)
             , E.spacing 8
+            , E.alignTop
             ]
             [ E.row [ E.width E.fill ]
                 [ EI.button buttonStyle { onPress = Just DonePress, label = E.text "done" }
@@ -69,6 +73,12 @@ view model =
                     ]
                 , EI.button (E.centerX :: buttonStyle) { onPress = Just ChangePassPress, label = E.text "change password" }
                 , EI.button (E.centerX :: buttonStyle) { onPress = Just ChangeEmailPress, label = E.text "change email" }
+                , EI.checkbox []
+                    { onChange = SaveOnClonkChecked
+                    , icon = EI.defaultCheckbox
+                    , checked = model.saveonclonk
+                    , label = EI.labelLeft [] <| E.text "Save on clonk in/out"
+                    }
                 , EI.slider
                     [ E.height (E.px 30)
                     , E.behindContent
@@ -115,6 +125,9 @@ update msg model =
 
         SetFontSize size ->
             ( { model | fontsize = size }, ChangeFontSize size )
+
+        SaveOnClonkChecked b ->
+            ( { model | saveonclonk = b }, ChangeSaveOnClonk b )
 
         Noop ->
             ( model, None )
