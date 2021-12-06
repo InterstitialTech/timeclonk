@@ -1,3 +1,7 @@
+## 2021-12-06
+
+better error message for bad login uid or pwd.  was 'no rows'.
+
 ## 2021-12-02
 
 added allocation CSV import.  uses the same import button as the clonks one.  format is:
