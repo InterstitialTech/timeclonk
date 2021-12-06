@@ -1,16 +1,16 @@
 use crate::config::Config;
+use crate::data::{
+  ChangeEmail, ChangePassword, Login, LoginData, RegistrationData, ResetPassword, SaveProjectEdit,
+  SaveProjectTime, SetPassword,
+};
 use crate::email;
+use crate::messages::{PublicMessage, ServerResponse, UserMessage};
 use crate::sqldata;
 use crate::util;
 use crate::util::is_token_expired;
 use actix_session::Session;
 use crypto_hash::{hex_digest, Algorithm};
 use log::info;
-use crate::data::{
-  ChangeEmail, ChangePassword, Login, LoginData, RegistrationData, ResetPassword, SaveProjectEdit,
-  SaveProjectTime, SetPassword,
-};
-use crate::messages::{PublicMessage, ServerResponse, UserMessage};
 use std::error::Error;
 use std::path::Path;
 use uuid::Uuid;
@@ -101,38 +101,48 @@ pub fn user_interface(
     let msgdata = Option::ok_or(msg.data.as_ref(), "malformed json data")?;
     let login: Login = serde_json::from_value(msgdata.clone())?;
 
-    let userdata = sqldata::read_user_by_name(&conn, login.uid.as_str())?;
-    match userdata.registration_key {
-      Some(_reg_key) => Ok(ServerResponse {
-        what: "unregistered user".to_string(),
-        content: serde_json::Value::Null,
-      }),
-      None => {
-        if hex_digest(
-          Algorithm::SHA256,
-          (login.pwd.clone() + userdata.salt.as_str())
-            .into_bytes()
-            .as_slice(),
-        ) != userdata.hashwd
-        {
-          // don't distinguish between bad user id and bad pwd!
-          Ok(ServerResponse {
-            what: "invalid user or pwd".to_string(),
+    match sqldata::read_user_by_name(&conn, login.uid.as_str()) {
+      Err(e) => match e.downcast::<rusqlite::Error>() {
+        Ok(_) => Ok(ServerResponse {
+          what: "invalid user or pwd".to_string(),
+          content: serde_json::Value::Null,
+        }),
+        Err(x) => Err(x),
+      },
+      Ok(userdata) => {
+        match userdata.registration_key {
+          Some(_reg_key) => Ok(ServerResponse {
+            what: "unregistered user".to_string(),
             content: serde_json::Value::Null,
-          })
-        } else {
-          let ld = sqldata::login_data(&conn, userdata.id)?;
-          // new token here, and token date.
-          let token = Uuid::new_v4();
-          sqldata::add_token(&conn, userdata.id, token)?;
-          session.set("token", token)?;
-          sqldata::update_user(&conn, &userdata)?;
-          info!("logged in, user: {:?}", userdata.name);
+          }),
+          None => {
+            if hex_digest(
+              Algorithm::SHA256,
+              (login.pwd.clone() + userdata.salt.as_str())
+                .into_bytes()
+                .as_slice(),
+            ) != userdata.hashwd
+            {
+              // don't distinguish between bad user id and bad pwd!
+              Ok(ServerResponse {
+                what: "invalid user or pwd".to_string(),
+                content: serde_json::Value::Null,
+              })
+            } else {
+              let ld = sqldata::login_data(&conn, userdata.id)?;
+              // new token here, and token date.
+              let token = Uuid::new_v4();
+              sqldata::add_token(&conn, userdata.id, token)?;
+              session.set("token", token)?;
+              sqldata::update_user(&conn, &userdata)?;
+              info!("logged in, user: {:?}", userdata.name);
 
-          Ok(ServerResponse {
-            what: "logged in".to_string(),
-            content: serde_json::to_value(ld)?,
-          })
+              Ok(ServerResponse {
+                what: "logged in".to_string(),
+                content: serde_json::to_value(ld)?,
+              })
+            }
+          }
         }
       }
     }
