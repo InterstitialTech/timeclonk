@@ -20,7 +20,7 @@ type SendMsg
     | GetProjectList UserId
     | GetProjectEdit Int
     | SaveProjectEdit Data.SaveProjectEdit
-    | GetProjectTime Int
+    | GetProjectTime Data.GetProjectTime
     | SaveProjectTime Data.SaveProjectTime
     | GetAllMembers
 
@@ -187,10 +187,10 @@ encodeSendMsg sm =
                 , ( "data", JE.int pid )
                 ]
 
-        GetProjectTime pid ->
+        GetProjectTime gpt ->
             JE.object
                 [ ( "what", JE.string "GetProjectTime" )
-                , ( "data", JE.int pid )
+                , ( "data", Data.encodeGetProjectTime gpt )
                 ]
 
         SaveProjectEdit p ->

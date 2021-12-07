@@ -184,9 +184,9 @@ routeState model route =
             , sendUIMsg model.location <| UI.GetProjectEdit id
             )
 
-        ProjectTimeR id ->
+        ProjectTimeR id mode ->
             ( (displayMessageDialog model "loading project").state
-            , sendUIMsg model.location <| UI.GetProjectTime id
+            , sendUIMsg model.location <| UI.GetProjectTime { project = Data.makeProjectId id, mode = mode }
             )
 
 
@@ -220,7 +220,7 @@ stateRoute state =
             }
 
         ProjectTime mod _ ->
-            { route = ProjectTimeR (Data.getProjectIdVal mod.project.id)
+            { route = ProjectTimeR (Data.getProjectIdVal mod.project.id) (ProjectTime.showMode mod.viewmode)
             , save = True
             }
 

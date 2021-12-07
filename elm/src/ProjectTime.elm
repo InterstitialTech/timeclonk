@@ -133,6 +133,19 @@ type Command
     | None
 
 
+showMode : ViewMode -> String
+showMode mode =
+    case mode of
+        Clonks ->
+            "clonks"
+
+        Payments ->
+            "payments"
+
+        Allocations ->
+            "allocations"
+
+
 emptyTimeEntryIdSet : TSet Data.TimeEntryId Int
 emptyTimeEntryIdSet =
     TSet.empty Data.getTimeEntryIdVal Data.makeTimeEntryId
