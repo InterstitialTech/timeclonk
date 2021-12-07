@@ -203,6 +203,27 @@ stateRoute state =
             , save = True
             }
 
+        ResetPassword mod ->
+            { route = Top
+            , save = False
+            }
+
+        ProjectEdit mod _ ->
+            { route =
+                case mod.id of
+                    Just pid ->
+                        ProjectEditR (Data.getProjectIdVal pid)
+
+                    Nothing ->
+                        Top
+            , save = True
+            }
+
+        ProjectTime mod _ ->
+            { route = ProjectTimeR (Data.getProjectIdVal mod.project.id)
+            , save = True
+            }
+
         _ ->
             { route = Top
             , save = False
