@@ -97,6 +97,7 @@ type FocusColumn
     | End
     | Duration
     | PaymentDate
+    | PaymentUser
     | PaymentAmount
 
 
@@ -146,7 +147,18 @@ type Command
 
 onMemberSelected : UserId -> Model -> Model
 onMemberSelected user model =
-    { model | paymentuser = Just user }
+    case model.focus of
+        Just ( date, PaymentUser ) ->
+            { model
+                | payentries =
+                    model.payentries
+                        |> Dict.get date
+                        |> Maybe.map (\pe -> Dict.insert date { pe | user = user } model.payentries)
+                        |> Maybe.withDefault model.payentries
+            }
+
+        _ ->
+            { model | paymentuser = Just user }
 
 
 showViewMode : ViewMode -> String
@@ -1418,7 +1430,7 @@ allocationview ld size zone model =
                                     E.el [] <| E.text <| s
                             in
                             if model.focus == Just ( date, PaymentAmount ) then
-                                E.column []
+                                E.column [ E.spacing 8 ]
                                     [ E.row [ EE.onClick <| OnRowItemClick date PaymentAmount ]
                                         [ p
                                         ]
@@ -1656,22 +1668,21 @@ payview ld size zone model =
                    , width = E.fill
                    , view =
                         \( date, a ) ->
-                            -- if model.focus == Just ( date, Description ) then
-                            --     E.column [ E.spacing 8 ]
-                            --         [ E.row [ EE.onClick <| OnRowItemClick date Description ]
-                            --             [ E.text a.description
-                            --             ]
-                            --         , EI.text [ E.width E.fill ]
-                            --             { onChange = PaymentDescriptionChanged a.paymentdate
-                            --             , text = a.description
-                            --             , placeholder = Nothing
-                            --             , label = EI.labelHidden "allocation description"
-                            --             }
-                            --         ]
-                            -- else
-                            E.row []
-                                [ E.text (a.user |> Data.getUserIdVal |> (\i -> Dict.get i model.membernames |> Maybe.withDefault ""))
-                                ]
+                            if model.focus == Just ( date, PaymentUser ) then
+                                E.column [ E.spacing 8 ]
+                                    [ E.row [ EE.onClick <| OnRowItemClick date PaymentUser ]
+                                        [ E.text (a.user |> Data.getUserIdVal |> (\i -> Dict.get i model.membernames |> Maybe.withDefault ""))
+                                        ]
+                                    , EI.button Common.buttonStyle
+                                        { onPress = Just SelectPaymentUser
+                                        , label = E.text "select member"
+                                        }
+                                    ]
+
+                            else
+                                E.row [ EE.onClick <| OnRowItemClick date PaymentUser ]
+                                    [ E.text (a.user |> Data.getUserIdVal |> (\i -> Dict.get i model.membernames |> Maybe.withDefault ""))
+                                    ]
                    }
                 :: { header = E.text "payment"
                    , width = E.fill
@@ -1725,7 +1736,7 @@ payview ld size zone model =
                             Dict.get (Data.getUserIdVal uid) model.membernames
                         )
                     |> Maybe.map (\name -> E.text name)
-                    |> Maybe.withDefault (E.text "<no user selected>")
+                    |> Maybe.withDefault (E.el [ EF.italic ] <| E.text "no member selected")
                 , EI.button Common.buttonStyle { onPress = Just SelectPaymentUser, label = E.text "..." }
                 , EI.text []
                     { onChange = NewPaymentHoursChanged
