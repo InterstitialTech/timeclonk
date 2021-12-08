@@ -468,6 +468,11 @@ init ld pt saveonclonk mode =
     }
 
 
+onProjectTime : Data.LoginData -> Data.ProjectTime -> Model -> Model
+onProjectTime ld pt model =
+    init ld pt model.saveonclonk (showViewMode model.viewmode)
+
+
 viewModeBar : Model -> Element Msg
 viewModeBar model =
     let
