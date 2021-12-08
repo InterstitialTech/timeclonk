@@ -1643,27 +1643,6 @@ payview ld size zone model =
                                             row
                                    )
                    }
-                -- :: { header = E.text "description"
-                --    , width = E.fill
-                --    , view =
-                --         \( date, a ) ->
-                --             if model.focus == Just ( date, Description ) then
-                --                 E.column [ E.spacing 8 ]
-                --                     [ E.row [ EE.onClick <| OnRowItemClick date Description ]
-                --                         [ E.text a.description
-                --                         ]
-                --                     , EI.text [ E.width E.fill ]
-                --                         { onChange = PaymentDescriptionChanged a.paymentdate
-                --                         , text = a.description
-                --                         , placeholder = Nothing
-                --                         , label = EI.labelHidden "allocation description"
-                --                         }
-                --                     ]
-                --             else
-                --                 E.row [ EE.onClick <| OnRowItemClick date Description ]
-                --                     [ E.text a.description
-                --                     ]
-                --    }
                 :: { header = E.text "payee"
                    , width = E.fill
                    , view =
@@ -1722,13 +1701,6 @@ payview ld size zone model =
                 , EI.button (E.alignRight :: Common.buttonStyle)
                     { onPress = Just ToggleNewPayment, label = E.text "-" }
                 ]
-
-            -- , EI.text []
-            --     { onChange = NewPaymentUserChanged
-            --     , text = model.allocdescription
-            --     , placeholder = Nothing
-            --     , label = EI.labelLeft [] <| E.text "description"
-            --     }
             , E.row [ E.spacing 8 ]
                 [ model.paymentuser
                     |> Maybe.andThen
