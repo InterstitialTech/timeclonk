@@ -1,3 +1,9 @@
+## 2021-12-07
+
+route support for projectedit, projectime, and the 3 current modes of projecttime.  Also projecttime
+no longer resets to clonks mode when you save.
+
+
 ## 2021-12-06
 
 better error message for bad login uid or pwd.  was 'no rows'.
