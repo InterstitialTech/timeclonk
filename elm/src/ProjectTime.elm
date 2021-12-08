@@ -61,6 +61,7 @@ type Msg
     | ToggleNewAlloc
     | ToggleNewPayment
     | ChangeAllocationDate Int
+    | ChangePaymentDate Int
     | SetViewMode ViewMode
     | OnRowItemClick Int FocusColumn
     | OnDistributionChanged String
@@ -1547,7 +1548,7 @@ payview ld size zone model =
         , columns =
             { header =
                 EI.checkbox [ E.width E.shrink ]
-                    { onChange = CheckAllocAll
+                    { onChange = CheckPayAll
                     , icon = EI.defaultCheckbox
                     , checked =
                         Dict.foldl
@@ -1615,7 +1616,7 @@ payview ld size zone model =
                                                 , case mbstart of
                                                     Just start ->
                                                         EI.button Common.buttonStyle
-                                                            { onPress = Just <| ChangeAllocationDate (Time.posixToMillis start)
+                                                            { onPress = Just <| ChangePaymentDate (Time.posixToMillis start)
                                                             , label = E.text "ok"
                                                             }
 
@@ -1684,12 +1685,12 @@ payview ld size zone model =
                                     E.el [] <| E.text <| s
                             in
                             if model.focus == Just ( date, PaymentAmount ) then
-                                E.column []
+                                E.column [ E.spacing 8 ]
                                     [ E.row [ EE.onClick <| OnRowItemClick date PaymentAmount ]
                                         [ p
                                         ]
                                     , EI.text [ E.width E.fill ]
-                                        { onChange = FocusAllocationChanged
+                                        { onChange = FocusPayChanged
                                         , text = model.focuspay
                                         , placeholder = Nothing
                                         , label = EI.labelHidden "payment"
@@ -2146,6 +2147,27 @@ update msg model ld zone =
                                 | allocations =
                                     Dict.insert newtime { pe | allocationdate = newtime } model.allocations
                                         |> Dict.remove allocationdate
+                                , focus = Nothing
+                                , focuspaydate = ""
+                              }
+                            , None
+                            )
+
+                        Nothing ->
+                            ( model, None )
+
+                Nothing ->
+                    ( model, None )
+
+        ChangePaymentDate newtime ->
+            case model.focus of
+                Just ( date, _ ) ->
+                    case Dict.get date model.payentries of
+                        Just pe ->
+                            ( { model
+                                | payentries =
+                                    Dict.insert newtime { pe | paymentdate = newtime } model.payentries
+                                        |> Dict.remove date
                                 , focus = Nothing
                                 , focuspaydate = ""
                               }
