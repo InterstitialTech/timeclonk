@@ -1,3 +1,9 @@
+## 2021-12-08
+
+The old payments view is now "distributions", which is modeled on the confusing spreadsheet I was using before this.
+
+There's a new payments view, which is just payments, and not payments + worked time together.
+
 ## 2021-12-07
 
 route support for projectedit, projectime, and the 3 current modes of projecttime.  Also projecttime
