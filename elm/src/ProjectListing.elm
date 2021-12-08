@@ -9,6 +9,7 @@ import Element.Border as EBd
 import Element.Font as EF
 import Element.Input as EI
 import Element.Region
+import ProjectTime
 import Route
 import TangoColors as TC
 import TcCommon as TC
@@ -98,7 +99,11 @@ view ld size model =
                                         ]
                                         [ E.link
                                             [ E.height <| E.px 30 ]
-                                            { url = Route.routeUrl (Route.ProjectTimeR (Data.getProjectIdVal n.id))
+                                            { url =
+                                                Route.routeUrl
+                                                    (Route.ProjectTimeR (Data.getProjectIdVal n.id)
+                                                        (ProjectTime.showViewMode ProjectTime.Clonks)
+                                                    )
                                             , label = E.text n.name
                                             }
                                         ]
