@@ -53,6 +53,7 @@ type Msg
     | NewAllocDescriptionChanged String
     | NewAllocHoursChanged String
     | NewPaymentHoursChanged String
+    | SelectPaymentUser
     | AddAllocationPress
     | AddAllocation Int
     | ChangeStart Int
@@ -123,6 +124,7 @@ type alias Model =
     , allocdescription : String
     , allochours : String
     , paymenthours : String
+    , paymentuser : Maybe UserId
     , viewmode : ViewMode
     , saveonclonk : Bool
     }
@@ -137,7 +139,13 @@ type Command
     | SaveCsv String
     | Settings
     | ShowError String
+    | SelectMember (List Data.ProjectMember)
     | None
+
+
+onMemberSelected : UserId -> Model -> Model
+onMemberSelected user model =
+    { model | paymentuser = Just user }
 
 
 showViewMode : ViewMode -> String
@@ -480,6 +488,7 @@ init ld pt saveonclonk mode =
     , allocdescription = ""
     , allochours = ""
     , paymenthours = ""
+    , paymentuser = Nothing
     , saveonclonk = saveonclonk
     }
 
@@ -1709,13 +1718,32 @@ payview ld size zone model =
             --     , label = EI.labelLeft [] <| E.text "description"
             --     }
             , E.row [ E.spacing 8 ]
-                [ EI.text []
+                [ model.paymentuser
+                    |> Maybe.andThen
+                        (\uid ->
+                            Dict.get (Data.getUserIdVal uid) model.membernames
+                        )
+                    |> Maybe.map (\name -> E.text name)
+                    |> Maybe.withDefault (E.text "<no user selected>")
+                , EI.button Common.buttonStyle { onPress = Just SelectPaymentUser, label = E.text "..." }
+                , EI.text []
                     { onChange = NewPaymentHoursChanged
-                    , text = model.allochours
+                    , text = model.paymenthours
                     , placeholder = Nothing
                     , label = EI.labelLeft [] <| E.text "hours"
                     }
-                , EI.button Common.buttonStyle { onPress = Just AddAllocationPress, label = E.text "add" }
+                , case
+                    ( model.paymentuser
+                    , model.paymenthours
+                        |> String.toFloat
+                        |> Maybe.map (\x -> x * 60 * 60 * 1000 |> round)
+                    )
+                  of
+                    ( Just uid, Just millis ) ->
+                        EI.button Common.buttonStyle { onPress = Just (AddPaymentPress uid millis), label = E.text "add" }
+
+                    _ ->
+                        EI.button Common.disabledButtonStyle { onPress = Nothing, label = E.text "add" }
                 ]
             ]
 
@@ -1947,6 +1975,11 @@ update msg model ld zone =
                     Dict.remove startdate model.payentries
               }
             , None
+            )
+
+        SelectPaymentUser ->
+            ( model
+            , SelectMember model.members
             )
 
         AllocDescriptionChanged date text ->
