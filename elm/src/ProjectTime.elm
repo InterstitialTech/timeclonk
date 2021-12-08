@@ -931,11 +931,7 @@ distributionview ld size zone model =
                     , checked =
                         Dict.foldl
                             (\_ pe ac ->
-                                if pe.user == ld.userid then
-                                    ac && pe.checked
-
-                                else
-                                    ac
+                                ac && pe.checked
                             )
                             True
                             model.payentries
