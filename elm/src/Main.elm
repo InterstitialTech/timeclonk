@@ -1118,6 +1118,11 @@ actualupdate msg model =
                             , Cmd.none
                             )
 
+                        ProjectTime ptmod login ->
+                            ( { model | state = ProjectTime (ProjectTime.onMemberSelected return.id ptmod) login }
+                            , Cmd.none
+                            )
+
                         _ ->
                             ( { model | state = instate }, Cmd.none )
 
@@ -1266,6 +1271,23 @@ handleProjectTime model ( nm, cmd ) login =
 
         ProjectTime.ShowError e ->
             ( displayMessageDialog { model | state = ProjectTime nm login } e, Cmd.none )
+
+        ProjectTime.SelectMember members ->
+            ( { model
+                | state =
+                    SelectDialog
+                        (SS.init
+                            { choices = members |> List.map (\m -> ( m, m.name ))
+                            , selected = Nothing
+                            , search = ""
+                            }
+                            Common.buttonStyle
+                            (E.map (always ()) (ProjectTime.view login model.size model.timezone nm))
+                        )
+                        (ProjectTime nm login)
+              }
+            , Cmd.none
+            )
 
         ProjectTime.None ->
             ( { model | state = ProjectTime nm login }, Cmd.none )

@@ -52,12 +52,16 @@ type Msg
     | FocusAllocationChanged String
     | NewAllocDescriptionChanged String
     | NewAllocHoursChanged String
+    | NewPaymentHoursChanged String
+    | SelectPaymentUser
     | AddAllocationPress
     | AddAllocation Int
     | ChangeStart Int
     | ChangePayDate Int
     | ToggleNewAlloc
+    | ToggleNewPayment
     | ChangeAllocationDate Int
+    | ChangePaymentDate Int
     | SetViewMode ViewMode
     | OnRowItemClick Int FocusColumn
     | OnDistributionChanged String
@@ -74,6 +78,7 @@ type Msg
     | CheckAllocationItem Int Bool
     | DeleteChecked
     | DeletePayChecked
+    | DeleteAllocationChecked
     | IgnoreChecked
     | ExportChecked
     | Noop
@@ -83,6 +88,7 @@ type ViewMode
     = Clonks
     | Payments
     | Allocations
+    | Distributions
 
 
 type FocusColumn
@@ -91,12 +97,14 @@ type FocusColumn
     | End
     | Duration
     | PaymentDate
+    | PaymentUser
     | PaymentAmount
 
 
 type alias Model =
     { project : Data.Project
     , members : List Data.ProjectMember
+    , membernames : Dict Int String
     , description : String
     , timeentries : Dict Int EditTimeEntry
     , initialtimeentries : Dict Int EditTimeEntry
@@ -114,8 +122,11 @@ type alias Model =
     , distributionhours : String
     , distribution : Maybe (TDict UserId Int String)
     , shownewalloc : Bool
+    , shownewpayment : Bool
     , allocdescription : String
     , allochours : String
+    , paymenthours : String
+    , paymentuser : Maybe UserId
     , viewmode : ViewMode
     , saveonclonk : Bool
     }
@@ -130,7 +141,24 @@ type Command
     | SaveCsv String
     | Settings
     | ShowError String
+    | SelectMember (List Data.ProjectMember)
     | None
+
+
+onMemberSelected : UserId -> Model -> Model
+onMemberSelected user model =
+    case model.focus of
+        Just ( date, PaymentUser ) ->
+            { model
+                | payentries =
+                    model.payentries
+                        |> Dict.get date
+                        |> Maybe.map (\pe -> Dict.insert date { pe | user = user } model.payentries)
+                        |> Maybe.withDefault model.payentries
+            }
+
+        _ ->
+            { model | paymentuser = Just user }
 
 
 showViewMode : ViewMode -> String
@@ -145,6 +173,9 @@ showViewMode mode =
         Allocations ->
             "allocations"
 
+        Distributions ->
+            "distributions"
+
 
 readViewMode : String -> Maybe ViewMode
 readViewMode str =
@@ -157,6 +188,9 @@ readViewMode str =
 
         "allocations" ->
             Just Allocations
+
+        "distributions" ->
+            Just Distributions
 
         _ ->
             Nothing
@@ -444,6 +478,7 @@ init ld pt saveonclonk mode =
     in
     { project = pt.project
     , members = pt.members
+    , membernames = pt.members |> List.map (\m -> ( Data.getUserIdVal m.id, m.name )) |> Dict.fromList
     , description = description
     , timeentries = ietes
     , initialtimeentries = ietes
@@ -462,8 +497,11 @@ init ld pt saveonclonk mode =
     , distributionhours = ""
     , distribution = Nothing
     , shownewalloc = False
+    , shownewpayment = False
     , allocdescription = ""
     , allochours = ""
+    , paymenthours = ""
+    , paymentuser = Nothing
     , saveonclonk = saveonclonk
     }
 
@@ -491,6 +529,7 @@ viewModeBar model =
         [ vbt Clonks "Clonks"
         , vbt Payments "Payments"
         , vbt Allocations "Allocations"
+        , vbt Distributions "Distributions"
         ]
 
 
@@ -552,6 +591,9 @@ view ld size zone model =
 
                         Allocations ->
                             allocationview ld size zone model
+
+                        Distributions ->
+                            distributionview ld size zone model
                    )
 
 
@@ -830,8 +872,8 @@ millisAsHours millis =
     R.round 2 (toFloat millis / (1000.0 * 60.0 * 60.0))
 
 
-payview : Data.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
-payview ld size zone model =
+distributionview : Data.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
+distributionview ld size zone model =
     let
         paytotes =
             model.payentries |> Dict.values |> TR.payTotes
@@ -1252,13 +1294,13 @@ allocationview ld size zone model =
                 |> List.foldl (\e t -> t + e.duration) 0
 
         anychecked =
-            Dict.foldl (\_ e c -> c || e.checked) False model.payentries
+            Dict.foldl (\_ e c -> c || e.checked) False model.allocations
     in
     [ if anychecked then
         E.row [ E.spacing 8 ]
             [ E.text "checked items: "
             , EI.button Common.buttonStyle
-                { onPress = Just <| DeletePayChecked
+                { onPress = Just <| DeleteAllocationChecked
                 , label = E.text "delete"
                 }
             ]
@@ -1388,7 +1430,7 @@ allocationview ld size zone model =
                                     E.el [] <| E.text <| s
                             in
                             if model.focus == Just ( date, PaymentAmount ) then
-                                E.column []
+                                E.column [ E.spacing 8 ]
                                     [ E.row [ EE.onClick <| OnRowItemClick date PaymentAmount ]
                                         [ p
                                         ]
@@ -1436,6 +1478,264 @@ allocationview ld size zone model =
             [ E.text "new allocation"
             , EI.button (E.alignRight :: Common.buttonStyle)
                 { onPress = Just ToggleNewAlloc, label = E.text "+" }
+            ]
+    , E.table [ E.paddingXY 0 10, E.spacing 8, E.width E.fill ]
+        { data =
+            [ ( "total time", timetote )
+            , ( "total paid", paytote )
+            , ( "total unpaid", timetote - paytote )
+            , ( "total allocated", alloctote )
+            , ( "total allocated remaining", alloctote - timetote )
+            ]
+        , columns =
+            -- dummy checkboxes for alignment.  alpha 0 hides them.
+            { header =
+                EI.checkbox [ E.width E.shrink, E.alpha 0.0 ]
+                    { onChange = \_ -> Noop
+                    , icon = EI.defaultCheckbox
+                    , checked = False
+                    , label = EI.labelHidden "alignment checkbox"
+                    }
+            , width = E.shrink
+            , view =
+                \_ ->
+                    EI.checkbox [ E.width E.shrink, E.alpha 0.0 ]
+                        { onChange = \_ -> Noop
+                        , icon = EI.defaultCheckbox
+                        , checked = False
+                        , label = EI.labelHidden "alignment checkbox"
+                        }
+            }
+                :: { header = E.el [ EF.bold ] <| E.text "totals"
+                   , width = E.fill
+                   , view =
+                        \( title, _ ) ->
+                            E.text title
+                   }
+                :: { header = E.none
+                   , width = E.fill
+                   , view =
+                        \( _, tote ) -> E.text <| millisAsHours tote
+                   }
+                :: []
+        }
+    ]
+
+
+payview : Data.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
+payview ld size zone model =
+    let
+        paytote =
+            model.payentries
+                |> Dict.values
+                |> List.foldl (\e t -> t + e.duration) 0
+
+        timetote =
+            model.timeentries
+                |> Dict.values
+                |> List.foldl (\e t -> t + e.enddate - e.startdate) 0
+
+        alloctote =
+            model.allocations
+                |> Dict.values
+                |> List.foldl (\e t -> t + e.duration) 0
+
+        anychecked =
+            Dict.foldl (\_ e c -> c || e.checked) False model.payentries
+    in
+    [ if anychecked then
+        E.row [ E.spacing 8 ]
+            [ E.text "checked items: "
+            , EI.button Common.buttonStyle
+                { onPress = Just <| DeletePayChecked
+                , label = E.text "delete"
+                }
+            ]
+
+      else
+        E.none
+    , E.table [ E.spacing 8, E.width E.fill ]
+        { data =
+            Dict.toList model.payentries
+        , columns =
+            { header =
+                EI.checkbox [ E.width E.shrink ]
+                    { onChange = CheckPayAll
+                    , icon = EI.defaultCheckbox
+                    , checked =
+                        Dict.foldl
+                            (\_ pe ac ->
+                                ac && pe.checked
+                            )
+                            True
+                            model.payentries
+                    , label = EI.labelHidden "check all"
+                    }
+            , width = E.shrink
+            , view =
+                \( date, e ) ->
+                    EI.checkbox [ E.width E.shrink ]
+                        { onChange = CheckPayItem e.paymentdate
+                        , icon = EI.defaultCheckbox
+                        , checked = e.checked
+                        , label = EI.labelHidden "check item"
+                        }
+            }
+                :: { header = E.text "date"
+                   , width = E.fill
+                   , view =
+                        \( date, a ) ->
+                            date
+                                |> Time.millisToPosix
+                                |> Calendar.fromPosix
+                                |> (\cdate ->
+                                        let
+                                            row =
+                                                E.row
+                                                    [ EE.onClick <| OnRowItemClick date PaymentDate
+                                                    ]
+                                                    [ E.text <|
+                                                        String.fromInt (Calendar.getYear cdate)
+                                                            ++ "/"
+                                                            ++ (cdate |> Calendar.getMonth |> Calendar.monthToInt |> String.fromInt)
+                                                            ++ "/"
+                                                            ++ String.fromInt
+                                                                (Calendar.getDay cdate)
+                                                    ]
+                                        in
+                                        if model.focus == Just ( a.paymentdate, PaymentDate ) then
+                                            let
+                                                ( display, mbstart ) =
+                                                    case Util.parseTime zone model.focuspaydate of
+                                                        Err e ->
+                                                            ( Util.deadEndsToString e, Nothing )
+
+                                                        Ok Nothing ->
+                                                            ( "invalid", Nothing )
+
+                                                        Ok (Just dt) ->
+                                                            ( Util.showTime zone dt, Just dt )
+                                            in
+                                            E.column [ E.spacing 8 ]
+                                                [ row
+                                                , EI.text [ E.width E.fill ]
+                                                    { onChange = FocusPayDateChanged
+                                                    , text = model.focuspaydate
+                                                    , placeholder = Nothing
+                                                    , label = EI.labelHidden "payment date"
+                                                    }
+                                                , E.text display
+                                                , case mbstart of
+                                                    Just start ->
+                                                        EI.button Common.buttonStyle
+                                                            { onPress = Just <| ChangePaymentDate (Time.posixToMillis start)
+                                                            , label = E.text "ok"
+                                                            }
+
+                                                    Nothing ->
+                                                        EI.button Common.disabledButtonStyle
+                                                            { onPress = Nothing
+                                                            , label = E.text "ok"
+                                                            }
+                                                ]
+
+                                        else
+                                            row
+                                   )
+                   }
+                :: { header = E.text "payee"
+                   , width = E.fill
+                   , view =
+                        \( date, a ) ->
+                            if model.focus == Just ( date, PaymentUser ) then
+                                E.column [ E.spacing 8 ]
+                                    [ E.row [ EE.onClick <| OnRowItemClick date PaymentUser ]
+                                        [ E.text (a.user |> Data.getUserIdVal |> (\i -> Dict.get i model.membernames |> Maybe.withDefault ""))
+                                        ]
+                                    , EI.button Common.buttonStyle
+                                        { onPress = Just SelectPaymentUser
+                                        , label = E.text "select member"
+                                        }
+                                    ]
+
+                            else
+                                E.row [ EE.onClick <| OnRowItemClick date PaymentUser ]
+                                    [ E.text (a.user |> Data.getUserIdVal |> (\i -> Dict.get i model.membernames |> Maybe.withDefault ""))
+                                    ]
+                   }
+                :: { header = E.text "payment"
+                   , width = E.fill
+                   , view =
+                        \( date, a ) ->
+                            let
+                                s =
+                                    millisAsHours a.duration
+
+                                p =
+                                    E.el [] <| E.text <| s
+                            in
+                            if model.focus == Just ( date, PaymentAmount ) then
+                                E.column [ E.spacing 8 ]
+                                    [ E.row [ EE.onClick <| OnRowItemClick date PaymentAmount ]
+                                        [ p
+                                        ]
+                                    , EI.text [ E.width E.fill ]
+                                        { onChange = FocusPayChanged
+                                        , text = model.focuspay
+                                        , placeholder = Nothing
+                                        , label = EI.labelHidden "payment"
+                                        }
+                                    ]
+
+                            else
+                                E.row [ EE.onClick <| OnRowItemClick date PaymentAmount ]
+                                    [ p
+                                    ]
+                   }
+                :: []
+        }
+    , if model.shownewpayment then
+        E.column [ E.width E.fill, EBk.color TC.darkGray, EBd.width 1, E.padding 8, E.spacing 8 ]
+            [ E.row [ EF.bold, E.width E.fill ]
+                [ E.text "new payment"
+                , EI.button (E.alignRight :: Common.buttonStyle)
+                    { onPress = Just ToggleNewPayment, label = E.text "-" }
+                ]
+            , E.row [ E.spacing 8 ]
+                [ model.paymentuser
+                    |> Maybe.andThen
+                        (\uid ->
+                            Dict.get (Data.getUserIdVal uid) model.membernames
+                        )
+                    |> Maybe.map (\name -> E.text name)
+                    |> Maybe.withDefault (E.el [ EF.italic ] <| E.text "no member selected")
+                , EI.button Common.buttonStyle { onPress = Just SelectPaymentUser, label = E.text "..." }
+                , EI.text []
+                    { onChange = NewPaymentHoursChanged
+                    , text = model.paymenthours
+                    , placeholder = Nothing
+                    , label = EI.labelLeft [] <| E.text "hours"
+                    }
+                , case
+                    ( model.paymentuser
+                    , model.paymenthours
+                        |> String.toFloat
+                        |> Maybe.map (\x -> x * 60 * 60 * 1000 |> round)
+                    )
+                  of
+                    ( Just uid, Just millis ) ->
+                        EI.button Common.buttonStyle { onPress = Just (AddPaymentPress uid millis), label = E.text "add" }
+
+                    _ ->
+                        EI.button Common.disabledButtonStyle { onPress = Nothing, label = E.text "add" }
+                ]
+            ]
+
+      else
+        E.row [ EF.bold, E.width E.fill ]
+            [ E.text "new payment"
+            , EI.button (E.alignRight :: Common.buttonStyle)
+                { onPress = Just ToggleNewPayment, label = E.text "+" }
             ]
     , E.table [ E.paddingXY 0 10, E.spacing 8, E.width E.fill ]
         { data =
@@ -1539,6 +1839,9 @@ update msg model ld zone =
                         Err e ->
                             ( model, ShowError e )
 
+                Payments ->
+                    ( model, ShowError "csv import is unimplemented for payments." )
+
                 Allocations ->
                     case parseItems str (csvToEditAllocations zone ld.userid) of
                         Ok el ->
@@ -1554,8 +1857,8 @@ update msg model ld zone =
                         Err e ->
                             ( model, ShowError e )
 
-                Payments ->
-                    ( model, ShowError "csv import is unimplemented for payments." )
+                Distributions ->
+                    ( model, ShowError "csv import is unimplemented for distributions view." )
 
         SettingsPress ->
             ( model, Settings )
@@ -1658,6 +1961,11 @@ update msg model ld zone =
             , None
             )
 
+        SelectPaymentUser ->
+            ( model
+            , SelectMember model.members
+            )
+
         AllocDescriptionChanged date text ->
             ( { model
                 | allocations =
@@ -1722,6 +2030,24 @@ update msg model ld zone =
                                     , focusduration = millisAsHours pe.duration
                                     , focuspay = millisAsHours pe.duration
                                     , focuspaydate = Util.showTime zone (Time.millisToPosix pe.allocationdate)
+                                  }
+                                , None
+                                )
+
+                            Nothing ->
+                                ( model, None )
+
+                    Distributions ->
+                        case Dict.get i model.payentries of
+                            Just pe ->
+                                ( { model
+                                    | focus = Just ( i, fc )
+                                    , focusdescription = ""
+                                    , focusstart = ""
+                                    , focusend = ""
+                                    , focusduration = ""
+                                    , focuspay = millisAsHours pe.duration
+                                    , focuspaydate = Util.showTime zone (Time.millisToPosix pe.paymentdate)
                                   }
                                 , None
                                 )
@@ -1816,8 +2142,32 @@ update msg model ld zone =
                 Nothing ->
                     ( model, None )
 
+        ChangePaymentDate newtime ->
+            case model.focus of
+                Just ( date, _ ) ->
+                    case Dict.get date model.payentries of
+                        Just pe ->
+                            ( { model
+                                | payentries =
+                                    Dict.insert newtime { pe | paymentdate = newtime } model.payentries
+                                        |> Dict.remove date
+                                , focus = Nothing
+                                , focuspaydate = ""
+                              }
+                            , None
+                            )
+
+                        Nothing ->
+                            ( model, None )
+
+                Nothing ->
+                    ( model, None )
+
         ToggleNewAlloc ->
             ( { model | shownewalloc = not model.shownewalloc }, None )
+
+        ToggleNewPayment ->
+            ( { model | shownewpayment = not model.shownewpayment }, None )
 
         FocusEndChanged text ->
             case ( model.focus, Util.parseTime zone text ) of
@@ -1911,6 +2261,9 @@ update msg model ld zone =
 
         NewAllocHoursChanged s ->
             ( { model | allochours = s }, None )
+
+        NewPaymentHoursChanged s ->
+            ( { model | paymenthours = s }, None )
 
         AddAllocationPress ->
             ( model, GetTime AddAllocation )
@@ -2227,6 +2580,13 @@ update msg model ld zone =
             , None
             )
 
+        DeleteChecked ->
+            ( { model
+                | timeentries = Dict.filter (\_ te -> not te.checked) model.timeentries
+              }
+            , None
+            )
+
         DeletePayChecked ->
             ( { model
                 | payentries = Dict.filter (\_ pe -> not pe.checked) model.payentries
@@ -2234,9 +2594,9 @@ update msg model ld zone =
             , None
             )
 
-        DeleteChecked ->
+        DeleteAllocationChecked ->
             ( { model
-                | timeentries = Dict.filter (\_ te -> not te.checked) model.timeentries
+                | allocations = Dict.filter (\_ pe -> not pe.checked) model.allocations
               }
             , None
             )
