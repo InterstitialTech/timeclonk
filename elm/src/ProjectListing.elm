@@ -102,7 +102,7 @@ view ld size model =
                                             { url =
                                                 Route.routeUrl
                                                     (Route.ProjectTimeR (Data.getProjectIdVal n.id)
-                                                        (ProjectTime.showMode ProjectTime.Clonks)
+                                                        (ProjectTime.showViewMode ProjectTime.Clonks)
                                                     )
                                             , label = E.text n.name
                                             }

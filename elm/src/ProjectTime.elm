@@ -133,8 +133,8 @@ type Command
     | None
 
 
-showMode : ViewMode -> String
-showMode mode =
+showViewMode : ViewMode -> String
+showViewMode mode =
     case mode of
         Clonks ->
             "clonks"
@@ -144,6 +144,22 @@ showMode mode =
 
         Allocations ->
             "allocations"
+
+
+readViewMode : String -> Maybe ViewMode
+readViewMode str =
+    case String.toLower str of
+        "clonks" ->
+            Just Clonks
+
+        "payments" ->
+            Just Payments
+
+        "allocations" ->
+            Just Allocations
+
+        _ ->
+            Nothing
 
 
 emptyTimeEntryIdSet : TSet Data.TimeEntryId Int
@@ -411,8 +427,8 @@ isDirty model =
         /= model.initialallocations
 
 
-init : Data.LoginData -> Data.ProjectTime -> Bool -> Model
-init ld pt saveonclonk =
+init : Data.LoginData -> Data.ProjectTime -> Bool -> String -> Model
+init ld pt saveonclonk mode =
     let
         ietes =
             toEteDict pt.timeentries
@@ -435,7 +451,7 @@ init ld pt saveonclonk =
     , initialpayentries = iepes
     , allocations = ieas
     , initialallocations = ieas
-    , viewmode = Clonks
+    , viewmode = readViewMode mode |> Maybe.withDefault Clonks
     , focusstart = ""
     , focusend = ""
     , focusduration = ""

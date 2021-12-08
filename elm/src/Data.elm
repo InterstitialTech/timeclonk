@@ -3,7 +3,6 @@ module Data exposing
     , AllocationId
     , ChangeEmail
     , ChangePassword
-    , GetProjectTime
     , ListProject
     , Login
     , LoginData
@@ -41,7 +40,6 @@ module Data exposing
     , decodeTimeEntry
     , encodeChangeEmail
     , encodeChangePassword
-    , encodeGetProjectTime
     , encodeLogin
     , encodeRegistration
     , encodeResetPassword
@@ -272,22 +270,7 @@ type alias ProjectTime =
     , timeentries : List TimeEntry
     , payentries : List PayEntry
     , allocations : List Allocation
-    , mode : Maybe String
     }
-
-
-type alias GetProjectTime =
-    { project : ProjectId
-    , mode : String
-    }
-
-
-encodeGetProjectTime : GetProjectTime -> JE.Value
-encodeGetProjectTime gpt =
-    JE.object
-        [ ( "project", JE.int (getProjectIdVal gpt.project) )
-        , ( "model", JE.string gpt.mode )
-        ]
 
 
 
@@ -625,4 +608,3 @@ decodeProjectTime =
         |> andMap (JD.field "timeentries" <| JD.list decodeTimeEntry)
         |> andMap (JD.field "payentries" <| JD.list decodePayEntry)
         |> andMap (JD.field "allocations" <| JD.list decodeAllocation)
-        |> andMap (JD.field "mode" <| JD.maybe JD.string)

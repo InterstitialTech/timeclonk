@@ -153,12 +153,6 @@ pub struct SaveProjectTime {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct GetProjectTime {
-  pub project: i64,
-  pub mode: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ProjectTime {
   pub project: Project,
   pub members: Vec<ProjectMember>,

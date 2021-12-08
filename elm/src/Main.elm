@@ -56,6 +56,7 @@ type Msg
     | UserSettingsMsg UserSettings.Msg
     | ShowMessageMsg ShowMessage.Msg
     | UserReplyData (Result Http.Error UI.ServerResponse)
+    | ProjectTimeData String (Result Http.Error UI.ServerResponse)
     | LoadUrl String
     | InternalUrl Url
     | SelectedText JD.Value
@@ -186,7 +187,7 @@ routeState model route =
 
         ProjectTimeR id mode ->
             ( (displayMessageDialog model "loading project").state
-            , sendUIMsg model.location <| UI.GetProjectTime { project = Data.makeProjectId id, mode = mode }
+            , sendUIMsgExp model.location (UI.GetProjectTime id) (ProjectTimeData mode)
             )
 
 
@@ -220,7 +221,7 @@ stateRoute state =
             }
 
         ProjectTime mod _ ->
-            { route = ProjectTimeR (Data.getProjectIdVal mod.project.id) (ProjectTime.showMode mod.viewmode)
+            { route = ProjectTimeR (Data.getProjectIdVal mod.project.id) (ProjectTime.showViewMode mod.viewmode)
             , save = True
             }
 
@@ -258,6 +259,22 @@ showMessage msg =
                                         "error: " ++ e
                            )
                    )
+
+        ProjectTimeData mode urd ->
+            "ProjectTimeData: "
+                ++ (Result.map UI.showServerResponse urd
+                        |> Result.mapError Util.httpErrorString
+                        |> (\r ->
+                                case r of
+                                    Ok m ->
+                                        "message: " ++ m
+
+                                    Err e ->
+                                        "error: " ++ e
+                           )
+                   )
+                ++ "\nmode: "
+                ++ mode
 
         LoadUrl _ ->
             "LoadUrl"
@@ -841,6 +858,26 @@ actualupdate msg model =
             , Task.perform toMsg (F.toString file)
             )
 
+        ( ProjectTimeData mode urd, state ) ->
+            case urd of
+                Err e ->
+                    ( displayMessageDialog model <| Util.httpErrorString e, Cmd.none )
+
+                Ok uiresponse ->
+                    case uiresponse of
+                        UI.ProjectTime x ->
+                            case stateLogin state of
+                                Just login ->
+                                    ( { model | state = ProjectTime (ProjectTime.init login x model.saveonclonk mode) login }, Cmd.none )
+
+                                Nothing ->
+                                    ( model, Cmd.none )
+
+                        _ ->
+                            ( unexpectedMsg model msg
+                            , Cmd.none
+                            )
+
         ( UserReplyData urd, state ) ->
             case urd of
                 Err e ->
@@ -994,7 +1031,7 @@ actualupdate msg model =
                         UI.ProjectTime x ->
                             case stateLogin state of
                                 Just login ->
-                                    ( { model | state = ProjectTime (ProjectTime.init login x model.saveonclonk) login }, Cmd.none )
+                                    ( { model | state = ProjectTime (ProjectTime.init login x model.saveonclonk "") login }, Cmd.none )
 
                                 Nothing ->
                                     ( model, Cmd.none )
