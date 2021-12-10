@@ -1147,7 +1147,7 @@ distributionview ld size zone model =
                    ]
         }
     , E.table [ E.paddingXY 0 10, E.spacing 8, E.width E.fill ]
-        { data = [ ( "total time", timetotes ), ( "total pay", paytotes ), ( "total unpaid", unpaidtotes ) ]
+        { data = [ ( "total worked", timetotes ), ( "total pay", paytotes ), ( "total unpaid", unpaidtotes ) ]
         , columns =
             -- dummy checkboxes for alignment.  alpha 0 hides them.
             { header =
@@ -1477,7 +1477,7 @@ allocationview ld size zone model =
             ]
     , E.table [ E.paddingXY 0 10, E.spacing 8, E.width E.fill ]
         { data =
-            [ ( "total time", timetote )
+            [ ( "total worked", timetote )
             , ( "total paid", paytote )
             , ( "total unpaid", timetote - paytote )
             , ( "total allocated", alloctote )
@@ -1735,7 +1735,7 @@ payview ld size zone model =
             ]
     , E.table [ E.paddingXY 0 10, E.spacing 8, E.width E.fill ]
         { data =
-            [ ( "total time", timetote )
+            [ ( "total worked", timetote )
             , ( "total paid", paytote )
             , ( "total unpaid", timetote - paytote )
             , ( "total allocated", alloctote )
