@@ -1147,7 +1147,7 @@ distributionview ld size zone model =
                    ]
         }
     , E.table [ E.paddingXY 0 10, E.spacing 8, E.width E.fill ]
-        { data = [ ( "total worked", timetotes ), ( "total pay", paytotes ), ( "total unpaid", unpaidtotes ) ]
+        { data = [ ( "total worked", timetotes ), ( "total paid", paytotes ), ( "total unpaid", unpaidtotes ) ]
         , columns =
             -- dummy checkboxes for alignment.  alpha 0 hides them.
             { header =
