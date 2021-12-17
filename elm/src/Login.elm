@@ -11,6 +11,7 @@ import Element.Input as Input
 import Html exposing (Html)
 import Random exposing (Seed)
 import TangoColors as Color
+import TcCommon as TC
 import Toop
 import Util exposing (httpErrorString)
 import WindowKeys as WK
@@ -189,7 +190,7 @@ view size model =
 loginView : Model -> Element Msg
 loginView model =
     column
-        [ spacing 8
+        [ spacing TC.defaultSpacing
         , width fill
         , height fill
         , padding 10
@@ -221,7 +222,7 @@ loginView model =
 resetView : Model -> Element Msg
 resetView model =
     column
-        [ spacing 8
+        [ spacing TC.defaultSpacing
         , width fill
         , height fill
         , padding 10
@@ -244,7 +245,7 @@ resetView model =
 
 registrationView : Model -> Element Msg
 registrationView model =
-    column [ Background.color (Common.navbarColor 1), width fill, height fill, spacing 8, padding 8 ]
+    column [ Background.color (Common.navbarColor 1), width fill, height fill, spacing TC.defaultSpacing, padding 8 ]
         [ text <| "welcome to " ++ model.appname ++ "!"
         , text <| "register your new account below:"
         , Input.text []

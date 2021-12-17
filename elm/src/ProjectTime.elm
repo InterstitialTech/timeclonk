@@ -145,6 +145,10 @@ type Command
     | None
 
 
+spacing =
+    8
+
+
 onMemberSelected : UserId -> Model -> Model
 onMemberSelected user model =
     case model.focus of
@@ -525,7 +529,7 @@ viewModeBar model =
                     )
                     { onPress = Just (SetViewMode vm), label = E.text text }
     in
-    E.row [ E.width E.fill, E.spacing 8 ]
+    E.row [ E.width E.fill, E.spacing TC.defaultSpacing, E.paddingXY 0 8 ]
         [ vbt Clonks "Clonks"
         , vbt Payments "Payments"
         , vbt Allocations "Allocations"
@@ -551,21 +555,21 @@ view ld size zone model =
         ]
     <|
         E.column
-            [ E.spacing 8
+            [ E.spacing TC.defaultSpacing
             , E.padding 8
             , E.width (E.maximum maxwidth E.fill)
             , E.centerX
             , EBk.color TC.lightGrey
             ]
         <|
-            [ E.row [ E.spacing 8, E.width E.fill ]
+            [ E.row [ E.spacing TC.defaultSpacing, E.width E.fill ]
                 [ E.row [ EF.bold ] [ E.text ld.name ]
                 , EI.button
                     (E.alignRight :: Common.buttonStyle)
                     { onPress = Just SettingsPress, label = E.text "settings" }
                 ]
-            , E.row [ E.spacing 8 ] [ E.text "project:", E.el [ EF.bold ] <| E.text model.project.name ]
-            , E.row [ E.spacing 8 ] <|
+            , E.row [ E.spacing TC.defaultSpacing ] [ E.text "project:", E.el [ EF.bold ] <| E.text model.project.name ]
+            , E.row [ E.spacing TC.defaultSpacing ] <|
                 [ EI.button Common.buttonStyle { onPress = Just DonePress, label = E.text "<-" }
                 , EI.button Common.buttonStyle { onPress = Just EditPress, label = E.text "edit project" }
                 , EI.button Common.buttonStyle { onPress = Just ImportPress, label = E.text "import" }
@@ -643,7 +647,7 @@ clonkview ld size zone isdirty model =
             Dict.foldl (\_ te c -> c || te.checked) False model.timeentries
     in
     [ if anychecked then
-        E.row [ E.spacing 8 ]
+        E.row [ E.spacing TC.defaultSpacing ]
             [ E.text "checked items: "
             , EI.button Common.buttonStyle
                 { onPress = Just <| DeleteChecked
@@ -661,7 +665,7 @@ clonkview ld size zone isdirty model =
 
       else
         E.none
-    , E.table [ E.spacing 8, E.width E.fill ]
+    , E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
         { data = model.timeentries |> Dict.values |> List.filter (\te -> te.user == ld.userid)
         , columns =
             [ { header =
@@ -702,7 +706,7 @@ clonkview ld size zone isdirty model =
                         in
                         if model.focus == Just ( te.startdate, Description ) then
                             E.column
-                                [ E.spacing 8
+                                [ E.spacing TC.defaultSpacing
                                 ]
                                 [ row
                                 , EI.text [ E.width E.fill ]
@@ -737,7 +741,7 @@ clonkview ld size zone isdirty model =
                                         Ok (Just dt) ->
                                             ( Util.showTime zone dt, Just dt )
                             in
-                            E.column [ E.spacing 8 ]
+                            E.column [ E.spacing TC.defaultSpacing ]
                                 [ row
                                 , EI.text [ E.width E.fill ]
                                     { onChange = FocusStartChanged
@@ -772,7 +776,7 @@ clonkview ld size zone isdirty model =
                                 E.row [ EE.onClick <| OnRowItemClick te.startdate End, igfont te ] [ E.text <| Util.showTime zone (Time.millisToPosix te.enddate) ]
                         in
                         if model.focus == Just ( te.startdate, End ) then
-                            E.column [ E.spacing 8 ]
+                            E.column [ E.spacing TC.defaultSpacing ]
                                 [ row
                                 , EI.text [ E.width E.fill ]
                                     { onChange = FocusEndChanged
@@ -798,7 +802,7 @@ clonkview ld size zone isdirty model =
                                     [ E.text <| millisAsHours (te.enddate - te.startdate) ]
                         in
                         if model.focus == Just ( te.startdate, Duration ) then
-                            E.column [ E.spacing 8, E.width E.shrink ]
+                            E.column [ E.spacing TC.defaultSpacing, E.width E.shrink ]
                                 [ row
                                 , EI.text [ E.width E.shrink ]
                                     { onChange = FocusDurationChanged
@@ -814,7 +818,7 @@ clonkview ld size zone isdirty model =
             ]
         }
     , if isdirty then
-        E.row [ E.spacing 8 ]
+        E.row [ E.spacing TC.defaultSpacing ]
             [ EI.button Common.buttonStyle { onPress = Just RevertPress, label = E.text "revert" }
             , EI.button
                 (Common.buttonStyle ++ [ EBk.color TC.darkYellow ])
@@ -823,7 +827,7 @@ clonkview ld size zone isdirty model =
 
       else
         E.none
-    , E.table [ E.spacing 8, E.width E.fill ]
+    , E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
         { data =
             [ ( "team unpaid hours: "
               , R.round 2 <| teamhours - teampay
@@ -848,7 +852,7 @@ clonkview ld size zone isdirty model =
               }
             ]
         }
-    , E.row [ E.width E.fill, E.spacing 8 ]
+    , E.row [ E.width E.fill, E.spacing TC.defaultSpacing ]
         [ EI.text [ E.width E.fill ]
             { onChange = DescriptionChanged
             , text = model.description
@@ -906,7 +910,7 @@ distributionview ld size zone model =
             Dict.foldl (\_ pe c -> c || pe.checked) False model.payentries
     in
     [ if anychecked then
-        E.row [ E.spacing 8 ]
+        E.row [ E.spacing TC.defaultSpacing ]
             [ E.text "checked items: "
             , EI.button Common.buttonStyle
                 { onPress = Just <| DeletePayChecked
@@ -916,7 +920,7 @@ distributionview ld size zone model =
 
       else
         E.none
-    , E.table [ E.spacing 8, E.width E.fill ]
+    , E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
         { data =
             Dict.toList <|
                 Dict.union (Dict.map (\i v -> TimeDay v) tmpd) <|
@@ -1013,7 +1017,7 @@ distributionview ld size zone model =
                                                                 Ok (Just dt) ->
                                                                     ( Util.showTime zone dt, Just dt )
                                                     in
-                                                    E.column [ E.spacing 8 ]
+                                                    E.column [ E.spacing TC.defaultSpacing ]
                                                         [ row
                                                         , EI.text [ E.width E.fill ]
                                                             { onChange = FocusPayDateChanged
@@ -1089,7 +1093,7 @@ distributionview ld size zone model =
                                                             E.el [ EF.bold ] <| E.text <| s ++ " pmt"
                                                     in
                                                     if model.focus == Just ( date, PaymentAmount ) then
-                                                        E.column [ E.spacing 8 ]
+                                                        E.column [ E.spacing TC.defaultSpacing ]
                                                             [ E.row [ EE.onClick <| OnRowItemClick date PaymentAmount ]
                                                                 [ p
                                                                 ]
@@ -1146,7 +1150,7 @@ distributionview ld size zone model =
                      }
                    ]
         }
-    , E.table [ E.paddingXY 0 10, E.spacing 8, E.width E.fill ]
+    , E.table [ E.paddingXY 0 10, E.spacing TC.defaultSpacing, E.width E.fill ]
         { data = [ ( "total worked", timetotes ), ( "total paid", paytotes ), ( "total unpaid", unpaidtotes ) ]
         , columns =
             -- dummy checkboxes for alignment.  alpha 0 hides them.
@@ -1209,7 +1213,7 @@ distributionview ld size zone model =
                      }
                    ]
         }
-    , E.row [ E.width E.fill, E.spacing 8 ]
+    , E.row [ E.width E.fill, E.spacing TC.defaultSpacing ]
         [ EI.text [ E.width E.fill ]
             { onChange = OnDistributionChanged
             , text = model.distributionhours
@@ -1225,7 +1229,7 @@ distributionview ld size zone model =
                 md =
                     model.members |> List.map (\m -> ( m.id, m )) |> TDict.insertList TR.emptyUmDict
             in
-            E.table [ E.spacing 8, E.width E.fill ]
+            E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
                 { data = dist |> TDict.toList
                 , columns =
                     [ { header = E.text "User"
@@ -1243,7 +1247,7 @@ distributionview ld size zone model =
                       , width = E.shrink
                       , view =
                             \( user, hours ) ->
-                                E.row [ E.spacing 8 ]
+                                E.row [ E.spacing TC.defaultSpacing ]
                                     [ EI.text []
                                         { onChange = OnPaymentChanged user
                                         , text = hours
@@ -1293,7 +1297,7 @@ allocationview ld size zone model =
             Dict.foldl (\_ e c -> c || e.checked) False model.allocations
     in
     [ if anychecked then
-        E.row [ E.spacing 8 ]
+        E.row [ E.spacing TC.defaultSpacing ]
             [ E.text "checked items: "
             , EI.button Common.buttonStyle
                 { onPress = Just <| DeleteAllocationChecked
@@ -1303,7 +1307,7 @@ allocationview ld size zone model =
 
       else
         E.none
-    , E.table [ E.spacing 8, E.width E.fill ]
+    , E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
         { data =
             Dict.toList model.allocations
         , columns =
@@ -1365,7 +1369,7 @@ allocationview ld size zone model =
                                                         Ok (Just dt) ->
                                                             ( Util.showTime zone dt, Just dt )
                                             in
-                                            E.column [ E.spacing 8 ]
+                                            E.column [ E.spacing TC.defaultSpacing ]
                                                 [ row
                                                 , EI.text [ E.width E.fill ]
                                                     { onChange = FocusPayDateChanged
@@ -1397,7 +1401,7 @@ allocationview ld size zone model =
                    , view =
                         \( date, a ) ->
                             if model.focus == Just ( date, Description ) then
-                                E.column [ E.spacing 8 ]
+                                E.column [ E.spacing TC.defaultSpacing ]
                                     [ E.row [ EE.onClick <| OnRowItemClick date Description ]
                                         [ E.text a.description
                                         ]
@@ -1426,7 +1430,7 @@ allocationview ld size zone model =
                                     E.el [] <| E.text <| s
                             in
                             if model.focus == Just ( date, PaymentAmount ) then
-                                E.column [ E.spacing 8 ]
+                                E.column [ E.spacing TC.defaultSpacing ]
                                     [ E.row [ EE.onClick <| OnRowItemClick date PaymentAmount ]
                                         [ p
                                         ]
@@ -1446,7 +1450,7 @@ allocationview ld size zone model =
                 :: []
         }
     , if model.shownewalloc then
-        E.column [ E.width E.fill, EBk.color TC.darkGray, EBd.width 1, E.padding 8, E.spacing 8 ]
+        E.column [ E.width E.fill, EBk.color TC.darkGray, EBd.width 1, E.padding 8, E.spacing TC.defaultSpacing ]
             [ E.row [ EF.bold, E.width E.fill ]
                 [ E.text "new allocation"
                 , EI.button (E.alignRight :: Common.buttonStyle)
@@ -1458,7 +1462,7 @@ allocationview ld size zone model =
                 , placeholder = Nothing
                 , label = EI.labelLeft [] <| E.text "description"
                 }
-            , E.row [ E.spacing 8 ]
+            , E.row [ E.spacing TC.defaultSpacing ]
                 [ EI.text []
                     { onChange = NewAllocHoursChanged
                     , text = model.allochours
@@ -1475,7 +1479,7 @@ allocationview ld size zone model =
             , EI.button (E.alignRight :: Common.buttonStyle)
                 { onPress = Just ToggleNewAlloc, label = E.text "+" }
             ]
-    , E.table [ E.paddingXY 0 10, E.spacing 8, E.width E.fill ]
+    , E.table [ E.paddingXY 0 10, E.spacing TC.defaultSpacing, E.width E.fill ]
         { data =
             [ ( "total worked", timetote )
             , ( "total paid", paytote )
@@ -1540,7 +1544,7 @@ payview ld size zone model =
             Dict.foldl (\_ e c -> c || e.checked) False model.payentries
     in
     [ if anychecked then
-        E.row [ E.spacing 8 ]
+        E.row [ E.spacing TC.defaultSpacing ]
             [ E.text "checked items: "
             , EI.button Common.buttonStyle
                 { onPress = Just <| DeletePayChecked
@@ -1550,7 +1554,7 @@ payview ld size zone model =
 
       else
         E.none
-    , E.table [ E.spacing 8, E.width E.fill ]
+    , E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
         { data =
             Dict.toList model.payentries
         , columns =
@@ -1612,7 +1616,7 @@ payview ld size zone model =
                                                         Ok (Just dt) ->
                                                             ( Util.showTime zone dt, Just dt )
                                             in
-                                            E.column [ E.spacing 8 ]
+                                            E.column [ E.spacing TC.defaultSpacing ]
                                                 [ row
                                                 , EI.text [ E.width E.fill ]
                                                     { onChange = FocusPayDateChanged
@@ -1644,7 +1648,7 @@ payview ld size zone model =
                    , view =
                         \( date, a ) ->
                             if model.focus == Just ( date, PaymentUser ) then
-                                E.column [ E.spacing 8 ]
+                                E.column [ E.spacing TC.defaultSpacing ]
                                     [ E.row [ EE.onClick <| OnRowItemClick date PaymentUser ]
                                         [ E.text (a.user |> Data.getUserIdVal |> (\i -> Dict.get i model.membernames |> Maybe.withDefault ""))
                                         ]
@@ -1671,7 +1675,7 @@ payview ld size zone model =
                                     E.el [] <| E.text <| s
                             in
                             if model.focus == Just ( date, PaymentAmount ) then
-                                E.column [ E.spacing 8 ]
+                                E.column [ E.spacing TC.defaultSpacing ]
                                     [ E.row [ EE.onClick <| OnRowItemClick date PaymentAmount ]
                                         [ p
                                         ]
@@ -1691,13 +1695,13 @@ payview ld size zone model =
                 :: []
         }
     , if model.shownewpayment then
-        E.column [ E.width E.fill, EBk.color TC.darkGray, EBd.width 1, E.padding 8, E.spacing 8 ]
+        E.column [ E.width E.fill, EBk.color TC.darkGray, EBd.width 1, E.padding 8, E.spacing TC.defaultSpacing ]
             [ E.row [ EF.bold, E.width E.fill ]
                 [ E.text "new payment"
                 , EI.button (E.alignRight :: Common.buttonStyle)
                     { onPress = Just ToggleNewPayment, label = E.text "-" }
                 ]
-            , E.row [ E.spacing 8 ]
+            , E.row [ E.spacing TC.defaultSpacing ]
                 [ model.paymentuser
                     |> Maybe.andThen
                         (\uid ->
@@ -1733,7 +1737,7 @@ payview ld size zone model =
             , EI.button (E.alignRight :: Common.buttonStyle)
                 { onPress = Just ToggleNewPayment, label = E.text "+" }
             ]
-    , E.table [ E.paddingXY 0 10, E.spacing 8, E.width E.fill ]
+    , E.table [ E.paddingXY 0 10, E.spacing TC.defaultSpacing, E.width E.fill ]
         { data =
             [ ( "total worked", timetote )
             , ( "total paid", paytote )

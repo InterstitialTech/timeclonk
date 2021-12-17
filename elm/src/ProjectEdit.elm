@@ -196,19 +196,19 @@ view ld size model =
         ]
     <|
         E.column
-            [ E.spacing 8
+            [ E.spacing TC.defaultSpacing
             , E.padding 8
             , E.width (E.maximum maxwidth E.fill)
             , E.centerX
             , EBk.color TC.lightGrey
             ]
-            [ E.row [ E.spacing 8, E.width E.fill ]
+            [ E.row [ E.spacing TC.defaultSpacing, E.width E.fill ]
                 [ E.row [ EF.bold ] [ E.text ld.name ]
                 , EI.button
                     (E.alignRight :: Common.buttonStyle)
                     { onPress = Just SettingsPress, label = E.text "settings" }
                 ]
-            , E.row [ E.spacing 8 ] <|
+            , E.row [ E.spacing TC.defaultSpacing ] <|
                 [ EI.button Common.buttonStyle { onPress = Just DonePress, label = E.text "<-" }
                 , EI.button Common.buttonStyle { onPress = Just NewPress, label = E.text "new" }
                 ]
@@ -227,7 +227,7 @@ view ld size model =
                 , EBd.width 1
                 , EBd.color TC.darkGrey
                 , EBk.color TC.white
-                , E.spacing 8
+                , E.spacing TC.defaultSpacing
                 ]
                 [ EI.text
                     (if isdirty then
@@ -268,7 +268,7 @@ view ld size model =
                 , EBd.width 1
                 , EBd.color TC.darkGrey
                 , EBk.color TC.white
-                , E.spacing 8
+                , E.spacing TC.defaultSpacing
                 ]
                 (E.row [ E.spacing 10 ]
                     [ E.el [ EF.bold ] <| E.text "members"

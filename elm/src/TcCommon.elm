@@ -11,7 +11,6 @@ import Url.Builder as UB
 import Util as U
 
 
-
 myLinkStylePlain =
     [ EF.color TC.darkBlue ]
 
@@ -34,3 +33,8 @@ saveLinkStyle =
 
 fullScreen =
     E.row [ EF.size 10 ] [ E.column [] [ E.text "↖", E.text "↙" ], E.column [] [ E.text "↗", E.text "↘" ] ]
+
+
+defaultSpacing : Int
+defaultSpacing =
+    10

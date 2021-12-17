@@ -9,6 +9,7 @@ import Element.Events as EE
 import Element.Font as EF
 import Element.Input as EI
 import TangoColors as TC
+import TcCommon as TC
 
 
 type Msg
@@ -49,7 +50,7 @@ view model =
         [ E.column
             [ E.centerX
             , E.width (E.maximum 400 E.fill)
-            , E.spacing 8
+            , E.spacing TC.defaultSpacing
             , E.alignTop
             ]
             [ E.row [ E.width E.fill ]
@@ -63,7 +64,7 @@ view model =
                 , EBd.rounded 10
                 , E.padding 5
                 , EBk.color TC.white
-                , E.spacing 8
+                , E.spacing TC.defaultSpacing
                 ]
                 [ E.el [ EF.bold, E.centerX ] <| E.text "user settings"
                 , E.row [ E.width E.fill ]

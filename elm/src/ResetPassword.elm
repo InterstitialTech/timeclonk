@@ -11,6 +11,7 @@ import Element.Input as Input
 import Html exposing (Html)
 import Random exposing (Seed)
 import TangoColors as TC
+import TcCommon as TC
 import UUID exposing (UUID)
 import Util exposing (httpErrorString)
 
@@ -67,13 +68,13 @@ view size model =
 resetView : Model -> Element Msg
 resetView model =
     column
-        [ spacing 8
+        [ spacing TC.defaultSpacing
         , width fill
         , padding 10
         , Background.color (Common.navbarColor 1)
         ]
         [ row [ width fill ] [ el [ centerX, Font.bold ] <| text <| "password reset" ]
-        , row [ spacing 8 ] [ text "user id:", text model.userId ]
+        , row [ spacing TC.defaultSpacing ] [ text "user id:", text model.userId ]
         , Input.newPassword [ width fill ]
             { onChange = PasswordUpdate
             , text = model.password
@@ -91,7 +92,7 @@ resetView model =
 sentView : Model -> Element Msg
 sentView model =
     column
-        [ spacing 8
+        [ spacing TC.defaultSpacing
         , width fill
         , padding 10
         , Background.color (Common.navbarColor 1)
