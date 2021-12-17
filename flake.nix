@@ -8,7 +8,8 @@
 
   outputs = { self, nixpkgs, flake-utils, naersk }:
     let
-      makeElmPkg = { pkgs, additionalInputs ? [ ], pythonPackages ? (ps: [ ]) }:
+      # makeElmPkg = { pkgs, additionalInputs ? [ ], pythonPackages ? (ps: [ ]) }:
+      makeElmPkg = { pkgs, additionalInputs ? [ ] }:
         pkgs.stdenv.mkDerivation {
           name = "timeclonk-elm";
           src = ./.;
@@ -79,6 +80,7 @@
           devShell = pkgs.mkShell {
             nativeBuildInputs = with pkgs; [
               cargo
+              cargo-watch
               rustc
               sqlite
               pkgconfig
