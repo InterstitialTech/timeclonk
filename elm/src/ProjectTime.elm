@@ -145,8 +145,9 @@ type Command
     | None
 
 
-spacing =
-    8
+headerStyle : List (E.Attribute msg)
+headerStyle =
+    [ EF.bold ]
 
 
 onMemberSelected : UserId -> Model -> Model
@@ -695,7 +696,7 @@ clonkview ld size zone isdirty model =
                             , label = EI.labelHidden "check item"
                             }
               }
-            , { header = E.text "Task"
+            , { header = E.el headerStyle <| E.text "task"
               , width = E.fill
               , view =
                     \te ->
@@ -720,7 +721,7 @@ clonkview ld size zone isdirty model =
                         else
                             row
               }
-            , { header = E.text "Start"
+            , { header = E.el headerStyle <| E.text "start"
               , width = E.fill
               , view =
                     \te ->
@@ -767,7 +768,7 @@ clonkview ld size zone isdirty model =
                         else
                             row
               }
-            , { header = E.text "End"
+            , { header = E.el headerStyle <| E.text "end"
               , width = E.fill
               , view =
                     \te ->
@@ -792,7 +793,7 @@ clonkview ld size zone isdirty model =
                         else
                             row
               }
-            , { header = E.text "Duration"
+            , { header = E.el headerStyle <| E.text "duration"
               , width = E.shrink
               , view =
                     \te ->
@@ -843,7 +844,7 @@ clonkview ld size zone isdirty model =
             [ { header = E.none
               , width = E.shrink
               , view =
-                    \( title, entry ) -> E.text title
+                    \( title, entry ) -> E.el headerStyle <| E.text title
               }
             , { header = E.none
               , width = E.shrink
@@ -959,7 +960,7 @@ distributionview ld size zone model =
                         TimeDay _ ->
                             E.none
             }
-                :: { header = E.text "date"
+                :: { header = E.el headerStyle <| E.text "date"
                    , width = E.fill
                    , view =
                         \( date, entry ) ->
@@ -1061,7 +1062,7 @@ distributionview ld size zone model =
                 :: (model.members
                         |> List.map
                             (\member ->
-                                { header = E.text member.name
+                                { header = E.el headerStyle <| E.text member.name
                                 , width = E.fill
                                 , view =
                                     \( date, e ) ->
@@ -1115,7 +1116,7 @@ distributionview ld size zone model =
                                 }
                             )
                    )
-                ++ [ { header = E.text "team"
+                ++ [ { header = E.el headerStyle <| E.text "team"
                      , width = E.fill
                      , view =
                         \( date, e ) ->
@@ -1133,7 +1134,7 @@ distributionview ld size zone model =
                                 PayEntry epe ->
                                     E.none
                      }
-                   , { header = E.el [] <| E.text "allocations"
+                   , { header = E.el [] <| E.el headerStyle <| E.text "allocations"
                      , width = E.fill
                      , view =
                         \( date, e ) ->
@@ -1151,7 +1152,11 @@ distributionview ld size zone model =
                    ]
         }
     , E.table [ E.paddingXY 0 10, E.spacing TC.defaultSpacing, E.width E.fill ]
-        { data = [ ( "total worked", timetotes ), ( "total paid", paytotes ), ( "total unpaid", unpaidtotes ) ]
+        { data =
+            [ ( "hours worked", timetotes )
+            , ( "hours paid", paytotes )
+            , ( "hours unpaid", unpaidtotes )
+            ]
         , columns =
             -- dummy checkboxes for alignment.  alpha 0 hides them.
             { header =
@@ -1171,16 +1176,16 @@ distributionview ld size zone model =
                         , label = EI.labelHidden "alignment checkbox"
                         }
             }
-                :: { header = E.text "totals"
+                :: { header = E.el headerStyle <| E.text "totals"
                    , width = E.fill
                    , view =
                         \( title, _ ) ->
-                            E.text title
+                            E.el headerStyle <| E.text title
                    }
                 :: (model.members
                         |> List.map
                             (\member ->
-                                { header = E.text member.name
+                                { header = E.el headerStyle <| E.text member.name
                                 , width = E.fill
                                 , view =
                                     \( _, totes ) ->
@@ -1190,7 +1195,7 @@ distributionview ld size zone model =
                                 }
                             )
                    )
-                ++ [ { header = E.column [] [ E.text "team" ]
+                ++ [ { header = E.column [] [ E.el headerStyle <| E.text "team" ]
                      , width = E.fill
                      , view =
                         \( _, tote ) ->
@@ -1200,7 +1205,7 @@ distributionview ld size zone model =
                                 >> millisAsHours
                                 >> E.text
                      }
-                   , { header = E.column [] [ E.text "allocation", E.text "- team" ]
+                   , { header = E.column [] [ E.el headerStyle <| E.text "allocation", E.el headerStyle <| E.text "- team" ]
                      , width = E.fill
                      , view =
                         \( _, tote ) ->
@@ -1232,7 +1237,7 @@ distributionview ld size zone model =
             E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
                 { data = dist |> TDict.toList
                 , columns =
-                    [ { header = E.text "User"
+                    [ { header = E.el headerStyle <| E.text "User"
                       , width = E.shrink
                       , view =
                             \( id, _ ) ->
@@ -1243,7 +1248,7 @@ distributionview ld size zone model =
                                     Nothing ->
                                         E.none
                       }
-                    , { header = E.text "Hours"
+                    , { header = E.el headerStyle <| E.text "Hours"
                       , width = E.shrink
                       , view =
                             \( user, hours ) ->
@@ -1334,7 +1339,7 @@ allocationview ld size zone model =
                         , label = EI.labelHidden "check item"
                         }
             }
-                :: { header = E.text "date"
+                :: { header = E.el headerStyle <| E.text "date"
                    , width = E.fill
                    , view =
                         \( date, a ) ->
@@ -1396,7 +1401,7 @@ allocationview ld size zone model =
                                             row
                                    )
                    }
-                :: { header = E.text "description"
+                :: { header = E.el headerStyle <| E.text "description"
                    , width = E.fill
                    , view =
                         \( date, a ) ->
@@ -1418,7 +1423,7 @@ allocationview ld size zone model =
                                     [ E.text a.description
                                     ]
                    }
-                :: { header = E.text "allocation"
+                :: { header = E.el headerStyle <| E.text "allocation"
                    , width = E.fill
                    , view =
                         \( date, a ) ->
@@ -1481,11 +1486,11 @@ allocationview ld size zone model =
             ]
     , E.table [ E.paddingXY 0 10, E.spacing TC.defaultSpacing, E.width E.fill ]
         { data =
-            [ ( "total worked", timetote )
-            , ( "total paid", paytote )
-            , ( "total unpaid", timetote - paytote )
-            , ( "total allocated", alloctote )
-            , ( "total allocated remaining", alloctote - timetote )
+            [ ( "hours worked", timetote )
+            , ( "hours paid", paytote )
+            , ( "hours unpaid", timetote - paytote )
+            , ( "hours allocated", alloctote )
+            , ( "hours allocated remaining", alloctote - timetote )
             ]
         , columns =
             -- dummy checkboxes for alignment.  alpha 0 hides them.
@@ -1506,11 +1511,11 @@ allocationview ld size zone model =
                         , label = EI.labelHidden "alignment checkbox"
                         }
             }
-                :: { header = E.el [ EF.bold ] <| E.text "totals"
+                :: { header = E.el [ EF.bold ] <| E.el headerStyle <| E.text "totals"
                    , width = E.fill
                    , view =
                         \( title, _ ) ->
-                            E.text title
+                            E.el headerStyle <| E.text title
                    }
                 :: { header = E.none
                    , width = E.fill
@@ -1581,7 +1586,7 @@ payview ld size zone model =
                         , label = EI.labelHidden "check item"
                         }
             }
-                :: { header = E.text "date"
+                :: { header = E.el headerStyle <| E.text "date"
                    , width = E.fill
                    , view =
                         \( date, a ) ->
@@ -1643,7 +1648,7 @@ payview ld size zone model =
                                             row
                                    )
                    }
-                :: { header = E.text "payee"
+                :: { header = E.el headerStyle <| E.text "payee"
                    , width = E.fill
                    , view =
                         \( date, a ) ->
@@ -1663,7 +1668,7 @@ payview ld size zone model =
                                     [ E.text (a.user |> Data.getUserIdVal |> (\i -> Dict.get i model.membernames |> Maybe.withDefault ""))
                                     ]
                    }
-                :: { header = E.text "payment"
+                :: { header = E.el headerStyle <| E.text "payment"
                    , width = E.fill
                    , view =
                         \( date, a ) ->
@@ -1739,11 +1744,11 @@ payview ld size zone model =
             ]
     , E.table [ E.paddingXY 0 10, E.spacing TC.defaultSpacing, E.width E.fill ]
         { data =
-            [ ( "total worked", timetote )
-            , ( "total paid", paytote )
-            , ( "total unpaid", timetote - paytote )
-            , ( "total allocated", alloctote )
-            , ( "total allocated remaining", alloctote - timetote )
+            [ ( "hours worked", timetote )
+            , ( "hours paid", paytote )
+            , ( "hours unpaid", timetote - paytote )
+            , ( "hours allocated", alloctote )
+            , ( "hours allocated remaining", alloctote - timetote )
             ]
         , columns =
             -- dummy checkboxes for alignment.  alpha 0 hides them.
@@ -1764,11 +1769,11 @@ payview ld size zone model =
                         , label = EI.labelHidden "alignment checkbox"
                         }
             }
-                :: { header = E.el [ EF.bold ] <| E.text "totals"
+                :: { header = E.el [ EF.bold ] <| E.el headerStyle <| E.text "totals"
                    , width = E.fill
                    , view =
                         \( title, _ ) ->
-                            E.text title
+                            E.el headerStyle <| E.text title
                    }
                 :: { header = E.none
                    , width = E.fill
