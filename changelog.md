@@ -1,3 +1,15 @@
+## 2021-12-19
+
+Copied the elm-ui checkbox 'icon' function and darkened it up a bit to make it more visible.
+
+## 2021-12-17
+
+Replaced hardcoded spacing with a default spacing var in TcCommon.  Increased spacing a bit.
+
+Tweaked flake.nix to include cargo-watch, which is needed by server/watch-run.sh.
+
+Various other style changes for headers.
+
 ## 2021-12-08
 
 The old payments view is now "distributions", which is modeled on the confusing spreadsheet I was using before this.
