@@ -670,9 +670,9 @@ clonkview ld size zone isdirty model =
         { data = model.timeentries |> Dict.values |> List.filter (\te -> te.user == ld.userid)
         , columns =
             [ { header =
-                    EI.checkbox [ E.width E.shrink ]
+                    EI.checkbox [ E.width E.shrink, E.centerY ]
                         { onChange = CheckAll
-                        , icon = EI.defaultCheckbox
+                        , icon = TC.checkboxIcon
                         , checked =
                             Dict.foldl
                                 (\_ te ac ->
@@ -689,9 +689,9 @@ clonkview ld size zone isdirty model =
               , width = E.shrink
               , view =
                     \te ->
-                        EI.checkbox [ E.width E.shrink ]
+                        EI.checkbox [ E.width E.shrink, E.centerY ]
                             { onChange = CheckItem te.startdate
-                            , icon = EI.defaultCheckbox
+                            , icon = TC.checkboxIcon
                             , checked = te.checked
                             , label = EI.labelHidden "check item"
                             }
@@ -930,9 +930,9 @@ distributionview ld size zone model =
                         (Dict.map (\i v -> Allocation v) model.allocations)
         , columns =
             { header =
-                EI.checkbox [ E.width E.shrink ]
+                EI.checkbox [ E.width E.shrink, E.centerY ]
                     { onChange = CheckPayAll
-                    , icon = EI.defaultCheckbox
+                    , icon = TC.checkboxIcon
                     , checked =
                         Dict.foldl
                             (\_ pe ac ->
@@ -947,9 +947,9 @@ distributionview ld size zone model =
                 \( date, entry ) ->
                     case entry of
                         PayEntry pe ->
-                            EI.checkbox [ E.width E.shrink ]
+                            EI.checkbox [ E.width E.shrink, E.centerY ]
                                 { onChange = CheckPayItem pe.paymentdate
-                                , icon = EI.defaultCheckbox
+                                , icon = TC.checkboxIcon
                                 , checked = pe.checked
                                 , label = EI.labelHidden "check item"
                                 }
@@ -1162,7 +1162,7 @@ distributionview ld size zone model =
             { header =
                 EI.checkbox [ E.width E.shrink, E.alpha 0.0 ]
                     { onChange = \_ -> Noop
-                    , icon = EI.defaultCheckbox
+                    , icon = TC.checkboxIcon
                     , checked = False
                     , label = EI.labelHidden "alignment checkbox"
                     }
@@ -1171,7 +1171,7 @@ distributionview ld size zone model =
                 \_ ->
                     EI.checkbox [ E.width E.shrink, E.alpha 0.0 ]
                         { onChange = \_ -> Noop
-                        , icon = EI.defaultCheckbox
+                        , icon = TC.checkboxIcon
                         , checked = False
                         , label = EI.labelHidden "alignment checkbox"
                         }
@@ -1317,9 +1317,9 @@ allocationview ld size zone model =
             Dict.toList model.allocations
         , columns =
             { header =
-                EI.checkbox [ E.width E.shrink ]
+                EI.checkbox [ E.width E.shrink, E.centerY ]
                     { onChange = CheckAllocAll
-                    , icon = EI.defaultCheckbox
+                    , icon = TC.checkboxIcon
                     , checked =
                         Dict.foldl
                             (\_ pe ac ->
@@ -1332,9 +1332,9 @@ allocationview ld size zone model =
             , width = E.shrink
             , view =
                 \( date, e ) ->
-                    EI.checkbox [ E.width E.shrink ]
+                    EI.checkbox [ E.width E.shrink, E.centerY ]
                         { onChange = CheckAllocationItem e.allocationdate
-                        , icon = EI.defaultCheckbox
+                        , icon = TC.checkboxIcon
                         , checked = e.checked
                         , label = EI.labelHidden "check item"
                         }
@@ -1497,7 +1497,7 @@ allocationview ld size zone model =
             { header =
                 EI.checkbox [ E.width E.shrink, E.alpha 0.0 ]
                     { onChange = \_ -> Noop
-                    , icon = EI.defaultCheckbox
+                    , icon = TC.checkboxIcon
                     , checked = False
                     , label = EI.labelHidden "alignment checkbox"
                     }
@@ -1506,7 +1506,7 @@ allocationview ld size zone model =
                 \_ ->
                     EI.checkbox [ E.width E.shrink, E.alpha 0.0 ]
                         { onChange = \_ -> Noop
-                        , icon = EI.defaultCheckbox
+                        , icon = TC.checkboxIcon
                         , checked = False
                         , label = EI.labelHidden "alignment checkbox"
                         }
@@ -1564,9 +1564,9 @@ payview ld size zone model =
             Dict.toList model.payentries
         , columns =
             { header =
-                EI.checkbox [ E.width E.shrink ]
+                EI.checkbox [ E.width E.shrink, E.centerY ]
                     { onChange = CheckPayAll
-                    , icon = EI.defaultCheckbox
+                    , icon = TC.checkboxIcon
                     , checked =
                         Dict.foldl
                             (\_ pe ac ->
@@ -1579,9 +1579,9 @@ payview ld size zone model =
             , width = E.shrink
             , view =
                 \( date, e ) ->
-                    EI.checkbox [ E.width E.shrink ]
+                    EI.checkbox [ E.width E.shrink, E.centerY ]
                         { onChange = CheckPayItem e.paymentdate
-                        , icon = EI.defaultCheckbox
+                        , icon = TC.checkboxIcon
                         , checked = e.checked
                         , label = EI.labelHidden "check item"
                         }
@@ -1755,7 +1755,7 @@ payview ld size zone model =
             { header =
                 EI.checkbox [ E.width E.shrink, E.alpha 0.0 ]
                     { onChange = \_ -> Noop
-                    , icon = EI.defaultCheckbox
+                    , icon = TC.checkboxIcon
                     , checked = False
                     , label = EI.labelHidden "alignment checkbox"
                     }
@@ -1764,7 +1764,7 @@ payview ld size zone model =
                 \_ ->
                     EI.checkbox [ E.width E.shrink, E.alpha 0.0 ]
                         { onChange = \_ -> Noop
-                        , icon = EI.defaultCheckbox
+                        , icon = TC.checkboxIcon
                         , checked = False
                         , label = EI.labelHidden "alignment checkbox"
                         }
