@@ -531,10 +531,10 @@ viewModeBar model =
                     { onPress = Just (SetViewMode vm), label = E.text text }
     in
     E.row [ E.width E.fill, E.spacing TC.defaultSpacing, E.paddingXY 0 8 ]
-        [ vbt Clonks "Clonks"
-        , vbt Payments "Payments"
-        , vbt Allocations "Allocations"
-        , vbt Distributions "Distributions"
+        [ vbt Clonks "clonks"
+        , vbt Payments "payments"
+        , vbt Allocations "allocations"
+        , vbt Distributions "distributions"
         ]
 
 
@@ -647,25 +647,29 @@ clonkview ld size zone isdirty model =
         anychecked =
             Dict.foldl (\_ te c -> c || te.checked) False model.timeentries
     in
-    [ if anychecked then
-        E.row [ E.spacing TC.defaultSpacing ]
-            [ E.text "checked items: "
-            , EI.button Common.buttonStyle
-                { onPress = Just <| DeleteChecked
-                , label = E.text "delete"
-                }
-            , EI.button Common.buttonStyle
-                { onPress = Just <| IgnoreChecked
-                , label = E.text "ignore"
-                }
-            , EI.button Common.buttonStyle
-                { onPress = Just <| ExportChecked
-                , label = E.text "export"
-                }
-            ]
+    [ E.row
+        [ E.spacing TC.defaultSpacing
+        , E.transparent (not anychecked)
+        , if anychecked then
+            E.height E.shrink
 
-      else
-        E.none
+          else
+            E.height <| E.px 0
+        ]
+        [ E.text "checked items: "
+        , EI.button Common.buttonStyle
+            { onPress = Just <| DeleteChecked
+            , label = E.text "delete"
+            }
+        , EI.button Common.buttonStyle
+            { onPress = Just <| IgnoreChecked
+            , label = E.text "ignore"
+            }
+        , EI.button Common.buttonStyle
+            { onPress = Just <| ExportChecked
+            , label = E.text "export"
+            }
+        ]
     , E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
         { data = model.timeentries |> Dict.values |> List.filter (\te -> te.user == ld.userid)
         , columns =
