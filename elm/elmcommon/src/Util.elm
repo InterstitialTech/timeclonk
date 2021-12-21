@@ -1,4 +1,38 @@
-module Util exposing (Size, Stopoid(..), YMDMS, andMap, captchaQ, compareColor, deadEndToString, deadEndsToString, first, foldUntil, httpErrorString, isJust, leadingZeroInt, mapNothing, maxInt, mbl, mblist, minInt, monthInt, paramParser, paramsParser, parseTime, problemToString, rest, rslist, showTime, splitAt, toTimeMonth, trueforany, truncateDots, ymdsParser)
+module Util exposing
+    ( Size
+    , Stopoid(..)
+    , YMDMS
+    , andMap
+    , captchaQ
+    , compareColor
+    , deadEndToString
+    , deadEndsToString
+    , first
+    , foldUntil
+    , httpErrorString
+    , isJust
+    , leadingZeroInt
+    , mapNothing
+    , maxInt
+    , mbl
+    , mblist
+    , minInt
+    , monthInt
+    , paramParser
+    , paramsParser
+    , parseTime
+    , problemToString
+    , rest
+    , rslist
+    , sameDay
+    , showDateTime
+    , showTime
+    , splitAt
+    , toTimeMonth
+    , trueforany
+    , truncateDots
+    , ymdsParser
+    )
 
 import DateTime
 import Dict exposing (Dict)
@@ -285,8 +319,8 @@ monthInt month =
             12
 
 
-showTime : Time.Zone -> Time.Posix -> String
-showTime zone time =
+showDateTime : Time.Zone -> Time.Posix -> String
+showDateTime zone time =
     (String.fromInt <| Time.toYear zone time)
         ++ "/"
         ++ (Time.toMonth zone time
@@ -305,6 +339,22 @@ showTime zone time =
         ++ (Time.toMinute zone time |> String.fromInt |> String.padLeft 2 '0')
         ++ ":"
         ++ (Time.toSecond zone time |> String.fromInt |> String.padLeft 2 '0')
+
+
+showTime : Time.Zone -> Time.Posix -> String
+showTime zone time =
+    (Time.toHour zone time |> String.fromInt |> String.padLeft 2 '0')
+        ++ ":"
+        ++ (Time.toMinute zone time |> String.fromInt |> String.padLeft 2 '0')
+        ++ ":"
+        ++ (Time.toSecond zone time |> String.fromInt |> String.padLeft 2 '0')
+
+
+sameDay : Time.Zone -> Time.Posix -> Time.Posix -> Bool
+sameDay zone time1 time2 =
+    (Time.toYear zone time1 == Time.toYear zone time2)
+        && (Time.toMonth zone time1 == Time.toMonth zone time2)
+        && (Time.toDay zone time1 == Time.toDay zone time2)
 
 
 toTimeMonth : Int -> Time.Month

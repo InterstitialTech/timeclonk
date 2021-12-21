@@ -602,6 +602,14 @@ view ld size zone model =
                    )
 
 
+cellEditStyle =
+    [ E.spacing TC.defaultSpacing, EBk.color TC.darkGrey, E.padding TC.defaultSpacing ]
+
+
+dateTimeWidth =
+    200
+
+
 clonkview : Data.LoginData -> Util.Size -> Time.Zone -> Bool -> Model -> List (Element Msg)
 clonkview ld size zone isdirty model =
     let
@@ -711,8 +719,7 @@ clonkview ld size zone isdirty model =
                         in
                         if model.focus == Just ( te.startdate, Description ) then
                             E.column
-                                [ E.spacing TC.defaultSpacing
-                                ]
+                                cellEditStyle
                                 [ row
                                 , EI.text [ E.width E.fill ]
                                     { onChange = EteDescriptionChanged te.startdate
@@ -731,7 +738,8 @@ clonkview ld size zone isdirty model =
                     \te ->
                         let
                             row =
-                                E.row [ EE.onClick <| OnRowItemClick te.startdate Start, igfont te ] [ E.text <| Util.showTime zone (Time.millisToPosix te.startdate) ]
+                                E.row [ EE.onClick <| OnRowItemClick te.startdate Start, igfont te ]
+                                    [ E.text <| Util.showDateTime zone (Time.millisToPosix te.startdate) ]
                         in
                         if model.focus == Just ( te.startdate, Start ) then
                             let
@@ -744,11 +752,11 @@ clonkview ld size zone isdirty model =
                                             ( "invalid", Nothing )
 
                                         Ok (Just dt) ->
-                                            ( Util.showTime zone dt, Just dt )
+                                            ( Util.showDateTime zone dt, Just dt )
                             in
-                            E.column [ E.spacing TC.defaultSpacing ]
+                            E.column cellEditStyle
                                 [ row
-                                , EI.text [ E.width E.fill ]
+                                , EI.text [ E.width <| E.px dateTimeWidth ]
                                     { onChange = FocusStartChanged
                                     , text = model.focusstart
                                     , placeholder = Nothing
@@ -778,12 +786,19 @@ clonkview ld size zone isdirty model =
                     \te ->
                         let
                             row =
-                                E.row [ EE.onClick <| OnRowItemClick te.startdate End, igfont te ] [ E.text <| Util.showTime zone (Time.millisToPosix te.enddate) ]
+                                E.row [ EE.onClick <| OnRowItemClick te.startdate End, igfont te ]
+                                    [ E.text <|
+                                        if Util.sameDay zone (Time.millisToPosix te.startdate) (Time.millisToPosix te.enddate) then
+                                            Util.showTime zone (Time.millisToPosix te.enddate)
+
+                                        else
+                                            Util.showDateTime zone (Time.millisToPosix te.enddate)
+                                    ]
                         in
                         if model.focus == Just ( te.startdate, End ) then
-                            E.column [ E.spacing TC.defaultSpacing ]
+                            E.column cellEditStyle
                                 [ row
-                                , EI.text [ E.width E.fill ]
+                                , EI.text [ E.width <| E.px dateTimeWidth ]
                                     { onChange = FocusEndChanged
                                     , text = model.focusend
                                     , placeholder = Nothing
@@ -807,7 +822,7 @@ clonkview ld size zone isdirty model =
                                     [ E.text <| millisAsHours (te.enddate - te.startdate) ]
                         in
                         if model.focus == Just ( te.startdate, Duration ) then
-                            E.column [ E.spacing TC.defaultSpacing, E.width E.shrink ]
+                            E.column cellEditStyle
                                 [ row
                                 , EI.text [ E.width E.shrink ]
                                     { onChange = FocusDurationChanged
@@ -1020,11 +1035,11 @@ distributionview ld size zone model =
                                                                     ( "invalid", Nothing )
 
                                                                 Ok (Just dt) ->
-                                                                    ( Util.showTime zone dt, Just dt )
+                                                                    ( Util.showDateTime zone dt, Just dt )
                                                     in
-                                                    E.column [ E.spacing TC.defaultSpacing ]
+                                                    E.column cellEditStyle
                                                         [ row
-                                                        , EI.text [ E.width E.fill ]
+                                                        , EI.text [ E.width <| E.px dateTimeWidth ]
                                                             { onChange = FocusPayDateChanged
                                                             , text = model.focuspaydate
                                                             , placeholder = Nothing
@@ -1098,7 +1113,7 @@ distributionview ld size zone model =
                                                             E.el [ EF.bold ] <| E.text <| s ++ " pmt"
                                                     in
                                                     if model.focus == Just ( date, PaymentAmount ) then
-                                                        E.column [ E.spacing TC.defaultSpacing ]
+                                                        E.column cellEditStyle
                                                             [ E.row [ EE.onClick <| OnRowItemClick date PaymentAmount ]
                                                                 [ p
                                                                 ]
@@ -1376,11 +1391,11 @@ allocationview ld size zone model =
                                                             ( "invalid", Nothing )
 
                                                         Ok (Just dt) ->
-                                                            ( Util.showTime zone dt, Just dt )
+                                                            ( Util.showDateTime zone dt, Just dt )
                                             in
-                                            E.column [ E.spacing TC.defaultSpacing ]
+                                            E.column cellEditStyle
                                                 [ row
-                                                , EI.text [ E.width E.fill ]
+                                                , EI.text [ E.width <| E.px dateTimeWidth ]
                                                     { onChange = FocusPayDateChanged
                                                     , text = model.focuspaydate
                                                     , placeholder = Nothing
@@ -1410,7 +1425,7 @@ allocationview ld size zone model =
                    , view =
                         \( date, a ) ->
                             if model.focus == Just ( date, Description ) then
-                                E.column [ E.spacing TC.defaultSpacing ]
+                                E.column cellEditStyle
                                     [ E.row [ EE.onClick <| OnRowItemClick date Description ]
                                         [ E.text a.description
                                         ]
@@ -1439,7 +1454,7 @@ allocationview ld size zone model =
                                     E.el [] <| E.text <| s
                             in
                             if model.focus == Just ( date, PaymentAmount ) then
-                                E.column [ E.spacing TC.defaultSpacing ]
+                                E.column cellEditStyle
                                     [ E.row [ EE.onClick <| OnRowItemClick date PaymentAmount ]
                                         [ p
                                         ]
@@ -1623,11 +1638,11 @@ payview ld size zone model =
                                                             ( "invalid", Nothing )
 
                                                         Ok (Just dt) ->
-                                                            ( Util.showTime zone dt, Just dt )
+                                                            ( Util.showDateTime zone dt, Just dt )
                                             in
-                                            E.column [ E.spacing TC.defaultSpacing ]
+                                            E.column cellEditStyle
                                                 [ row
-                                                , EI.text [ E.width E.fill ]
+                                                , EI.text [ E.width <| E.px dateTimeWidth ]
                                                     { onChange = FocusPayDateChanged
                                                     , text = model.focuspaydate
                                                     , placeholder = Nothing
@@ -1657,7 +1672,7 @@ payview ld size zone model =
                    , view =
                         \( date, a ) ->
                             if model.focus == Just ( date, PaymentUser ) then
-                                E.column [ E.spacing TC.defaultSpacing ]
+                                E.column cellEditStyle
                                     [ E.row [ EE.onClick <| OnRowItemClick date PaymentUser ]
                                         [ E.text (a.user |> Data.getUserIdVal |> (\i -> Dict.get i model.membernames |> Maybe.withDefault ""))
                                         ]
@@ -1684,7 +1699,7 @@ payview ld size zone model =
                                     E.el [] <| E.text <| s
                             in
                             if model.focus == Just ( date, PaymentAmount ) then
-                                E.column [ E.spacing TC.defaultSpacing ]
+                                E.column cellEditStyle
                                     [ E.row [ EE.onClick <| OnRowItemClick date PaymentAmount ]
                                         [ p
                                         ]
@@ -2000,8 +2015,8 @@ update msg model ld zone =
                                 ( { model
                                     | focus = Just ( i, fc )
                                     , focusdescription = te.description
-                                    , focusstart = Util.showTime zone (Time.millisToPosix te.startdate)
-                                    , focusend = Util.showTime zone (Time.millisToPosix te.enddate)
+                                    , focusstart = Util.showDateTime zone (Time.millisToPosix te.startdate)
+                                    , focusend = Util.showDateTime zone (Time.millisToPosix te.enddate)
                                     , focusduration = millisAsHours (te.enddate - te.startdate)
                                   }
                                 , None
@@ -2020,7 +2035,7 @@ update msg model ld zone =
                                     , focusend = ""
                                     , focusduration = ""
                                     , focuspay = millisAsHours pe.duration
-                                    , focuspaydate = Util.showTime zone (Time.millisToPosix pe.paymentdate)
+                                    , focuspaydate = Util.showDateTime zone (Time.millisToPosix pe.paymentdate)
                                   }
                                 , None
                                 )
@@ -2038,7 +2053,7 @@ update msg model ld zone =
                                     , focusend = ""
                                     , focusduration = millisAsHours pe.duration
                                     , focuspay = millisAsHours pe.duration
-                                    , focuspaydate = Util.showTime zone (Time.millisToPosix pe.allocationdate)
+                                    , focuspaydate = Util.showDateTime zone (Time.millisToPosix pe.allocationdate)
                                   }
                                 , None
                                 )
@@ -2056,7 +2071,7 @@ update msg model ld zone =
                                     , focusend = ""
                                     , focusduration = ""
                                     , focuspay = millisAsHours pe.duration
-                                    , focuspaydate = Util.showTime zone (Time.millisToPosix pe.paymentdate)
+                                    , focuspaydate = Util.showDateTime zone (Time.millisToPosix pe.paymentdate)
                                   }
                                 , None
                                 )

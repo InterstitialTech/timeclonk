@@ -54,7 +54,7 @@ suite =
                         dt =
                             abs rdt
                     in
-                    Util.showTime Time.utc (Time.millisToPosix dt)
+                    Util.showDateTime Time.utc (Time.millisToPosix dt)
                         |> Util.parseTime Time.utc
                         |> (\r ->
                                 Expect.equal

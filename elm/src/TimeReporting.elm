@@ -276,9 +276,9 @@ eteToCsv zone timeentries =
                     (\te ->
                         te.description
                             ++ ","
-                            ++ Util.showTime zone (Time.millisToPosix te.startdate)
+                            ++ Util.showDateTime zone (Time.millisToPosix te.startdate)
                             ++ ","
-                            ++ Util.showTime zone (Time.millisToPosix te.enddate)
+                            ++ Util.showDateTime zone (Time.millisToPosix te.enddate)
                     )
            )
     )
