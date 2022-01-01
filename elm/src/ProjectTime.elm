@@ -724,7 +724,11 @@ clonkview ld size zone isdirty model =
                     \te ->
                         let
                             row =
-                                E.row [ EE.onClick <| OnRowItemClick te.startdate Description, igfont te ]
+                                E.row
+                                    [ EE.onClick <| OnRowItemClick te.startdate Description
+                                    , igfont te
+                                    , E.width E.fill
+                                    ]
                                     [ E.text te.description ]
                         in
                         if model.focus == Just ( te.startdate, Description ) then
@@ -748,7 +752,11 @@ clonkview ld size zone isdirty model =
                     \te ->
                         let
                             row =
-                                E.row [ EE.onClick <| OnRowItemClick te.startdate Start, igfont te ]
+                                E.row
+                                    [ EE.onClick <| OnRowItemClick te.startdate Start
+                                    , igfont te
+                                    , E.width E.fill
+                                    ]
                                     [ E.text <| Util.showDateTime zone (Time.millisToPosix te.startdate) ]
                         in
                         if model.focus == Just ( te.startdate, Start ) then
@@ -796,9 +804,17 @@ clonkview ld size zone isdirty model =
                     \te ->
                         let
                             row =
-                                E.row [ EE.onClick <| OnRowItemClick te.startdate End, igfont te ]
+                                E.row
+                                    [ EE.onClick <| OnRowItemClick te.startdate End
+                                    , igfont te
+                                    , E.width E.fill
+                                    ]
                                     [ E.text <|
-                                        if Util.sameDay zone (Time.millisToPosix te.startdate) (Time.millisToPosix te.enddate) then
+                                        if
+                                            Util.sameDay zone
+                                                (Time.millisToPosix te.startdate)
+                                                (Time.millisToPosix te.enddate)
+                                        then
                                             Util.showTime zone (Time.millisToPosix te.enddate)
 
                                         else
@@ -827,7 +843,12 @@ clonkview ld size zone isdirty model =
                                 ]
 
                         else if te.startdate == te.enddate then
-                            E.none
+                            E.row
+                                [ EE.onClick <| OnRowItemClick te.startdate End
+                                , igfont te
+                                , E.height E.fill
+                                ]
+                                [ E.none ]
 
                         else
                             row
@@ -838,7 +859,11 @@ clonkview ld size zone isdirty model =
                     \te ->
                         let
                             row =
-                                E.row [ EE.onClick <| OnRowItemClick te.startdate Duration, igfont te ]
+                                E.row
+                                    [ EE.onClick <| OnRowItemClick te.startdate Duration
+                                    , igfont te
+                                    , E.width E.fill
+                                    ]
                                     [ E.text <| millisAsHours (te.enddate - te.startdate) ]
                         in
                         if model.focus == Just ( te.startdate, Duration ) then
