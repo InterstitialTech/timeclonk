@@ -846,7 +846,14 @@ clonkview ld size zone isdirty model =
                                         }
                                     , EI.button (E.alignRight :: Common.buttonStyle)
                                         { onPress = Just <| ClearEnd te.startdate
-                                        , label = E.text "clear"
+                                        , label =
+                                            E.text
+                                                (if Just te.startdate == lasttime then
+                                                    "clonk in"
+
+                                                 else
+                                                    "clear"
+                                                )
                                         }
                                     ]
                                 ]
