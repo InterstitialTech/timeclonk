@@ -38,6 +38,9 @@ type Msg
     | ClonkOutPress
     | ClonkInTime Int
     | ClonkOutTime Int
+    | NowEnd Int
+    | NowEndTime Int Int
+    | ClearEnd Int
     | DeleteClonk Int
     | DeletePay Int
     | AllocDescriptionChanged Int String
@@ -652,6 +655,13 @@ clonkview ld size zone isdirty model =
                 else
                     EF.regular
 
+        lasttime =
+            model.timeentries
+                |> Dict.values
+                |> List.reverse
+                |> List.head
+                |> Maybe.map .startdate
+
         anychecked =
             Dict.foldl (\_ te c -> c || te.checked) False model.timeentries
     in
@@ -804,6 +814,16 @@ clonkview ld size zone isdirty model =
                                     , placeholder = Nothing
                                     , label = EI.labelHidden "task end date"
                                     }
+                                , E.row [ E.width E.fill ]
+                                    [ EI.button Common.buttonStyle
+                                        { onPress = Just <| NowEnd te.startdate
+                                        , label = E.text "now"
+                                        }
+                                    , EI.button (E.alignRight :: Common.buttonStyle)
+                                        { onPress = Just <| ClearEnd te.startdate
+                                        , label = E.text "clear"
+                                        }
+                                    ]
                                 ]
 
                         else if te.startdate == te.enddate then
@@ -872,16 +892,44 @@ clonkview ld size zone isdirty model =
               }
             ]
         }
-    , E.row [ E.width E.fill, E.spacing TC.defaultSpacing ]
-        [ EI.text [ E.width E.fill ]
-            { onChange = DescriptionChanged
-            , text = model.description
-            , placeholder = Nothing
-            , label = EI.labelLeft [] <| E.text "Current Task:"
-            }
-        , EI.button Common.buttonStyle { onPress = Just ClonkInPress, label = E.text "Clonk In" }
-        , EI.button Common.buttonStyle { onPress = Just ClonkOutPress, label = E.text "Clonk Out" }
-        ]
+    , let
+        hasendtime =
+            lasttime
+                |> Maybe.andThen
+                    (\t ->
+                        Dict.get t model.timeentries
+                    )
+                |> Maybe.map
+                    (\te ->
+                        let
+                            _ =
+                                Debug.log "last" te
+                        in
+                        te.startdate /= te.enddate
+                    )
+      in
+      case Debug.log "hasendtime " hasendtime of
+        Just False ->
+            E.row [ E.width E.fill, E.spacing TC.defaultSpacing ]
+                [ EI.text (E.width E.fill :: Common.disabledTextEditStyle)
+                    { onChange = always Noop
+                    , text = model.description
+                    , placeholder = Nothing
+                    , label = EI.labelLeft [] <| E.text "Current Task:"
+                    }
+                , EI.button Common.buttonStyle { onPress = Just ClonkOutPress, label = E.text "Clonk Out" }
+                ]
+
+        _ ->
+            E.row [ E.width E.fill, E.spacing TC.defaultSpacing ]
+                [ EI.text [ E.width E.fill ]
+                    { onChange = DescriptionChanged
+                    , text = model.description
+                    , placeholder = Nothing
+                    , label = EI.labelLeft [] <| E.text "Current Task:"
+                    }
+                , EI.button Common.buttonStyle { onPress = Just ClonkInPress, label = E.text "Clonk In" }
+                ]
     ]
 
 
@@ -1965,6 +2013,37 @@ update msg model ld zone =
 
                         Nothing ->
                             model.timeentries
+              }
+            , None
+            )
+
+        NowEnd startdate ->
+            ( model, GetTime (NowEndTime startdate) )
+
+        NowEndTime startdate enddate ->
+            ( { model
+                | timeentries =
+                    case Dict.get startdate model.timeentries of
+                        Just te ->
+                            Dict.insert startdate { te | enddate = enddate } model.timeentries
+
+                        Nothing ->
+                            model.timeentries
+                , focus = Nothing
+              }
+            , None
+            )
+
+        ClearEnd startdate ->
+            ( { model
+                | timeentries =
+                    case Dict.get startdate model.timeentries of
+                        Just te ->
+                            Dict.insert startdate { te | enddate = startdate } model.timeentries
+
+                        Nothing ->
+                            model.timeentries
+                , focus = Nothing
               }
             , None
             )

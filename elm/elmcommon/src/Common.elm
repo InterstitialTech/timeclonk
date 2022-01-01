@@ -4,6 +4,7 @@ module Common exposing
     , countString
     , dateElt
     , disabledButtonStyle
+    , disabledTextEditStyle
     , edges
     , lightOrange
     , lighterBlue
@@ -277,6 +278,10 @@ buttonStyle =
 
 disabledButtonStyle =
     buttonStyle ++ [ Background.color Color.grey ]
+
+
+disabledTextEditStyle =
+    [ Background.color Color.grey, Font.color Color.darkGrey ]
 
 
 linkStyle =
