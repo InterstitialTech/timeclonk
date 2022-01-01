@@ -38,6 +38,9 @@ type Msg
     | ClonkOutPress
     | ClonkInTime Int
     | ClonkOutTime Int
+    | NowEnd Int
+    | NowEndTime Int Int
+    | ClearEnd Int
     | DeleteClonk Int
     | DeletePay Int
     | AllocDescriptionChanged Int String
@@ -129,6 +132,7 @@ type alias Model =
     , paymentuser : Maybe UserId
     , viewmode : ViewMode
     , saveonclonk : Bool
+    , clonkOutDisplay : Maybe Time.Posix
     }
 
 
@@ -148,6 +152,13 @@ type Command
 headerStyle : List (E.Attribute msg)
 headerStyle =
     [ EF.bold ]
+
+
+onClockTick : Time.Posix -> Model -> Model
+onClockTick time model =
+    { model
+        | clonkOutDisplay = Just time
+    }
 
 
 onMemberSelected : UserId -> Model -> Model
@@ -508,6 +519,7 @@ init ld pt saveonclonk mode =
     , paymenthours = ""
     , paymentuser = Nothing
     , saveonclonk = saveonclonk
+    , clonkOutDisplay = Nothing
     }
 
 
@@ -652,6 +664,13 @@ clonkview ld size zone isdirty model =
                 else
                     EF.regular
 
+        lasttime =
+            model.timeentries
+                |> Dict.values
+                |> List.reverse
+                |> List.head
+                |> Maybe.map .startdate
+
         anychecked =
             Dict.foldl (\_ te c -> c || te.checked) False model.timeentries
     in
@@ -714,7 +733,11 @@ clonkview ld size zone isdirty model =
                     \te ->
                         let
                             row =
-                                E.row [ EE.onClick <| OnRowItemClick te.startdate Description, igfont te ]
+                                E.row
+                                    [ EE.onClick <| OnRowItemClick te.startdate Description
+                                    , igfont te
+                                    , E.width E.fill
+                                    ]
                                     [ E.text te.description ]
                         in
                         if model.focus == Just ( te.startdate, Description ) then
@@ -738,7 +761,11 @@ clonkview ld size zone isdirty model =
                     \te ->
                         let
                             row =
-                                E.row [ EE.onClick <| OnRowItemClick te.startdate Start, igfont te ]
+                                E.row
+                                    [ EE.onClick <| OnRowItemClick te.startdate Start
+                                    , igfont te
+                                    , E.width E.fill
+                                    ]
                                     [ E.text <| Util.showDateTime zone (Time.millisToPosix te.startdate) ]
                         in
                         if model.focus == Just ( te.startdate, Start ) then
@@ -786,9 +813,17 @@ clonkview ld size zone isdirty model =
                     \te ->
                         let
                             row =
-                                E.row [ EE.onClick <| OnRowItemClick te.startdate End, igfont te ]
+                                E.row
+                                    [ EE.onClick <| OnRowItemClick te.startdate End
+                                    , igfont te
+                                    , E.width E.fill
+                                    ]
                                     [ E.text <|
-                                        if Util.sameDay zone (Time.millisToPosix te.startdate) (Time.millisToPosix te.enddate) then
+                                        if
+                                            Util.sameDay zone
+                                                (Time.millisToPosix te.startdate)
+                                                (Time.millisToPosix te.enddate)
+                                        then
                                             Util.showTime zone (Time.millisToPosix te.enddate)
 
                                         else
@@ -804,10 +839,61 @@ clonkview ld size zone isdirty model =
                                     , placeholder = Nothing
                                     , label = EI.labelHidden "task end date"
                                     }
+                                , E.row [ E.width E.fill ]
+                                    [ EI.button Common.buttonStyle
+                                        { onPress = Just <| NowEnd te.startdate
+                                        , label = E.text "now"
+                                        }
+                                    , EI.button (E.alignRight :: Common.buttonStyle)
+                                        { onPress = Just <| ClearEnd te.startdate
+                                        , label =
+                                            E.text
+                                                (if Just te.startdate == lasttime then
+                                                    "clonk in"
+
+                                                 else
+                                                    "clear"
+                                                )
+                                        }
+                                    ]
                                 ]
 
                         else if te.startdate == te.enddate then
-                            E.none
+                            let
+                                reg_row =
+                                    E.row
+                                        [ EE.onClick <| OnRowItemClick te.startdate End
+                                        , igfont te
+                                        , E.height E.fill
+                                        ]
+                                        [ E.none ]
+                            in
+                            if Just te.startdate == lasttime then
+                                case model.clonkOutDisplay of
+                                    Just time ->
+                                        E.row
+                                            [ EE.onClick <| OnRowItemClick te.startdate End
+                                            , igfont te
+                                            , E.height E.fill
+                                            ]
+                                            [ E.el [ EF.color TC.darkGreen ] <|
+                                                E.text <|
+                                                    if
+                                                        Util.sameDay zone
+                                                            (Time.millisToPosix te.startdate)
+                                                            time
+                                                    then
+                                                        Util.showTime zone time
+
+                                                    else
+                                                        Util.showDateTime zone time
+                                            ]
+
+                                    Nothing ->
+                                        reg_row
+
+                            else
+                                reg_row
 
                         else
                             row
@@ -818,7 +904,11 @@ clonkview ld size zone isdirty model =
                     \te ->
                         let
                             row =
-                                E.row [ EE.onClick <| OnRowItemClick te.startdate Duration, igfont te ]
+                                E.row
+                                    [ EE.onClick <| OnRowItemClick te.startdate Duration
+                                    , igfont te
+                                    , E.width E.fill
+                                    ]
                                     [ E.text <| millisAsHours (te.enddate - te.startdate) ]
                         in
                         if model.focus == Just ( te.startdate, Duration ) then
@@ -831,6 +921,22 @@ clonkview ld size zone isdirty model =
                                     , label = EI.labelHidden "task duration"
                                     }
                                 ]
+
+                        else if Just te.startdate == lasttime && te.startdate == te.enddate then
+                            case model.clonkOutDisplay of
+                                Just time ->
+                                    E.row
+                                        [ EE.onClick <| OnRowItemClick te.startdate Duration
+                                        , igfont te
+                                        , E.width E.fill
+                                        ]
+                                        [ E.el [ EF.color TC.darkGreen ] <|
+                                            E.text <|
+                                                millisAsHours (Time.posixToMillis time - te.startdate)
+                                        ]
+
+                                Nothing ->
+                                    row
 
                         else
                             row
@@ -872,16 +978,40 @@ clonkview ld size zone isdirty model =
               }
             ]
         }
-    , E.row [ E.width E.fill, E.spacing TC.defaultSpacing ]
-        [ EI.text [ E.width E.fill ]
-            { onChange = DescriptionChanged
-            , text = model.description
-            , placeholder = Nothing
-            , label = EI.labelLeft [] <| E.text "Current Task:"
-            }
-        , EI.button Common.buttonStyle { onPress = Just ClonkInPress, label = E.text "Clonk In" }
-        , EI.button Common.buttonStyle { onPress = Just ClonkOutPress, label = E.text "Clonk Out" }
-        ]
+    , let
+        hasendtime =
+            lasttime
+                |> Maybe.andThen
+                    (\t ->
+                        Dict.get t model.timeentries
+                    )
+                |> Maybe.map
+                    (\te ->
+                        te.startdate /= te.enddate
+                    )
+      in
+      case hasendtime of
+        Just False ->
+            E.row [ E.width E.fill, E.spacing TC.defaultSpacing ]
+                [ EI.text (E.width E.fill :: Common.disabledTextEditStyle)
+                    { onChange = always Noop
+                    , text = model.description
+                    , placeholder = Nothing
+                    , label = EI.labelLeft [] <| E.text "Current Task:"
+                    }
+                , EI.button Common.buttonStyle { onPress = Just ClonkOutPress, label = E.text "Clonk Out" }
+                ]
+
+        _ ->
+            E.row [ E.width E.fill, E.spacing TC.defaultSpacing ]
+                [ EI.text [ E.width E.fill ]
+                    { onChange = DescriptionChanged
+                    , text = model.description
+                    , placeholder = Nothing
+                    , label = EI.labelLeft [] <| E.text "Current Task:"
+                    }
+                , EI.button Common.buttonStyle { onPress = Just ClonkInPress, label = E.text "Clonk In" }
+                ]
     ]
 
 
@@ -1804,6 +1934,30 @@ payview ld size zone model =
     ]
 
 
+updateLast : Model -> Model
+updateLast model =
+    case
+        ( model.timeentries
+            |> Dict.values
+            |> List.reverse
+            |> List.head
+        , model.clonkOutDisplay
+        )
+    of
+        ( Nothing, _ ) ->
+            model
+
+        ( Just te, Just cotime ) ->
+            if te.startdate == te.enddate then
+                { model | timeentries = Dict.insert te.startdate { te | enddate = Time.posixToMillis cotime } model.timeentries }
+
+            else
+                model
+
+        _ ->
+            model
+
+
 update : Msg -> Model -> Data.LoginData -> Time.Zone -> ( Model, Command )
 update msg model ld zone =
     case msg of
@@ -1811,7 +1965,11 @@ update msg model ld zone =
             ( { model | description = t }, None )
 
         SavePress ->
-            ( model, Save (toSaveProjectTime model) )
+            let
+                mdl =
+                    updateLast model
+            in
+            ( mdl, Save (toSaveProjectTime mdl) )
 
         RevertPress ->
             ( { model
@@ -1965,6 +2123,37 @@ update msg model ld zone =
 
                         Nothing ->
                             model.timeentries
+              }
+            , None
+            )
+
+        NowEnd startdate ->
+            ( model, GetTime (NowEndTime startdate) )
+
+        NowEndTime startdate enddate ->
+            ( { model
+                | timeentries =
+                    case Dict.get startdate model.timeentries of
+                        Just te ->
+                            Dict.insert startdate { te | enddate = enddate } model.timeentries
+
+                        Nothing ->
+                            model.timeentries
+                , focus = Nothing
+              }
+            , None
+            )
+
+        ClearEnd startdate ->
+            ( { model
+                | timeentries =
+                    case Dict.get startdate model.timeentries of
+                        Just te ->
+                            Dict.insert startdate { te | enddate = startdate } model.timeentries
+
+                        Nothing ->
+                            model.timeentries
+                , focus = Nothing
               }
             , None
             )

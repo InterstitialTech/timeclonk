@@ -70,6 +70,7 @@ type Msg
     | Zone Time.Zone
     | WkMsg (Result JD.Error WindowKeys.Key)
     | ReceiveLocalVal { for : String, name : String, value : Maybe String }
+    | ClockTick Time.Posix
     | ProjectListingMsg ProjectListing.Msg
     | ProjectEditMsg ProjectEdit.Msg
     | ProjectTimeMsg ProjectTime.Msg
@@ -326,6 +327,9 @@ showMessage msg =
 
         ProjectTimeMsg _ ->
             "ProjectTimeMsg"
+
+        ClockTick _ ->
+            "ClockTick"
 
 
 showState : State -> String
@@ -725,6 +729,16 @@ actualupdate msg model =
         ( ReceiveLocalVal lv, _ ) ->
             -- update the font size
             ( model, Cmd.none )
+
+        ( ClockTick posix, state ) ->
+            case state of
+                ProjectTime pt login ->
+                    ( { model | state = ProjectTime (ProjectTime.onClockTick posix pt) login }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
 
         ( WindowSize s, _ ) ->
             ( { model | size = s }, Cmd.none )
@@ -1461,6 +1475,7 @@ main =
                     , Browser.Events.onResize (\w h -> WindowSize { width = w, height = h })
                     , keyreceive
                     , LS.localVal ReceiveLocalVal
+                    , Time.every 1000 ClockTick
                     ]
         , onUrlRequest = urlRequest
         , onUrlChange = UrlChanged
