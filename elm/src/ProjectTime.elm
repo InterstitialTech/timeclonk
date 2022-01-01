@@ -1927,6 +1927,30 @@ payview ld size zone model =
     ]
 
 
+updateLast : Model -> Model
+updateLast model =
+    case
+        ( model.timeentries
+            |> Dict.values
+            |> List.reverse
+            |> List.head
+        , model.clonkOutDisplay
+        )
+    of
+        ( Nothing, _ ) ->
+            model
+
+        ( Just te, Just cotime ) ->
+            if te.startdate == te.enddate then
+                { model | timeentries = Dict.insert te.startdate { te | enddate = Time.posixToMillis cotime } model.timeentries }
+
+            else
+                model
+
+        _ ->
+            model
+
+
 update : Msg -> Model -> Data.LoginData -> Time.Zone -> ( Model, Command )
 update msg model ld zone =
     case msg of
@@ -1934,7 +1958,11 @@ update msg model ld zone =
             ( { model | description = t }, None )
 
         SavePress ->
-            ( model, Save (toSaveProjectTime model) )
+            let
+                mdl =
+                    updateLast model
+            in
+            ( mdl, Save (toSaveProjectTime mdl) )
 
         RevertPress ->
             ( { model
