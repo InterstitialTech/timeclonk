@@ -132,6 +132,7 @@ type alias Model =
     , paymentuser : Maybe UserId
     , viewmode : ViewMode
     , saveonclonk : Bool
+    , clonkOutDisplay : Maybe Time.Posix
     }
 
 
@@ -151,6 +152,13 @@ type Command
 headerStyle : List (E.Attribute msg)
 headerStyle =
     [ EF.bold ]
+
+
+onClockTick : Time.Posix -> Model -> Model
+onClockTick time model =
+    { model
+        | clonkOutDisplay = Just time
+    }
 
 
 onMemberSelected : UserId -> Model -> Model
@@ -511,6 +519,7 @@ init ld pt saveonclonk mode =
     , paymenthours = ""
     , paymentuser = Nothing
     , saveonclonk = saveonclonk
+    , clonkOutDisplay = Nothing
     }
 
 
@@ -843,12 +852,41 @@ clonkview ld size zone isdirty model =
                                 ]
 
                         else if te.startdate == te.enddate then
-                            E.row
-                                [ EE.onClick <| OnRowItemClick te.startdate End
-                                , igfont te
-                                , E.height E.fill
-                                ]
-                                [ E.none ]
+                            let
+                                reg_row =
+                                    E.row
+                                        [ EE.onClick <| OnRowItemClick te.startdate End
+                                        , igfont te
+                                        , E.height E.fill
+                                        ]
+                                        [ E.none ]
+                            in
+                            if Just te.startdate == lasttime then
+                                case model.clonkOutDisplay of
+                                    Just time ->
+                                        E.row
+                                            [ EE.onClick <| OnRowItemClick te.startdate End
+                                            , igfont te
+                                            , E.height E.fill
+                                            ]
+                                            [ E.el [ EF.color TC.darkGreen ] <|
+                                                E.text <|
+                                                    if
+                                                        Util.sameDay zone
+                                                            (Time.millisToPosix te.startdate)
+                                                            time
+                                                    then
+                                                        Util.showTime zone time
+
+                                                    else
+                                                        Util.showDateTime zone time
+                                            ]
+
+                                    Nothing ->
+                                        reg_row
+
+                            else
+                                reg_row
 
                         else
                             row
@@ -876,6 +914,22 @@ clonkview ld size zone isdirty model =
                                     , label = EI.labelHidden "task duration"
                                     }
                                 ]
+
+                        else if Just te.startdate == lasttime && te.startdate == te.enddate then
+                            case model.clonkOutDisplay of
+                                Just time ->
+                                    E.row
+                                        [ EE.onClick <| OnRowItemClick te.startdate Duration
+                                        , igfont te
+                                        , E.width E.fill
+                                        ]
+                                        [ E.el [ EF.color TC.darkGreen ] <|
+                                            E.text <|
+                                                millisAsHours (Time.posixToMillis time - te.startdate)
+                                        ]
+
+                                Nothing ->
+                                    row
 
                         else
                             row
@@ -926,14 +980,10 @@ clonkview ld size zone isdirty model =
                     )
                 |> Maybe.map
                     (\te ->
-                        let
-                            _ =
-                                Debug.log "last" te
-                        in
                         te.startdate /= te.enddate
                     )
       in
-      case Debug.log "hasendtime " hasendtime of
+      case hasendtime of
         Just False ->
             E.row [ E.width E.fill, E.spacing TC.defaultSpacing ]
                 [ EI.text (E.width E.fill :: Common.disabledTextEditStyle)
