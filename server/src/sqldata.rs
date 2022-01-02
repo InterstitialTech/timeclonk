@@ -322,6 +322,100 @@ pub fn udpate3() -> Migration {
   m
 }
 
+pub fn udpate4(dbfile: &Path) -> Result<(), Box<dyn Error>> {
+  // db connection without foreign key checking.
+  let conn = Connection::open(dbfile)?;
+  let mut m1 = Migration::new();
+
+  // temp table to hold data while we make a new table.
+  m1.create_table("projecttemp", |t| {
+    t.add_column(
+      "id",
+      types::integer()
+        .primary(true)
+        .increments(true)
+        .nullable(false),
+    );
+    t.add_column("name", types::text().nullable(false));
+    t.add_column("description", types::text().nullable(false));
+    t.add_column("public", types::boolean().nullable(false));
+    t.add_column("createdate", types::integer().nullable(false));
+    t.add_column("changeddate", types::integer().nullable(false));
+  });
+
+  conn.execute_batch(m1.make::<Sqlite>().as_str())?;
+
+  // copy everything from current table..
+  conn.execute(
+    "insert into projecttemp (
+      id,
+      name,
+      description,
+      public,
+      createdate,
+      changeddate)
+     select
+      id,
+      name,
+      description,
+      public,
+      createdate,
+      changeddate from project",
+    params![],
+  )?;
+
+  let mut m2 = Migration::new();
+  // drop zknote.
+  m2.drop_table("project");
+
+  // add 'rate' to timeentry.
+  m2.create_table("project", |t| {
+    t.add_column(
+      "id",
+      types::integer()
+        .primary(true)
+        .increments(true)
+        .nullable(false),
+    );
+    t.add_column("name", types::text().nullable(false));
+    t.add_column("description", types::text().nullable(false));
+    t.add_column("public", types::boolean().nullable(false));
+    t.add_column("rate", types::integer().nullable(true));
+    t.add_column("currency", types::text().nullable(true));
+    t.add_column("createdate", types::integer().nullable(false));
+    t.add_column("changeddate", types::integer().nullable(false));
+  });
+
+  conn.execute_batch(m2.make::<Sqlite>().as_str())?;
+
+  // copy everything from the temp table.
+  conn.execute(
+    "insert into project (
+      id,
+      name,
+      description,
+      public,
+      createdate,
+      changeddate)
+     select
+      id,
+      name,
+      description,
+      public,
+      createdate,
+      changeddate from projecttemp",
+    params![],
+  )?;
+
+  let mut m3 = Migration::new();
+  // drop timeentrytemp.
+  m3.drop_table("projecttemp");
+
+  conn.execute_batch(m3.make::<Sqlite>().as_str())?;
+
+  Ok(())
+}
+
 pub fn get_single_value(conn: &Connection, name: &str) -> Result<Option<String>, Box<dyn Error>> {
   match conn.query_row(
     "select value from singlevalue where name = ?1",
@@ -376,6 +470,11 @@ pub fn dbinit(dbfile: &Path, token_expiration_ms: i64) -> Result<(), Box<dyn Err
     info!("udpate3");
     conn.execute_batch(udpate3().make::<Sqlite>().as_str())?;
     set_single_value(&conn, "migration_level", "3")?;
+  }
+  if nlevel < 4 {
+    info!("udpate4");
+    udpate4(&dbfile)?;
+    set_single_value(&conn, "migration_level", "4")?;
   }
 
   info!("db up to date.");
@@ -815,9 +914,9 @@ pub fn save_project(
   let proj = match project.id {
     Some(id) => {
       conn.execute(
-        "update project set name = ?1, description = ?2, public = ?3, changeddate = ?4
-          where id = ?5",
-        params![project.name, project.description, project.public, now, id],
+        "update project set name = ?1, description = ?2, public = ?3, rate = ?4, currency = ?5, changeddate = ?6
+          where id = ?7",
+        params![project.name, project.description, project.public, project.rate, project.currency, now, id],
       )?;
       SavedProject {
         id: id,
@@ -826,9 +925,17 @@ pub fn save_project(
     }
     None => {
       conn.execute(
-        "insert into project (name, description, public, createdate, changeddate)
+        "insert into project (name, description, public, rate, currency, createdate, changeddate)
          values (?1, ?2, ?3, ?4, ?5)",
-        params![project.name, project.description, project.public, now, now],
+        params![
+          project.name,
+          project.description,
+          project.public,
+          project.rate,
+          project.currency,
+          now,
+          now
+        ],
       )?;
       let id = conn.last_insert_rowid();
       conn.execute(
@@ -851,7 +958,7 @@ pub fn read_project(
   projectid: i64,
 ) -> Result<Project, Box<dyn Error>> {
   let mut pstmt = conn.prepare(
-    "select project.id, project.name, project.description, project.public, project.createdate, project.changeddate
+    "select project.id, project.name, project.description, project.public, project.rate, project.currency, project.createdate, project.changeddate
       from project, projectmember where
       project.id = projectmember.project and
       projectmember.user = ?1 and
@@ -863,8 +970,10 @@ pub fn read_project(
       name: row.get(1)?,
       description: row.get(2)?,
       public: row.get(3)?,
-      createdate: row.get(4)?,
-      changeddate: row.get(5)?,
+      rate: row.get(4)?,
+      currency: row.get(5)?,
+      createdate: row.get(6)?,
+      changeddate: row.get(7)?,
     })
   })?);
   r

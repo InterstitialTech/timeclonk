@@ -68,6 +68,8 @@ pub struct SaveProject {
   pub name: String,
   pub description: Option<String>,
   pub public: bool,
+  pub rate: Option<i64>,
+  pub currency: Option<String>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -100,6 +102,8 @@ pub struct Project {
   pub name: String,
   pub description: String,
   pub public: bool,
+  pub rate: Option<i64>,
+  pub currency: Option<String>,
   pub createdate: i64,
   pub changeddate: i64,
 }
