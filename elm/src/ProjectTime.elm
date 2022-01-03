@@ -667,6 +667,7 @@ clonkview ld size zone isdirty model =
         lasttime =
             model.timeentries
                 |> Dict.values
+                |> List.filter (\te -> te.user == ld.userid)
                 |> List.reverse
                 |> List.head
                 |> Maybe.map .startdate
