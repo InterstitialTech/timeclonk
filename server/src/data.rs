@@ -102,7 +102,7 @@ pub struct Project {
   pub name: String,
   pub description: String,
   pub public: bool,
-  pub rate: Option<i64>,
+  pub rate: Option<f64>,
   pub currency: Option<String>,
   pub createdate: i64,
   pub changeddate: i64,

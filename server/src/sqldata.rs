@@ -380,7 +380,7 @@ pub fn udpate4(dbfile: &Path) -> Result<(), Box<dyn Error>> {
     t.add_column("name", types::text().nullable(false));
     t.add_column("description", types::text().nullable(false));
     t.add_column("public", types::boolean().nullable(false));
-    t.add_column("rate", types::integer().nullable(true));
+    t.add_column("rate", types::float().nullable(true));
     t.add_column("currency", types::text().nullable(true));
     t.add_column("createdate", types::integer().nullable(false));
     t.add_column("changeddate", types::integer().nullable(false));

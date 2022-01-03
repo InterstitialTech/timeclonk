@@ -75,7 +75,7 @@ toSaveProject : Model -> Data.SaveProject
 toSaveProject model =
     let
         ( r, c ) =
-            ( model.ratestring |> String.toInt
+            ( model.ratestring |> String.toFloat
             , case model.currency of
                 "" ->
                     Nothing
@@ -158,7 +158,7 @@ isDirty model =
                                 && (model.description == ip.description)
                                 && (model.public == ip.public)
                                 && (model.ratestring
-                                        == (ip.rate |> Maybe.map String.fromInt |> Maybe.withDefault "")
+                                        == (ip.rate |> Maybe.map String.fromFloat |> Maybe.withDefault "")
                                    )
                                 && (model.currency
                                         == (ip.currency |> Maybe.withDefault "")
@@ -203,7 +203,7 @@ initEdit proj members =
     , name = proj.name
     , description = proj.description
     , public = proj.public
-    , ratestring = proj.rate |> Maybe.map String.fromInt |> Maybe.withDefault ""
+    , ratestring = proj.rate |> Maybe.map String.fromFloat |> Maybe.withDefault ""
     , currency = proj.currency |> Maybe.withDefault ""
     , createdate = Just proj.createdate
     , changeddate = Just proj.changeddate

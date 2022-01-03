@@ -135,7 +135,7 @@ type alias Project =
     , name : String
     , description : String
     , public : Bool
-    , rate : Maybe Int
+    , rate : Maybe Float
     , currency : Maybe String
     , createdate : Int
     , changeddate : Int
@@ -147,7 +147,7 @@ type alias SaveProject =
     , name : String
     , description : String
     , public : Bool
-    , rate : Maybe Int
+    , rate : Maybe Float
     , currency : Maybe String
     }
 
@@ -444,7 +444,7 @@ encodeSaveProject sp =
         , ( "public", JE.bool sp.public )
         ]
             ++ (sp.rate
-                    |> Maybe.map (\rate -> [ ( "rate", JE.int rate ) ])
+                    |> Maybe.map (\rate -> [ ( "rate", JE.float rate ) ])
                     |> Maybe.withDefault []
                )
             ++ (sp.currency
@@ -464,7 +464,7 @@ decodeProject =
         |> andMap (JD.field "name" JD.string)
         |> andMap (JD.field "description" JD.string)
         |> andMap (JD.field "public" JD.bool)
-        |> andMap (JD.field "rate" <| JD.maybe JD.int)
+        |> andMap (JD.field "rate" <| JD.maybe JD.float)
         |> andMap (JD.field "currency" <| JD.maybe JD.string)
         |> andMap (JD.field "createdate" JD.int)
         |> andMap (JD.field "changeddate" JD.int)
