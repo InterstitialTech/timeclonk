@@ -68,6 +68,7 @@ type Msg
     | SetViewMode ViewMode
     | OnRowItemClick Int FocusColumn
     | OnDistributionChanged String
+    | OnDistCurrencyChanged String
     | ClearDistribution
     | CalcDistribution
     | OnPaymentChanged UserId String
@@ -123,6 +124,7 @@ type alias Model =
     , focuspay : String
     , focuspaydate : String
     , distributionhours : String
+    , distributioncurrency : String
     , distribution : Maybe (TDict UserId Int String)
     , shownewalloc : Bool
     , shownewpayment : Bool
@@ -511,6 +513,7 @@ init ld pt saveonclonk mode =
     , focuspay = ""
     , focuspaydate = ""
     , distributionhours = ""
+    , distributioncurrency = ""
     , distribution = Nothing
     , shownewalloc = False
     , shownewpayment = False
@@ -1368,11 +1371,18 @@ distributionview ld size zone model =
                    ]
         }
     , E.row [ E.width E.fill, E.spacing TC.defaultSpacing ]
-        [ EI.text [ E.width E.fill ]
+        [ E.text "Calc Distribution:"
+        , EI.text [ E.width E.fill ]
             { onChange = OnDistributionChanged
             , text = model.distributionhours
             , placeholder = Nothing
-            , label = EI.labelLeft [] <| E.text "Calc Distribution:"
+            , label = EI.labelRight [] (E.text "hours")
+            }
+        , EI.text [ E.width E.fill ]
+            { onChange = OnDistCurrencyChanged
+            , text = model.distributioncurrency
+            , placeholder = Nothing
+            , label = EI.labelRight [] (model.project.currency |> Maybe.withDefault "" |> E.text)
             }
         , EI.button Common.buttonStyle { onPress = Just CalcDistribution, label = E.text "calc" }
         , EI.button Common.buttonStyle { onPress = Just ClearDistribution, label = E.text "x" }
@@ -1401,14 +1411,39 @@ distributionview ld size zone model =
                       , width = E.shrink
                       , view =
                             \( user, hours ) ->
+                                EI.text []
+                                    { onChange = OnPaymentChanged user
+                                    , text = hours
+                                    , placeholder = Nothing
+                                    , label = EI.labelHidden "member hours"
+                                    }
+                      }
+                    , { header = E.el headerStyle <| E.text (model.project.currency |> Maybe.withDefault "")
+                      , width = E.shrink
+                      , view =
+                            \( user, hours ) ->
+                                hours
+                                    |> String.toFloat
+                                    |> Maybe.andThen
+                                        (\h ->
+                                            model.project.rate
+                                                |> Maybe.map
+                                                    (\r ->
+                                                        h
+                                                            * r
+                                                            |> String.fromFloat
+                                                    )
+                                        )
+                                    |> Maybe.withDefault ""
+                                    |> E.text
+                                    |> E.el [ E.centerY ]
+                      }
+                    , { header = E.none
+                      , width = E.shrink
+                      , view =
+                            \( user, hours ) ->
                                 E.row [ E.spacing TC.defaultSpacing ]
-                                    [ EI.text []
-                                        { onChange = OnPaymentChanged user
-                                        , text = hours
-                                        , placeholder = Nothing
-                                        , label = EI.labelHidden "member hours"
-                                        }
-                                    , case
+                                    [ case
                                         hours
                                             |> String.toFloat
                                             |> Maybe.map (\f -> f * 60 * 60 * 1000 |> round)
@@ -1416,6 +1451,7 @@ distributionview ld size zone model =
                                         Just millis ->
                                             EI.button Common.buttonStyle
                                                 { onPress = Just <| AddPaymentPress user millis, label = E.text "add" }
+                                                |> E.el [ E.centerY ]
 
                                         Nothing ->
                                             E.none
@@ -2502,7 +2538,34 @@ update msg model ld zone =
                     ( model, None )
 
         OnDistributionChanged text ->
-            ( { model | distributionhours = text }, None )
+            ( { model
+                | distributionhours = text
+                , distributioncurrency =
+                    text
+                        |> String.toFloat
+                        |> Maybe.andThen
+                            (\h ->
+                                model.project.rate |> Maybe.map (\r -> r * h |> String.fromFloat)
+                            )
+                        |> Maybe.withDefault ""
+              }
+            , None
+            )
+
+        OnDistCurrencyChanged text ->
+            ( { model
+                | distributioncurrency = text
+                , distributionhours =
+                    text
+                        |> String.toFloat
+                        |> Maybe.andThen
+                            (\c ->
+                                model.project.rate |> Maybe.map (\r -> c / r |> String.fromFloat)
+                            )
+                        |> Maybe.withDefault ""
+              }
+            , None
+            )
 
         ClearDistribution ->
             ( { model | distributionhours = "", distribution = Nothing }, None )
