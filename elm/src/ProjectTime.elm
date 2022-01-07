@@ -56,7 +56,6 @@ type Msg
     | FocusPayChanged String
     | FocusPayDateChanged String
     | FocusAllocationChanged String
-      -- | FocusOk
     | NewAllocDescriptionChanged String
     | NewAllocHoursChanged String
     | NewPaymentHoursChanged String
@@ -2437,24 +2436,6 @@ update msg model ld zone =
             ( { model | shownewpayment = not model.shownewpayment }, None )
 
         FocusEndChanged text ->
-            -- case ( model.focus, Util.parseTime zone text ) of
-            --     ( Just ( startdate, _ ), Ok (Just time) ) ->
-            --         case Dict.get startdate model.timeentries of
-            --             Just te ->
-            --                 let
-            --                     newtime =
-            --                         Time.posixToMillis time
-            --                 in
-            --                 ( { model
-            --                     | timeentries =
-            --                         Dict.insert startdate { te | enddate = newtime } model.timeentries
-            --                     , focusend = text
-            --                   }
-            --                 , None
-            --                 )
-            --             Nothing ->
-            --                 ( { model | focusend = text }, None )
-            --     _ ->
             ( { model | focusend = text }, None )
 
         FocusCancel ->
@@ -2477,28 +2458,6 @@ update msg model ld zone =
                     ( { model | focusend = "" }, None )
 
         FocusDurationChanged text ->
-            -- case model.focus of
-            -- Just ( startdate, _ ) ->
-            --     case Dict.get startdate model.timeentries of
-            --         Just te ->
-            --             case String.toFloat text of
-            --                 Just hours ->
-            --                     let
-            --                         newtime =
-            --                             te.startdate + (round <| hours * 60 * 60 * 1000)
-            --                     in
-            --                     ( { model
-            --                         | timeentries =
-            --                             Dict.insert startdate { te | enddate = newtime } model.timeentries
-            --                         , focusduration = text
-            --                       }
-            --                     , None
-            --                     )
-            --                 Nothing ->
-            --                     ( { model | focusduration = text }, None )
-            --         Nothing ->
-            --             ( { model | focusduration = text }, None )
-            -- _ ->
             ( { model | focusduration = text }, None )
 
         FocusPayChanged s ->
