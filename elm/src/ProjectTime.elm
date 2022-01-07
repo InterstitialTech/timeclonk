@@ -49,13 +49,15 @@ type Msg
     | FocusCancel
     | ChangeEnd Int Int
     | FocusDescriptionChanged String
-    | ChangeDescription String
+    | ChangeDescription
     | FocusStartChanged String
     | FocusEndChanged String
     | FocusDurationChanged String
     | FocusPayChanged String
+    | ChangePay Float
     | FocusPayDateChanged String
     | FocusAllocationChanged String
+    | ChangeAllocation Float
     | NewAllocDescriptionChanged String
     | NewAllocHoursChanged String
     | NewPaymentHoursChanged String
@@ -756,7 +758,7 @@ clonkview ld size zone isdirty model =
                                     }
                                 , E.row [ E.width E.fill ]
                                     [ EI.button Common.buttonStyle
-                                        { onPress = Just <| ChangeDescription model.focusdescription
+                                        { onPress = Just <| ChangeDescription
                                         , label = E.text "ok"
                                         }
                                     , EI.button (E.alignRight :: Common.buttonStyle)
@@ -1255,18 +1257,24 @@ distributionview ld size zone model =
                                                             , label = EI.labelHidden "payment date"
                                                             }
                                                         , E.text display
-                                                        , case mbstart of
-                                                            Just start ->
-                                                                EI.button Common.buttonStyle
-                                                                    { onPress = Just <| ChangePayDate (Time.posixToMillis start)
-                                                                    , label = E.text "ok"
-                                                                    }
+                                                        , E.row [ E.width E.fill ]
+                                                            [ case mbstart of
+                                                                Just start ->
+                                                                    EI.button Common.buttonStyle
+                                                                        { onPress = Just <| ChangePayDate (Time.posixToMillis start)
+                                                                        , label = E.text "ok"
+                                                                        }
 
-                                                            Nothing ->
-                                                                EI.button Common.disabledButtonStyle
-                                                                    { onPress = Nothing
-                                                                    , label = E.text "ok"
-                                                                    }
+                                                                Nothing ->
+                                                                    EI.button Common.disabledButtonStyle
+                                                                        { onPress = Nothing
+                                                                        , label = E.text "ok"
+                                                                        }
+                                                            , EI.button (E.alignRight :: Common.buttonStyle)
+                                                                { onPress = Just FocusCancel
+                                                                , label = E.text "cancel"
+                                                                }
+                                                            ]
                                                         ]
 
                                                 else
@@ -1332,6 +1340,24 @@ distributionview ld size zone model =
                                                                 , placeholder = Nothing
                                                                 , label = EI.labelHidden "payment"
                                                                 }
+                                                            , E.row [ E.width E.fill, E.spacing TC.defaultSpacing ]
+                                                                [ case String.toFloat model.focuspay of
+                                                                    Just amt ->
+                                                                        EI.button Common.buttonStyle
+                                                                            { onPress = Just <| ChangePay amt
+                                                                            , label = E.text "ok"
+                                                                            }
+
+                                                                    Nothing ->
+                                                                        EI.button Common.disabledButtonStyle
+                                                                            { onPress = Nothing
+                                                                            , label = E.text "ok"
+                                                                            }
+                                                                , EI.button (E.alignRight :: Common.buttonStyle)
+                                                                    { onPress = Just FocusCancel
+                                                                    , label = E.text "cancel"
+                                                                    }
+                                                                ]
                                                             ]
 
                                                     else
@@ -1611,18 +1637,24 @@ allocationview ld size zone model =
                                                     , label = EI.labelHidden "payment date"
                                                     }
                                                 , E.text display
-                                                , case mbstart of
-                                                    Just start ->
-                                                        EI.button Common.buttonStyle
-                                                            { onPress = Just <| ChangeAllocationDate (Time.posixToMillis start)
-                                                            , label = E.text "ok"
-                                                            }
+                                                , E.row [ E.width E.fill, E.spacing TC.defaultSpacing ]
+                                                    [ case mbstart of
+                                                        Just start ->
+                                                            EI.button Common.buttonStyle
+                                                                { onPress = Just <| ChangeAllocationDate (Time.posixToMillis start)
+                                                                , label = E.text "ok"
+                                                                }
 
-                                                    Nothing ->
-                                                        EI.button Common.disabledButtonStyle
-                                                            { onPress = Nothing
-                                                            , label = E.text "ok"
-                                                            }
+                                                        Nothing ->
+                                                            EI.button Common.disabledButtonStyle
+                                                                { onPress = Nothing
+                                                                , label = E.text "ok"
+                                                                }
+                                                    , EI.button (E.alignRight :: Common.buttonStyle)
+                                                        { onPress = Just FocusCancel
+                                                        , label = E.text "cancel"
+                                                        }
+                                                    ]
                                                 ]
 
                                         else
@@ -1639,11 +1671,21 @@ allocationview ld size zone model =
                                         [ E.text a.description
                                         ]
                                     , EI.text [ E.width E.fill ]
-                                        { onChange = AllocDescriptionChanged a.allocationdate
-                                        , text = a.description
+                                        { onChange = FocusDescriptionChanged
+                                        , text = model.focusdescription
                                         , placeholder = Nothing
                                         , label = EI.labelHidden "allocation description"
                                         }
+                                    , E.row [ E.width E.fill, E.spacing TC.defaultSpacing ]
+                                        [ EI.button Common.buttonStyle
+                                            { onPress = Just <| ChangeDescription
+                                            , label = E.text "ok"
+                                            }
+                                        , EI.button (E.alignRight :: Common.buttonStyle)
+                                            { onPress = Just FocusCancel
+                                            , label = E.text "cancel"
+                                            }
+                                        ]
                                     ]
 
                             else
@@ -1673,6 +1715,24 @@ allocationview ld size zone model =
                                         , placeholder = Nothing
                                         , label = EI.labelHidden "allocation"
                                         }
+                                    , E.row [ E.width E.fill, E.spacing TC.defaultSpacing ]
+                                        [ case String.toFloat model.focuspay of
+                                            Just amt ->
+                                                EI.button Common.buttonStyle
+                                                    { onPress = Just <| ChangeAllocation amt
+                                                    , label = E.text "ok"
+                                                    }
+
+                                            Nothing ->
+                                                EI.button Common.disabledButtonStyle
+                                                    { onPress = Nothing
+                                                    , label = E.text "ok"
+                                                    }
+                                        , EI.button (E.alignRight :: Common.buttonStyle)
+                                            { onPress = Just FocusCancel
+                                            , label = E.text "cancel"
+                                            }
+                                        ]
                                     ]
 
                             else
@@ -1858,18 +1918,24 @@ payview ld size zone model =
                                                     , label = EI.labelHidden "payment date"
                                                     }
                                                 , E.text display
-                                                , case mbstart of
-                                                    Just start ->
-                                                        EI.button Common.buttonStyle
-                                                            { onPress = Just <| ChangePaymentDate (Time.posixToMillis start)
-                                                            , label = E.text "ok"
-                                                            }
+                                                , E.row [ E.width E.fill, E.spacing TC.defaultSpacing ]
+                                                    [ case mbstart of
+                                                        Just start ->
+                                                            EI.button Common.buttonStyle
+                                                                { onPress = Just <| ChangePaymentDate (Time.posixToMillis start)
+                                                                , label = E.text "ok"
+                                                                }
 
-                                                    Nothing ->
-                                                        EI.button Common.disabledButtonStyle
-                                                            { onPress = Nothing
-                                                            , label = E.text "ok"
-                                                            }
+                                                        Nothing ->
+                                                            EI.button Common.disabledButtonStyle
+                                                                { onPress = Nothing
+                                                                , label = E.text "ok"
+                                                                }
+                                                    , EI.button (E.alignRight :: Common.buttonStyle)
+                                                        { onPress = Just FocusCancel
+                                                        , label = E.text "cancel"
+                                                        }
+                                                    ]
                                                 ]
 
                                         else
@@ -1918,6 +1984,24 @@ payview ld size zone model =
                                         , placeholder = Nothing
                                         , label = EI.labelHidden "payment"
                                         }
+                                    , E.row [ E.width E.fill, E.spacing TC.defaultSpacing ]
+                                        [ case String.toFloat model.focuspay of
+                                            Just amt ->
+                                                EI.button Common.buttonStyle
+                                                    { onPress = Just <| ChangePay amt
+                                                    , label = E.text "ok"
+                                                    }
+
+                                            Nothing ->
+                                                EI.button Common.disabledButtonStyle
+                                                    { onPress = Nothing
+                                                    , label = E.text "ok"
+                                                    }
+                                        , EI.button (E.alignRight :: Common.buttonStyle)
+                                            { onPress = Just FocusCancel
+                                            , label = E.text "cancel"
+                                            }
+                                        ]
                                     ]
 
                             else
@@ -2320,21 +2404,54 @@ update msg model ld zone =
         FocusDescriptionChanged text ->
             ( { model | focusdescription = text }, None )
 
-        ChangeDescription text ->
+        ChangeDescription ->
             case model.focus of
                 Just ( startdate, _ ) ->
-                    ( { model
-                        | timeentries =
-                            case Dict.get startdate model.timeentries of
-                                Just te ->
-                                    Dict.insert startdate { te | description = text } model.timeentries
+                    case model.viewmode of
+                        Clonks ->
+                            ( { model
+                                | timeentries =
+                                    case Dict.get startdate model.timeentries of
+                                        Just te ->
+                                            Dict.insert startdate { te | description = model.focusdescription } model.timeentries
 
-                                Nothing ->
-                                    model.timeentries
-                        , focus = Nothing
-                      }
-                    , None
-                    )
+                                        Nothing ->
+                                            model.timeentries
+                                , focus = Nothing
+                              }
+                            , None
+                            )
+
+                        Payments ->
+                            ( { model
+                                | payentries =
+                                    case Dict.get startdate model.payentries of
+                                        Just pe ->
+                                            Dict.insert startdate { pe | description = model.focusdescription } model.payentries
+
+                                        Nothing ->
+                                            model.payentries
+                                , focus = Nothing
+                              }
+                            , None
+                            )
+
+                        Allocations ->
+                            ( { model
+                                | allocations =
+                                    case Dict.get startdate model.allocations of
+                                        Just pe ->
+                                            Dict.insert startdate { pe | description = model.focusdescription } model.allocations
+
+                                        Nothing ->
+                                            model.allocations
+                                , focus = Nothing
+                              }
+                            , None
+                            )
+
+                        _ ->
+                            ( model, None )
 
                 Nothing ->
                     ( model, None )
@@ -2463,17 +2580,19 @@ update msg model ld zone =
         FocusPayChanged s ->
             ( { model
                 | focuspay = s
-                , payentries =
-                    case String.toFloat s of
-                        Just f ->
-                            model.focus
-                                |> Maybe.map Tuple.first
-                                |> Maybe.andThen (\r -> Dict.get r model.payentries)
-                                |> Maybe.map (\pe -> Dict.insert pe.paymentdate { pe | duration = round <| f * 60 * 60 * 1000 } model.payentries)
-                                |> Maybe.withDefault model.payentries
+              }
+            , None
+            )
 
-                        Nothing ->
-                            model.payentries
+        ChangePay f ->
+            ( { model
+                | focus = Nothing
+                , payentries =
+                    model.focus
+                        |> Maybe.map Tuple.first
+                        |> Maybe.andThen (\r -> Dict.get r model.payentries)
+                        |> Maybe.map (\pe -> Dict.insert pe.paymentdate { pe | duration = round <| f * 60 * 60 * 1000 } model.payentries)
+                        |> Maybe.withDefault model.payentries
               }
             , None
             )
@@ -2481,17 +2600,19 @@ update msg model ld zone =
         FocusAllocationChanged s ->
             ( { model
                 | focuspay = s
-                , allocations =
-                    case String.toFloat s of
-                        Just f ->
-                            model.focus
-                                |> Maybe.map Tuple.first
-                                |> Maybe.andThen (\r -> Dict.get r model.allocations)
-                                |> Maybe.map (\e -> Dict.insert e.allocationdate { e | duration = round <| f * 60 * 60 * 1000 } model.allocations)
-                                |> Maybe.withDefault model.allocations
+              }
+            , None
+            )
 
-                        Nothing ->
-                            model.allocations
+        ChangeAllocation amt ->
+            ( { model
+                | allocations =
+                    model.focus
+                        |> Maybe.map Tuple.first
+                        |> Maybe.andThen (\r -> Dict.get r model.allocations)
+                        |> Maybe.map (\e -> Dict.insert e.allocationdate { e | duration = round <| amt * 60 * 60 * 1000 } model.allocations)
+                        |> Maybe.withDefault model.allocations
+                , focus = Nothing
               }
             , None
             )
