@@ -7,7 +7,6 @@ mod sqldata;
 mod util;
 // mod sqltest;
 use crate::util::now;
-use actix_cors::Cors;
 use actix_session::{CookieSession, Session};
 use actix_web::{middleware, web, App, HttpRequest, HttpResponse, HttpServer, Result};
 use chrono;
@@ -226,7 +225,6 @@ fn defcon() -> Config {
     createdirs: false,
     db: PathBuf::from("./myapp.db"),
     mainsite: "http://localhost:8001".to_string(),
-    altmainsite: [].to_vec(),
     appname: "myappname".to_string(),
     domain: "localhost:8001".to_string(),
     admin_email: "admin@admin.admin".to_string(),
@@ -340,30 +338,8 @@ async fn err_main() -> Result<(), Box<dyn Error>> {
       let c = config.clone();
       HttpServer::new(move || {
         let staticpath = c.static_path.clone().unwrap_or(PathBuf::from("static/"));
-        let d = c.clone();
-        let cors = Cors::default()
-          .allowed_origin_fn(move |rv, rh| {
-            if *rv == d.mainsite {
-              true
-            } else if d.altmainsite.iter().any(|am| *rv == am) {
-              true
-            } else if rv == "https://29a.ch"
-              && rh.method == "GET"
-              && rh.uri.to_string().starts_with("/static")
-            {
-              true
-            } else {
-              info!("cors denied: {:?}, {:?}", rv, rh);
-              false
-            }
-          })
-          .allow_any_header()
-          .allow_any_method()
-          .max_age(3600);
-
         App::new()
           .data(c.clone()) // <- create app with shared state
-          .wrap(cors)
           .wrap(middleware::Logger::default())
           .wrap(
             CookieSession::signed(&[0; 32]) // <- create cookie based session middleware
