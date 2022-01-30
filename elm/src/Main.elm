@@ -887,6 +887,14 @@ actualupdate msg model =
                                 Nothing ->
                                     ( model, Cmd.none )
 
+                        UI.NotLoggedIn ->
+                            case state of
+                                Login lmod ->
+                                    ( { model | state = Login lmod }, Cmd.none )
+
+                                _ ->
+                                    ( { model | state = Login <| Login.initialModel Nothing model.appname model.seed }, Cmd.none )
+
                         _ ->
                             ( unexpectedMsg model msg
                             , Cmd.none
