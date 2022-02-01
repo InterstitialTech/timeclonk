@@ -22,6 +22,8 @@ import WindowKeys as WK
 type Msg
     = NameChanged String
     | DescriptionChanged String
+    | RateChanged String
+    | CurrencyChanged String
     | SavePress
     | RevertPress
     | DonePress
@@ -36,6 +38,8 @@ type alias Model =
     , name : String
     , description : String
     , public : Bool
+    , ratestring : String
+    , currency : String
     , createdate : Maybe Int
     , changeddate : Maybe Int
     , members : TDict UserId Int Data.ProjectMember
@@ -69,10 +73,31 @@ onWkKeyPress key model ld =
 
 toSaveProject : Model -> Data.SaveProject
 toSaveProject model =
+    let
+        ( r, c ) =
+            ( model.ratestring |> String.toFloat
+            , case model.currency of
+                "" ->
+                    Nothing
+
+                x ->
+                    Just x
+            )
+
+        ( rate, currency ) =
+            case ( r, c ) of
+                ( Just rt, Just cy ) ->
+                    ( Just rt, Just cy )
+
+                _ ->
+                    ( Nothing, Nothing )
+    in
     { id = model.id
     , name = model.name
     , description = model.description
     , public = model.public
+    , rate = rate
+    , currency = currency
     }
 
 
@@ -132,6 +157,12 @@ isDirty model =
                                 && (model.name == ip.name)
                                 && (model.description == ip.description)
                                 && (model.public == ip.public)
+                                && (model.ratestring
+                                        == (ip.rate |> Maybe.map String.fromFloat |> Maybe.withDefault "")
+                                   )
+                                && (model.currency
+                                        == (ip.currency |> Maybe.withDefault "")
+                                   )
                                 && (model.createdate == Just ip.createdate)
                                 && (model.changeddate == Just ip.changeddate)
                             )
@@ -150,6 +181,8 @@ initNew =
     , name = ""
     , description = ""
     , public = False
+    , ratestring = ""
+    , currency = ""
     , createdate = Nothing
     , changeddate = Nothing
     , members = emptyUmDict
@@ -170,6 +203,8 @@ initEdit proj members =
     , name = proj.name
     , description = proj.description
     , public = proj.public
+    , ratestring = proj.rate |> Maybe.map String.fromFloat |> Maybe.withDefault ""
+    , currency = proj.currency |> Maybe.withDefault ""
     , createdate = Just proj.createdate
     , changeddate = Just proj.changeddate
     , members = mbs
@@ -261,6 +296,38 @@ view ld size model =
                             []
                             (E.text "description")
                     }
+                , EI.text
+                    (if isdirty then
+                        [ E.focused [ EBd.glow TC.darkYellow 3 ] ]
+
+                     else
+                        []
+                    )
+                    { onChange =
+                        RateChanged
+                    , text = model.ratestring
+                    , placeholder = Nothing
+                    , label =
+                        EI.labelLeft
+                            []
+                            (E.text "rate")
+                    }
+                , EI.text
+                    (if isdirty then
+                        [ E.focused [ EBd.glow TC.darkYellow 3 ] ]
+
+                     else
+                        []
+                    )
+                    { onChange =
+                        CurrencyChanged
+                    , text = model.currency
+                    , placeholder = Nothing
+                    , label =
+                        EI.labelLeft
+                            []
+                            (E.text "currency")
+                    }
                 ]
             , E.column
                 [ E.padding 8
@@ -287,6 +354,12 @@ update msg model ld =
 
         DescriptionChanged t ->
             ( { model | description = t }, None )
+
+        RateChanged t ->
+            ( { model | ratestring = t }, None )
+
+        CurrencyChanged t ->
+            ( { model | currency = t }, None )
 
         SavePress ->
             ( model, Save (toSaveProjectEdit model) )
