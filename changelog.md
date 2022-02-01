@@ -1,3 +1,15 @@
+## 2022-2-1
+
+added project-level hourly rate, for helping with distribution calculations.
+
+## 2022-1-7
+
+changed to ok-cancel style for field editing in the various listings.
+
+## 2022-1-1
+
+changed to one button for clonking in and out instead of two.  clonked-in 'animation'
+
 ## 2021-12-19
 
 Copied the elm-ui checkbox 'icon' function and darkened it up a bit to make it more visible.
