@@ -60,7 +60,9 @@ type Msg
     | ChangeAllocation Float
     | NewAllocDescriptionChanged String
     | NewAllocHoursChanged String
+    | NewAllocCurrencyChanged String
     | NewPaymentHoursChanged String
+    | NewPaymentCurrencyChanged String
     | SelectPaymentUser
     | AddAllocationPress
     | AddAllocation Int
@@ -135,7 +137,9 @@ type alias Model =
     , shownewpayment : Bool
     , allocdescription : String
     , allochours : String
+    , alloccurrency : String
     , paymenthours : String
+    , paymentcurrency : String
     , paymentuser : Maybe UserId
     , viewmode : ViewMode
     , saveonclonk : Bool
@@ -524,7 +528,9 @@ init ld pt saveonclonk mode =
     , shownewpayment = False
     , allocdescription = ""
     , allochours = ""
+    , alloccurrency = ""
     , paymenthours = ""
+    , paymentcurrency = ""
     , paymentuser = Nothing
     , saveonclonk = saveonclonk
     , clonkOutDisplay = Nothing
@@ -1798,6 +1804,12 @@ allocationview ld size zone model =
                     , placeholder = Nothing
                     , label = EI.labelLeft [] <| E.text "hours"
                     }
+                , EI.text [ E.width E.fill ]
+                    { onChange = NewAllocCurrencyChanged
+                    , text = model.alloccurrency
+                    , placeholder = Nothing
+                    , label = EI.labelRight [] (model.project.currency |> Maybe.withDefault "" |> E.text)
+                    }
                 , EI.button Common.buttonStyle { onPress = Just AddAllocationPress, label = E.text "add" }
                 ]
             ]
@@ -2068,6 +2080,12 @@ payview ld size zone model =
                     , text = model.paymenthours
                     , placeholder = Nothing
                     , label = EI.labelLeft [] <| E.text "hours"
+                    }
+                , EI.text []
+                    { onChange = NewPaymentCurrencyChanged
+                    , text = model.paymentcurrency
+                    , placeholder = Nothing
+                    , label = EI.labelRight [] (model.project.currency |> Maybe.withDefault "" |> E.text)
                     }
                 , case
                     ( model.paymentuser
@@ -2657,10 +2675,64 @@ update msg model ld zone =
             ( { model | allocdescription = s }, None )
 
         NewAllocHoursChanged s ->
-            ( { model | allochours = s }, None )
+            ( { model
+                | allochours = s
+                , alloccurrency =
+                    s
+                        |> String.toFloat
+                        |> Maybe.andThen
+                            (\h ->
+                                model.project.rate |> Maybe.map (\r -> r * h |> String.fromFloat)
+                            )
+                        |> Maybe.withDefault ""
+              }
+            , None
+            )
+
+        NewAllocCurrencyChanged s ->
+            ( { model
+                | alloccurrency = s
+                , allochours =
+                    s
+                        |> String.toFloat
+                        |> Maybe.andThen
+                            (\c ->
+                                model.project.rate |> Maybe.map (\r -> c / r |> String.fromFloat)
+                            )
+                        |> Maybe.withDefault ""
+              }
+            , None
+            )
 
         NewPaymentHoursChanged s ->
-            ( { model | paymenthours = s }, None )
+            ( { model
+                | paymenthours = s
+                , paymentcurrency =
+                    s
+                        |> String.toFloat
+                        |> Maybe.andThen
+                            (\h ->
+                                model.project.rate |> Maybe.map (\r -> r * h |> String.fromFloat)
+                            )
+                        |> Maybe.withDefault ""
+              }
+            , None
+            )
+
+        NewPaymentCurrencyChanged s ->
+            ( { model
+                | paymentcurrency = s
+                , paymenthours =
+                    s
+                        |> String.toFloat
+                        |> Maybe.andThen
+                            (\c ->
+                                model.project.rate |> Maybe.map (\r -> c / r |> String.fromFloat)
+                            )
+                        |> Maybe.withDefault ""
+              }
+            , None
+            )
 
         AddAllocationPress ->
             ( model, GetTime AddAllocation )
@@ -2716,7 +2788,7 @@ update msg model ld zone =
             )
 
         ClearDistribution ->
-            ( { model | distributionhours = "", distribution = Nothing }, None )
+            ( { model | distributionhours = "", distributioncurrency = "", distribution = Nothing }, None )
 
         CalcDistribution ->
             case String.toFloat model.distributionhours of
