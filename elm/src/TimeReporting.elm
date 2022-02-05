@@ -178,6 +178,98 @@ payTotes entries =
             emptyUserTimeDict
 
 
+dayTotes : List EditTimeEntry -> UserId -> Dict Int Int
+dayTotes timeentries userid =
+    timeentries
+        -- |> List.filter (\te -> te.user == userid)
+        |> List.foldl
+            (\te ddict ->
+                millisPerDay (Time.millisToPosix te.startdate) (Time.millisToPosix te.enddate)
+                    |> List.foldl
+                        (\( date, millis ) ddicttoo ->
+                            let
+                                dmils =
+                                    Calendar.toMillis date
+                            in
+                            case Dict.get dmils ddict of
+                                Just totemillis ->
+                                    Dict.insert dmils (totemillis + millis) ddict
+
+                                Nothing ->
+                                    Dict.insert dmils millis ddict
+                        )
+                        ddict
+            )
+            Dict.empty
+
+
+addDays : Calendar.Date -> Int -> Calendar.Date
+addDays date days =
+    let
+        millis =
+            Time.posixToMillis (Time.millisToPosix (Calendar.toMillis date)) + (Calendar.millisInADay * days)
+
+        newDate =
+            Calendar.fromPosix (Time.millisToPosix millis)
+    in
+    newDate
+
+
+dayIndex : Calendar.Date -> Int
+dayIndex date =
+    case Calendar.getWeekday date of
+        Time.Sun ->
+            0
+
+        Time.Mon ->
+            1
+
+        Time.Tue ->
+            2
+
+        Time.Wed ->
+            3
+
+        Time.Thu ->
+            4
+
+        Time.Fri ->
+            5
+
+        Time.Sat ->
+            6
+
+
+toSunday : Calendar.Date -> Calendar.Date
+toSunday date =
+    addDays date (dayIndex date * -1)
+
+
+weekTotes : List EditTimeEntry -> UserId -> Dict Int Int
+weekTotes timeentries userid =
+    timeentries
+        -- |> List.filter (\te -> te.user == userid)
+        |> List.foldl
+            (\te ddict ->
+                millisPerDay (Time.millisToPosix te.startdate) (Time.millisToPosix te.enddate)
+                    |> List.foldl
+                        (\( date, millis ) ddicttoo ->
+                            let
+                                wmils =
+                                    Calendar.toMillis (toSunday date)
+                            in
+                            case Dict.get wmils ddict of
+                                Just totemillis ->
+                                    Dict.insert wmils (totemillis + millis) ddict
+
+                                Nothing ->
+                                    Dict.insert wmils millis ddict
+                        )
+                        ddict
+            )
+            Dict.empty
+
+
 emptyUmDict : TDict UserId Int Data.ProjectMember
 emptyUmDict =
     TDict.empty Data.getUserIdVal Data.makeUserId
