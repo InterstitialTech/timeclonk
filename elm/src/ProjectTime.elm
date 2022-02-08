@@ -14,6 +14,7 @@ import Element.Input as EI
 import Element.Keyed as EK
 import Element.Region
 import Round as R
+import Set
 import TDict exposing (TDict)
 import TSet exposing (TSet)
 import TangoColors as TC
@@ -642,15 +643,22 @@ clonkview ld size zone isdirty model =
         teamhours =
             model.timeentries |> Dict.values |> TR.totalMillis |> TR.millisToHours
 
-        myhours =
+        mytimeentries =
             model.timeentries
                 |> Dict.values
                 |> List.filter (\te -> te.user == ld.userid)
+
+        myhours =
+            mytimeentries
                 |> TR.totalMillis
                 |> TR.millisToHours
 
         paytotes =
             model.payentries |> Dict.values |> TR.payTotes
+
+        daytotes =
+            mytimeentries
+                |> TR.dayTotes
 
         mypay =
             paytotes
@@ -679,15 +687,30 @@ clonkview ld size zone isdirty model =
                     EF.regular
 
         lasttime =
-            model.timeentries
-                |> Dict.values
-                |> List.filter (\te -> te.user == ld.userid)
+            mytimeentries
                 |> List.reverse
                 |> List.head
                 |> Maybe.map .startdate
 
         anychecked =
             Dict.foldl (\_ te c -> c || te.checked) False model.timeentries
+
+        ( lastofdays, _ ) =
+            mytimeentries
+                |> List.reverse
+                |> List.foldl
+                    (\te ( set, pd ) ->
+                        let
+                            cd =
+                                Calendar.fromPosix <| Time.millisToPosix te.startdate
+                        in
+                        if Just cd == pd then
+                            ( set, pd )
+
+                        else
+                            ( Set.insert te.startdate set, Just cd )
+                    )
+                    ( Set.empty, Nothing )
     in
     [ E.row
         [ E.spacing TC.defaultSpacing
@@ -713,7 +736,8 @@ clonkview ld size zone isdirty model =
             }
         ]
     , E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
-        { data = model.timeentries |> Dict.values |> List.filter (\te -> te.user == ld.userid)
+        { data =
+            mytimeentries
         , columns =
             [ { header =
                     EI.checkbox [ E.width E.shrink, E.centerY ]
@@ -1030,6 +1054,28 @@ clonkview ld size zone isdirty model =
 
                         else
                             row
+              }
+            , { header = E.el headerStyle <| E.text "daily"
+              , width = E.shrink
+              , view =
+                    \te ->
+                        if Set.member te.startdate lastofdays then
+                            let
+                                today =
+                                    te.startdate
+                                        |> Time.millisToPosix
+                                        |> Calendar.fromPosix
+                                        |> Calendar.toMillis
+                            in
+                            case Dict.get today daytotes of
+                                Just millis ->
+                                    E.text (millisAsHours millis)
+
+                                Nothing ->
+                                    E.none
+
+                        else
+                            E.none
               }
             ]
         }

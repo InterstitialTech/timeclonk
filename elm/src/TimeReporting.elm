@@ -178,10 +178,9 @@ payTotes entries =
             emptyUserTimeDict
 
 
-dayTotes : List EditTimeEntry -> UserId -> Dict Int Int
-dayTotes timeentries userid =
+dayTotes : List EditTimeEntry -> Dict Int Int
+dayTotes timeentries =
     timeentries
-        -- |> List.filter (\te -> te.user == userid)
         |> List.foldl
             (\te ddict ->
                 millisPerDay (Time.millisToPosix te.startdate) (Time.millisToPosix te.enddate)
