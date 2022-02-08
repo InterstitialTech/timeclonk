@@ -228,7 +228,7 @@ addDays : Calendar.Date -> Int -> Calendar.Date
 addDays date days =
     let
         millis =
-            Time.posixToMillis (Time.millisToPosix (Calendar.toMillis date)) + (Calendar.millisInADay * days)
+            Time.posixToMillis (Time.millisToPosix (1000 * 60 * 60 * 12 + Calendar.toMillis date)) + (Calendar.millisInADay * days)
 
         newDate =
             Calendar.fromPosix (Time.millisToPosix millis)
@@ -266,10 +266,9 @@ toSunday date =
     addDays date (dayIndex date * -1)
 
 
-weekTotes : Zone -> List EditTimeEntry -> UserId -> Dict Int Int
-weekTotes zone timeentries userid =
+weekTotes : Zone -> List EditTimeEntry -> Dict Int Int
+weekTotes zone timeentries =
     timeentries
-        -- |> List.filter (\te -> te.user == userid)
         |> List.foldl
             (\te ddict ->
                 millisPerDay zone (Time.millisToPosix te.startdate) (Time.millisToPosix te.enddate)
@@ -277,10 +276,15 @@ weekTotes zone timeentries userid =
                         (\( date, millis ) ddicttoo ->
                             let
                                 wmils =
-                                    Calendar.toMillis (toSunday date)
+                                    Calendar.toMillis
+                                        (toSunday date)
                             in
                             case Dict.get wmils ddict of
                                 Just totemillis ->
+                                    let
+                                        _ =
+                                            Debug.log "wtote: " (totemillis + millis)
+                                    in
                                     Dict.insert wmils (totemillis + millis) ddict
 
                                 Nothing ->

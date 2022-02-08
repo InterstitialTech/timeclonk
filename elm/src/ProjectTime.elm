@@ -660,6 +660,10 @@ clonkview ld size zone isdirty model =
             mytimeentries
                 |> TR.dayTotes zone
 
+        weektotes =
+            mytimeentries
+                |> TR.weekTotes zone
+
         mypay =
             paytotes
                 |> TDict.get ld.userid
@@ -701,6 +705,24 @@ clonkview ld size zone isdirty model =
                 |> List.foldl
                     (\te ( set, pd ) ->
                         case TR.toDate zone (Time.millisToPosix te.startdate) of
+                            Just cd ->
+                                if Just cd == pd then
+                                    ( set, pd )
+
+                                else
+                                    ( Set.insert te.startdate set, Just cd )
+
+                            Nothing ->
+                                ( set, pd )
+                    )
+                    ( Set.empty, Nothing )
+
+        ( lastofweeks, _ ) =
+            mytimeentries
+                |> List.reverse
+                |> List.foldl
+                    (\te ( set, pd ) ->
+                        case TR.toDate zone (Time.millisToPosix te.startdate) |> Maybe.map TR.toSunday of
                             Just cd ->
                                 if Just cd == pd then
                                     ( set, pd )
@@ -1069,6 +1091,29 @@ clonkview ld size zone isdirty model =
                                         |> Maybe.map Calendar.toMillis
                             in
                             case today |> Maybe.andThen (\t -> Dict.get t daytotes) of
+                                Just millis ->
+                                    E.text (millisAsHours millis)
+
+                                Nothing ->
+                                    E.none
+
+                        else
+                            E.none
+              }
+            , { header = E.el headerStyle <| E.text "weekly"
+              , width = E.shrink
+              , view =
+                    \te ->
+                        if Set.member te.startdate lastofweeks then
+                            let
+                                today =
+                                    te.startdate
+                                        |> Time.millisToPosix
+                                        |> TR.toDate zone
+                                        |> Maybe.map TR.toSunday
+                                        |> Maybe.map Calendar.toMillis
+                            in
+                            case today |> Maybe.andThen (\t -> Dict.get t weektotes) of
                                 Just millis ->
                                     E.text (millisAsHours millis)
 
