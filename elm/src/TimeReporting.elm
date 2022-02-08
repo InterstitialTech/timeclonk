@@ -281,10 +281,6 @@ weekTotes zone timeentries =
                             in
                             case Dict.get wmils ddict of
                                 Just totemillis ->
-                                    let
-                                        _ =
-                                            Debug.log "wtote: " (totemillis + millis)
-                                    in
                                     Dict.insert wmils (totemillis + millis) ddict
 
                                 Nothing ->
