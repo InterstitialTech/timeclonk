@@ -14,6 +14,7 @@ import Element.Input as EI
 import Element.Keyed as EK
 import Element.Region
 import Round as R
+import Set
 import TDict exposing (TDict)
 import TSet exposing (TSet)
 import TangoColors as TC
@@ -642,15 +643,26 @@ clonkview ld size zone isdirty model =
         teamhours =
             model.timeentries |> Dict.values |> TR.totalMillis |> TR.millisToHours
 
-        myhours =
+        mytimeentries =
             model.timeentries
                 |> Dict.values
                 |> List.filter (\te -> te.user == ld.userid)
+
+        myhours =
+            mytimeentries
                 |> TR.totalMillis
                 |> TR.millisToHours
 
         paytotes =
             model.payentries |> Dict.values |> TR.payTotes
+
+        daytotes =
+            mytimeentries
+                |> TR.dayTotes zone
+
+        weektotes =
+            mytimeentries
+                |> TR.weekTotes zone
 
         mypay =
             paytotes
@@ -679,15 +691,49 @@ clonkview ld size zone isdirty model =
                     EF.regular
 
         lasttime =
-            model.timeentries
-                |> Dict.values
-                |> List.filter (\te -> te.user == ld.userid)
+            mytimeentries
                 |> List.reverse
                 |> List.head
                 |> Maybe.map .startdate
 
         anychecked =
             Dict.foldl (\_ te c -> c || te.checked) False model.timeentries
+
+        ( lastofdays, _ ) =
+            mytimeentries
+                |> List.reverse
+                |> List.foldl
+                    (\te ( set, pd ) ->
+                        case TR.toDate zone (Time.millisToPosix te.startdate) of
+                            Just cd ->
+                                if Just cd == pd then
+                                    ( set, pd )
+
+                                else
+                                    ( Set.insert te.startdate set, Just cd )
+
+                            Nothing ->
+                                ( set, pd )
+                    )
+                    ( Set.empty, Nothing )
+
+        ( lastofweeks, _ ) =
+            mytimeentries
+                |> List.reverse
+                |> List.foldl
+                    (\te ( set, pd ) ->
+                        case TR.toDate zone (Time.millisToPosix te.startdate) |> Maybe.map TR.toSunday of
+                            Just cd ->
+                                if Just cd == pd then
+                                    ( set, pd )
+
+                                else
+                                    ( Set.insert te.startdate set, Just cd )
+
+                            Nothing ->
+                                ( set, pd )
+                    )
+                    ( Set.empty, Nothing )
     in
     [ E.row
         [ E.spacing TC.defaultSpacing
@@ -713,7 +759,8 @@ clonkview ld size zone isdirty model =
             }
         ]
     , E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
-        { data = model.timeentries |> Dict.values |> List.filter (\te -> te.user == ld.userid)
+        { data =
+            mytimeentries
         , columns =
             [ { header =
                     EI.checkbox [ E.width E.shrink, E.centerY ]
@@ -1031,6 +1078,51 @@ clonkview ld size zone isdirty model =
                         else
                             row
               }
+            , { header = E.el headerStyle <| E.text "daily"
+              , width = E.shrink
+              , view =
+                    \te ->
+                        if Set.member te.startdate lastofdays then
+                            let
+                                today =
+                                    te.startdate
+                                        |> Time.millisToPosix
+                                        |> TR.toDate zone
+                                        |> Maybe.map Calendar.toMillis
+                            in
+                            case today |> Maybe.andThen (\t -> Dict.get t daytotes) of
+                                Just millis ->
+                                    E.text (millisAsHours millis)
+
+                                Nothing ->
+                                    E.none
+
+                        else
+                            E.none
+              }
+            , { header = E.el headerStyle <| E.text "weekly"
+              , width = E.shrink
+              , view =
+                    \te ->
+                        if Set.member te.startdate lastofweeks then
+                            let
+                                today =
+                                    te.startdate
+                                        |> Time.millisToPosix
+                                        |> TR.toDate zone
+                                        |> Maybe.map TR.toSunday
+                                        |> Maybe.map Calendar.toMillis
+                            in
+                            case today |> Maybe.andThen (\t -> Dict.get t weektotes) of
+                                Just millis ->
+                                    E.text (millisAsHours millis)
+
+                                Nothing ->
+                                    E.none
+
+                        else
+                            E.none
+              }
             ]
         }
     , if isdirty then
@@ -1144,7 +1236,7 @@ distributionview ld size zone model =
                 |> List.foldl (\e t -> t + e.duration) 0
 
         tmpd =
-            TR.teamMillisPerDay (Dict.values model.timeentries)
+            TR.teamMillisPerDay zone (Dict.values model.timeentries)
 
         anychecked =
             Dict.foldl (\_ pe c -> c || pe.checked) False model.payentries
@@ -2796,7 +2888,7 @@ update msg model ld zone =
                     let
                         -- total millis per day for each member.
                         utmpd =
-                            TR.teamMillisPerDay (Dict.values model.timeentries)
+                            TR.teamMillisPerDay zone (Dict.values model.timeentries)
 
                         -- total pay so far for each member.
                         paytotes =

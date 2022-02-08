@@ -4,11 +4,11 @@ import Calendar
 import Clock
 import Csv
 import Data exposing (AllocationId, PayEntryId, TimeEntryId, UserId)
-import DateTime
+import DateTime exposing (DateTime)
 import Dict exposing (Dict)
 import Round as R
 import TDict exposing (TDict)
-import Time
+import Time exposing (Zone)
 import Toop
 import Toop.Take as TT
 import Util
@@ -73,40 +73,62 @@ totalMillis etes =
         etes
 
 
-millisPerDay : Time.Posix -> Time.Posix -> List ( Calendar.Date, Int )
-millisPerDay from to =
-    let
-        fromdt =
-            DateTime.fromPosix from
+toZoneDateTime : Time.Zone -> Time.Posix -> Maybe DateTime
+toZoneDateTime zone posix =
+    DateTime.fromRawParts
+        { day = Time.toDay zone posix
+        , month = Time.toMonth zone posix
+        , year = Time.toYear zone posix
+        }
+        { hours = Time.toHour zone posix
+        , minutes = Time.toMinute zone posix
+        , seconds = Time.toSecond zone posix
+        , milliseconds = Time.toMillis zone posix
+        }
 
-        todt =
-            DateTime.fromPosix to
 
-        fromdate =
-            DateTime.getDate fromdt
+toDate : Time.Zone -> Time.Posix -> Maybe Calendar.Date
+toDate zone posix =
+    Calendar.fromRawParts
+        { day = Time.toDay zone posix
+        , month = Time.toMonth zone posix
+        , year = Time.toYear zone posix
+        }
 
-        todate =
-            DateTime.getDate todt
 
-        msecstill date untildate =
-            if date == untildate then
-                []
+millisPerDay : Time.Zone -> Time.Posix -> Time.Posix -> List ( Calendar.Date, Int )
+millisPerDay zone from to =
+    case ( toZoneDateTime zone from, toZoneDateTime zone to ) of
+        ( Just fromdt, Just todt ) ->
+            let
+                fromdate =
+                    DateTime.getDate fromdt
+
+                todate =
+                    DateTime.getDate todt
+
+                msecstill date untildate =
+                    if date == untildate then
+                        []
+
+                    else
+                        ( date, 24 * 60 * 60 * 1000 )
+                            :: msecstill (Calendar.incrementDay date) untildate
+            in
+            if fromdate == todate then
+                [ ( DateTime.getDate fromdt
+                  , (todt |> DateTime.getTime |> Clock.toMillis)
+                        - (fromdt |> DateTime.getTime |> Clock.toMillis)
+                  )
+                ]
 
             else
-                ( date, 24 * 60 * 60 * 1000 )
-                    :: msecstill (Calendar.incrementDay date) untildate
-    in
-    if fromdate == todate then
-        [ ( DateTime.getDate fromdt
-          , (todt |> DateTime.getTime |> Clock.toMillis)
-                - (fromdt |> DateTime.getTime |> Clock.toMillis)
-          )
-        ]
+                ( fromdate, 24 * 60 * 60 * 1000 - (fromdt |> DateTime.getTime |> Clock.toMillis) )
+                    :: msecstill (Calendar.incrementDay fromdate) todate
+                    ++ [ ( todate, todt |> DateTime.getTime |> Clock.toMillis ) ]
 
-    else
-        ( fromdate, 24 * 60 * 60 * 1000 - (fromdt |> DateTime.getTime |> Clock.toMillis) )
-            :: msecstill (Calendar.incrementDay fromdate) todate
-            ++ [ ( todate, todt |> DateTime.getTime |> Clock.toMillis ) ]
+        _ ->
+            []
 
 
 type alias Mpd =
@@ -116,9 +138,9 @@ type alias Mpd =
     }
 
 
-userMillisPerDay : EditTimeEntry -> List Mpd
-userMillisPerDay ete =
-    millisPerDay (Time.millisToPosix ete.startdate) (Time.millisToPosix ete.enddate)
+userMillisPerDay : Zone -> EditTimeEntry -> List Mpd
+userMillisPerDay zone ete =
+    millisPerDay zone (Time.millisToPosix ete.startdate) (Time.millisToPosix ete.enddate)
         |> List.map
             (\( date, millis ) ->
                 { millis = millis
@@ -128,8 +150,8 @@ userMillisPerDay ete =
             )
 
 
-teamMillisPerDay : List EditTimeEntry -> Dict Int (TDict UserId Int Int)
-teamMillisPerDay etes =
+teamMillisPerDay : Zone -> List EditTimeEntry -> Dict Int (TDict UserId Int Int)
+teamMillisPerDay zone etes =
     let
         e : Dict Int (TDict UserId Int Int)
         e =
@@ -141,7 +163,7 @@ teamMillisPerDay etes =
     in
     etes
         |> List.filter (.ignore >> not)
-        |> List.foldl (\ete mpds -> userMillisPerDay ete ++ mpds) []
+        |> List.foldl (\ete mpds -> userMillisPerDay zone ete ++ mpds) []
         |> List.foldl
             (\mpd dict ->
                 let
@@ -176,6 +198,101 @@ payTotes entries =
                         TDict.insert entry.user entry.duration sums
             )
             emptyUserTimeDict
+
+
+dayTotes : Zone -> List EditTimeEntry -> Dict Int Int
+dayTotes zone timeentries =
+    timeentries
+        |> List.foldl
+            (\te ddict ->
+                millisPerDay zone (Time.millisToPosix te.startdate) (Time.millisToPosix te.enddate)
+                    |> List.foldl
+                        (\( date, millis ) ddicttoo ->
+                            let
+                                dmils =
+                                    Calendar.toMillis date
+                            in
+                            case Dict.get dmils ddict of
+                                Just totemillis ->
+                                    Dict.insert dmils (totemillis + millis) ddict
+
+                                Nothing ->
+                                    Dict.insert dmils millis ddict
+                        )
+                        ddict
+            )
+            Dict.empty
+
+
+addDays : Calendar.Date -> Int -> Calendar.Date
+addDays date days =
+    let
+        millis =
+            Time.posixToMillis (Time.millisToPosix (1000 * 60 * 60 * 12 + Calendar.toMillis date)) + (Calendar.millisInADay * days)
+
+        newDate =
+            Calendar.fromPosix (Time.millisToPosix millis)
+    in
+    newDate
+
+
+dayIndex : Calendar.Date -> Int
+dayIndex date =
+    case Calendar.getWeekday date of
+        Time.Sun ->
+            0
+
+        Time.Mon ->
+            1
+
+        Time.Tue ->
+            2
+
+        Time.Wed ->
+            3
+
+        Time.Thu ->
+            4
+
+        Time.Fri ->
+            5
+
+        Time.Sat ->
+            6
+
+
+toSunday : Calendar.Date -> Calendar.Date
+toSunday date =
+    addDays date (dayIndex date * -1)
+
+
+weekTotes : Zone -> List EditTimeEntry -> Dict Int Int
+weekTotes zone timeentries =
+    timeentries
+        |> List.foldl
+            (\te ddict ->
+                millisPerDay zone (Time.millisToPosix te.startdate) (Time.millisToPosix te.enddate)
+                    |> List.foldl
+                        (\( date, millis ) ddicttoo ->
+                            let
+                                wmils =
+                                    Calendar.toMillis
+                                        (toSunday date)
+                            in
+                            case Dict.get wmils ddict of
+                                Just totemillis ->
+                                    let
+                                        _ =
+                                            Debug.log "wtote: " (totemillis + millis)
+                                    in
+                                    Dict.insert wmils (totemillis + millis) ddict
+
+                                Nothing ->
+                                    Dict.insert wmils millis ddict
+                        )
+                        ddict
+            )
+            Dict.empty
 
 
 emptyUmDict : TDict UserId Int Data.ProjectMember
