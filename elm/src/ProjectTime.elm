@@ -658,7 +658,7 @@ clonkview ld size zone isdirty model =
 
         daytotes =
             mytimeentries
-                |> TR.dayTotes
+                |> TR.dayTotes zone
 
         mypay =
             paytotes
@@ -700,15 +700,16 @@ clonkview ld size zone isdirty model =
                 |> List.reverse
                 |> List.foldl
                     (\te ( set, pd ) ->
-                        let
-                            cd =
-                                Calendar.fromPosix <| Time.millisToPosix te.startdate
-                        in
-                        if Just cd == pd then
-                            ( set, pd )
+                        case TR.toDate zone (Time.millisToPosix te.startdate) of
+                            Just cd ->
+                                if Just cd == pd then
+                                    ( set, pd )
 
-                        else
-                            ( Set.insert te.startdate set, Just cd )
+                                else
+                                    ( Set.insert te.startdate set, Just cd )
+
+                            Nothing ->
+                                ( set, pd )
                     )
                     ( Set.empty, Nothing )
     in
@@ -1064,10 +1065,10 @@ clonkview ld size zone isdirty model =
                                 today =
                                     te.startdate
                                         |> Time.millisToPosix
-                                        |> Calendar.fromPosix
-                                        |> Calendar.toMillis
+                                        |> TR.toDate zone
+                                        |> Maybe.map Calendar.toMillis
                             in
-                            case Dict.get today daytotes of
+                            case today |> Maybe.andThen (\t -> Dict.get t daytotes) of
                                 Just millis ->
                                     E.text (millisAsHours millis)
 
@@ -1190,7 +1191,7 @@ distributionview ld size zone model =
                 |> List.foldl (\e t -> t + e.duration) 0
 
         tmpd =
-            TR.teamMillisPerDay (Dict.values model.timeentries)
+            TR.teamMillisPerDay zone (Dict.values model.timeentries)
 
         anychecked =
             Dict.foldl (\_ pe c -> c || pe.checked) False model.payentries
@@ -2842,7 +2843,7 @@ update msg model ld zone =
                     let
                         -- total millis per day for each member.
                         utmpd =
-                            TR.teamMillisPerDay (Dict.values model.timeentries)
+                            TR.teamMillisPerDay zone (Dict.values model.timeentries)
 
                         -- total pay so far for each member.
                         paytotes =
