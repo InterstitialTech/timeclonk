@@ -22,11 +22,8 @@ type alias TimeTotes =
 
 
 
--- , teamalloc : Bool
--- , mytimeentries : Bool
--- , paytotes : Bool
--- , mypay : Bool
--- , teampay : Bool
+-- the constructor for this is NOT public.
+-- if its always built with mkTToteler or setTes, then the totals will always be consistent.
 
 
 type TTotaler
@@ -89,23 +86,6 @@ mkTToteler timeentries userid zone =
             mytimeentries
                 |> TR.weekTotes zone
 
-        -- paytotes =
-        --     model.payentries |> Dict.values |> TR.payTotes
-        -- mypay =
-        --     paytotes
-        --         |> TDict.get ld.userid
-        --         |> Maybe.withDefault 0
-        --         |> TR.millisToHours
-        -- teampay =
-        --     paytotes
-        --         |> TDict.values
-        --         |> List.foldl (+) 0
-        --         |> TR.millisToHours
-        -- teamalloc =
-        --     model.allocations
-        --         |> Dict.values
-        --         |> List.foldl (\e t -> t + e.duration) 0
-        --         |> TR.millisToHours
         lasttime =
             mytimeentries
                 |> List.reverse
@@ -152,14 +132,8 @@ mkTToteler timeentries userid zone =
         { mytimeentries = mytimeentries
         , teamhours = teamhours
         , myhours = myhours
-
-        --     , paytotes = paytotes
         , daytotes = daytotes
         , weektotes = weektotes
-
-        -- , mypay = mypay
-        -- , teampay = teampay
-        -- , teamalloc = teamalloc
         , lasttime = lasttime
         , lastofdays = lastofdays
         , lastofweeks = lastofweeks
