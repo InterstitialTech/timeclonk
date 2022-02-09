@@ -15,6 +15,7 @@ type alias TimeTotes =
     , lasttime : Maybe Int
     , myhours : Float
     , teamhours : Float
+    , teammillis : Int
     , weektotes : Dict Int Int
     , userid : UserId
     , zone : Time.Zone
@@ -65,8 +66,11 @@ mapTimeentry ttot startdate f =
 mkTToteler : Dict Int EditTimeEntry -> UserId -> Time.Zone -> TTotaler
 mkTToteler timeentries userid zone =
     let
+        teammillis =
+            timeentries |> Dict.values |> TR.totalMillis
+
         teamhours =
-            timeentries |> Dict.values |> TR.totalMillis |> TR.millisToHours
+            TR.millisToHours teammillis
 
         mytimeentries =
             timeentries
@@ -131,6 +135,7 @@ mkTToteler timeentries userid zone =
     TTotaler timeentries
         { mytimeentries = mytimeentries
         , teamhours = teamhours
+        , teammillis = teammillis
         , myhours = myhours
         , daytotes = daytotes
         , weektotes = weektotes

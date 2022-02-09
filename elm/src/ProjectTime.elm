@@ -1617,9 +1617,8 @@ allocationview ld size zone model =
                 |> List.foldl (\e t -> t + e.duration) 0
 
         timetote =
-            getTes model.timeentries
-                |> Dict.values
-                |> List.foldl (\e t -> t + e.enddate - e.startdate) 0
+            getTotes model.timeentries
+                |> .teammillis
 
         alloctote =
             model.allocations
@@ -1904,9 +1903,8 @@ payview ld size zone model =
                 |> List.foldl (\e t -> t + e.duration) 0
 
         timetote =
-            getTes model.timeentries
-                |> Dict.values
-                |> List.foldl (\e t -> t + e.enddate - e.startdate) 0
+            getTotes model.timeentries
+                |> .teammillis
 
         alloctote =
             model.allocations
