@@ -640,23 +640,6 @@ dateTimeWidth =
 clonkview : Data.LoginData -> Util.Size -> Time.Zone -> Bool -> Model -> List (Element Msg)
 clonkview ld size zone isdirty model =
     let
-        -- teamhours =
-        --     model.timeentries |> Dict.values |> TR.totalMillis |> TR.millisToHours
-        -- mytimeentries =
-        --     model.timeentries
-        --         |> Dict.values
-        --         |> List.filter (\te -> te.user == ld.userid)
-        -- myhours =
-        --     mytimeentries
-        --         |> TR.totalMillis
-        --         |> TR.millisToHours
-        -- daytotes =
-        --     mytimeentries
-        --         |> TR.dayTotes zone
-        -- weektotes =
-        --     mytimeentries
-        --         |> TR.weekTotes zone
-        --
         ttotes =
             getTotes model.timeentries
 
@@ -689,44 +672,8 @@ clonkview ld size zone isdirty model =
                 else
                     EF.regular
 
-        -- lasttime =
-        --     mytimeentries
-        --         |> List.reverse
-        --         |> List.head
-        --         |> Maybe.map .startdate
         anychecked =
             Dict.foldl (\_ te c -> c || te.checked) False (getTes model.timeentries)
-
-        -- ( lastofdays, _ ) =
-        --     mytimeentries
-        --         |> List.reverse
-        --         |> List.foldl
-        --             (\te ( set, pd ) ->
-        --                 case TR.toDate zone (Time.millisToPosix te.startdate) of
-        --                     Just cd ->
-        --                         if Just cd == pd then
-        --                             ( set, pd )
-        --                         else
-        --                             ( Set.insert te.startdate set, Just cd )
-        --                     Nothing ->
-        --                         ( set, pd )
-        --             )
-        --             ( Set.empty, Nothing )
-        -- ( lastofweeks, _ ) =
-        --     mytimeentries
-        --         |> List.reverse
-        --         |> List.foldl
-        --             (\te ( set, pd ) ->
-        --                 case TR.toDate zone (Time.millisToPosix te.startdate) |> Maybe.map TR.toSunday of
-        --                     Just cd ->
-        --                         if Just cd == pd then
-        --                             ( set, pd )
-        --                         else
-        --                             ( Set.insert te.startdate set, Just cd )
-        --                     Nothing ->
-        --                         ( set, pd )
-        --             )
-        --             ( Set.empty, Nothing )
     in
     [ E.row
         [ E.spacing TC.defaultSpacing
@@ -2396,17 +2343,6 @@ update msg model ld zone =
             , None
             )
 
-        -- ( { model
-        --     | timeentries =
-        --         case Dict.get startdate model.timeentries of
-        --             Just te ->
-        --                 Dict.insert startdate { te | enddate = enddate } model.timeentries
-        --             Nothing ->
-        --                 model.timeentries
-        --     , focus = Nothing
-        --   }
-        -- , None
-        -- )
         ClearEnd startdate ->
             ( { model
                 | timeentries =
@@ -2416,17 +2352,6 @@ update msg model ld zone =
             , None
             )
 
-        -- ( { model
-        --     | timeentries =
-        --         case Dict.get startdate model.timeentries of
-        --             Just te ->
-        --                 Dict.insert startdate { te | enddate = startdate } model.timeentries
-        --             Nothing ->
-        --                 model.timeentries
-        --     , focus = Nothing
-        --   }
-        -- , None
-        -- )
         DeleteClonk startdate ->
             ( { model
                 | timeentries =
