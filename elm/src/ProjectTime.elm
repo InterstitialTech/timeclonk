@@ -21,6 +21,7 @@ import TangoColors as TC
 import TcCommon as TC
 import Time
 import TimeReporting as TR exposing (EditAllocation, EditPayEntry, EditTimeEntry, csvToEditAllocations, csvToEditTimeEntries, eteToCsv)
+import TimeTotaler as TT exposing (TTotaler, getTes, getTotes, mapTimeentry, mkTToteler, setTes)
 import Toop
 import Util
 import WindowKeys as WK
@@ -46,7 +47,6 @@ type Msg
     | DeletePay Int
     | AllocDescriptionChanged Int String
     | EteDescriptionChanged Int String
-    | EteStartChanged Int String
     | FocusCancel
     | ChangeEnd Int Int
     | FocusDescriptionChanged String
@@ -118,7 +118,7 @@ type alias Model =
     , members : List Data.ProjectMember
     , membernames : Dict Int String
     , description : String
-    , timeentries : Dict Int EditTimeEntry
+    , timeentries : TTotaler
     , initialtimeentries : Dict Int EditTimeEntry
     , payentries : Dict Int EditPayEntry
     , initialpayentries : Dict Int EditPayEntry
@@ -257,7 +257,7 @@ toSaveProjectTime : Model -> Data.SaveProjectTime
 toSaveProjectTime model =
     let
         savetimeentries =
-            model.timeentries
+            getTes model.timeentries
                 |> Dict.values
                 |> List.foldl
                     (\te saves ->
@@ -276,7 +276,7 @@ toSaveProjectTime model =
                 |> List.map (toSaveTimeEntry model)
 
         deletetimeentries =
-            Dict.diff model.initialtimeentries model.timeentries
+            Dict.diff model.initialtimeentries (getTes model.timeentries)
                 |> Dict.values
                 |> List.filterMap .id
                 |> TSet.insertList emptyTimeEntryIdSet
@@ -474,14 +474,14 @@ onSavedProjectTime te model =
             toEteDict te
     in
     { model
-        | timeentries = ietes
+        | timeentries = setTes model.timeentries ietes
         , initialtimeentries = ietes
     }
 
 
 isDirty : Model -> Bool
 isDirty model =
-    (model.timeentries |> Dict.map (\_ te -> { te | checked = False }))
+    (getTes model.timeentries |> Dict.map (\_ te -> { te | checked = False }))
         /= model.initialtimeentries
         || (model.payentries |> Dict.map (\_ pe -> { pe | checked = False }))
         /= model.initialpayentries
@@ -489,8 +489,8 @@ isDirty model =
         /= model.initialallocations
 
 
-init : Data.LoginData -> Data.ProjectTime -> Bool -> String -> Model
-init ld pt saveonclonk mode =
+init : Time.Zone -> Data.LoginData -> Data.ProjectTime -> Bool -> String -> Model
+init zone ld pt saveonclonk mode =
     let
         ietes =
             toEteDict pt.timeentries
@@ -508,7 +508,7 @@ init ld pt saveonclonk mode =
     , members = pt.members
     , membernames = pt.members |> List.map (\m -> ( Data.getUserIdVal m.id, m.name )) |> Dict.fromList
     , description = description
-    , timeentries = ietes
+    , timeentries = mkTToteler ietes ld.userid zone
     , initialtimeentries = ietes
     , payentries = iepes
     , initialpayentries = iepes
@@ -538,9 +538,9 @@ init ld pt saveonclonk mode =
     }
 
 
-onProjectTime : Data.LoginData -> Data.ProjectTime -> Model -> Model
-onProjectTime ld pt model =
-    init ld pt model.saveonclonk (showViewMode model.viewmode)
+onProjectTime : Time.Zone -> Data.LoginData -> Data.ProjectTime -> Model -> Model
+onProjectTime zone ld pt model =
+    init zone ld pt model.saveonclonk (showViewMode model.viewmode)
 
 
 viewModeBar : Model -> Element Msg
@@ -640,29 +640,28 @@ dateTimeWidth =
 clonkview : Data.LoginData -> Util.Size -> Time.Zone -> Bool -> Model -> List (Element Msg)
 clonkview ld size zone isdirty model =
     let
-        teamhours =
-            model.timeentries |> Dict.values |> TR.totalMillis |> TR.millisToHours
-
-        mytimeentries =
-            model.timeentries
-                |> Dict.values
-                |> List.filter (\te -> te.user == ld.userid)
-
-        myhours =
-            mytimeentries
-                |> TR.totalMillis
-                |> TR.millisToHours
+        -- teamhours =
+        --     model.timeentries |> Dict.values |> TR.totalMillis |> TR.millisToHours
+        -- mytimeentries =
+        --     model.timeentries
+        --         |> Dict.values
+        --         |> List.filter (\te -> te.user == ld.userid)
+        -- myhours =
+        --     mytimeentries
+        --         |> TR.totalMillis
+        --         |> TR.millisToHours
+        -- daytotes =
+        --     mytimeentries
+        --         |> TR.dayTotes zone
+        -- weektotes =
+        --     mytimeentries
+        --         |> TR.weekTotes zone
+        --
+        ttotes =
+            getTotes model.timeentries
 
         paytotes =
             model.payentries |> Dict.values |> TR.payTotes
-
-        daytotes =
-            mytimeentries
-                |> TR.dayTotes zone
-
-        weektotes =
-            mytimeentries
-                |> TR.weekTotes zone
 
         mypay =
             paytotes
@@ -690,50 +689,44 @@ clonkview ld size zone isdirty model =
                 else
                     EF.regular
 
-        lasttime =
-            mytimeentries
-                |> List.reverse
-                |> List.head
-                |> Maybe.map .startdate
-
+        -- lasttime =
+        --     mytimeentries
+        --         |> List.reverse
+        --         |> List.head
+        --         |> Maybe.map .startdate
         anychecked =
-            Dict.foldl (\_ te c -> c || te.checked) False model.timeentries
+            Dict.foldl (\_ te c -> c || te.checked) False (getTes model.timeentries)
 
-        ( lastofdays, _ ) =
-            mytimeentries
-                |> List.reverse
-                |> List.foldl
-                    (\te ( set, pd ) ->
-                        case TR.toDate zone (Time.millisToPosix te.startdate) of
-                            Just cd ->
-                                if Just cd == pd then
-                                    ( set, pd )
-
-                                else
-                                    ( Set.insert te.startdate set, Just cd )
-
-                            Nothing ->
-                                ( set, pd )
-                    )
-                    ( Set.empty, Nothing )
-
-        ( lastofweeks, _ ) =
-            mytimeentries
-                |> List.reverse
-                |> List.foldl
-                    (\te ( set, pd ) ->
-                        case TR.toDate zone (Time.millisToPosix te.startdate) |> Maybe.map TR.toSunday of
-                            Just cd ->
-                                if Just cd == pd then
-                                    ( set, pd )
-
-                                else
-                                    ( Set.insert te.startdate set, Just cd )
-
-                            Nothing ->
-                                ( set, pd )
-                    )
-                    ( Set.empty, Nothing )
+        -- ( lastofdays, _ ) =
+        --     mytimeentries
+        --         |> List.reverse
+        --         |> List.foldl
+        --             (\te ( set, pd ) ->
+        --                 case TR.toDate zone (Time.millisToPosix te.startdate) of
+        --                     Just cd ->
+        --                         if Just cd == pd then
+        --                             ( set, pd )
+        --                         else
+        --                             ( Set.insert te.startdate set, Just cd )
+        --                     Nothing ->
+        --                         ( set, pd )
+        --             )
+        --             ( Set.empty, Nothing )
+        -- ( lastofweeks, _ ) =
+        --     mytimeentries
+        --         |> List.reverse
+        --         |> List.foldl
+        --             (\te ( set, pd ) ->
+        --                 case TR.toDate zone (Time.millisToPosix te.startdate) |> Maybe.map TR.toSunday of
+        --                     Just cd ->
+        --                         if Just cd == pd then
+        --                             ( set, pd )
+        --                         else
+        --                             ( Set.insert te.startdate set, Just cd )
+        --                     Nothing ->
+        --                         ( set, pd )
+        --             )
+        --             ( Set.empty, Nothing )
     in
     [ E.row
         [ E.spacing TC.defaultSpacing
@@ -760,7 +753,7 @@ clonkview ld size zone isdirty model =
         ]
     , E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
         { data =
-            mytimeentries
+            ttotes.mytimeentries
         , columns =
             [ { header =
                     EI.checkbox [ E.width E.shrink, E.centerY ]
@@ -776,7 +769,7 @@ clonkview ld size zone isdirty model =
                                         ac
                                 )
                                 True
-                                model.timeentries
+                                (getTes model.timeentries)
                         , label = EI.labelHidden "check all"
                         }
               , width = E.shrink
@@ -927,7 +920,7 @@ clonkview ld size zone isdirty model =
                             E.column cellEditStyle
                                 [ row
                                 , E.row [ E.width E.fill ]
-                                    [ if Just te.startdate == lasttime then
+                                    [ if Just te.startdate == ttotes.lasttime then
                                         EI.button Common.buttonStyle
                                             { onPress = Just <| ChangeEnd te.startdate te.startdate
                                             , label = E.text "clonk in"
@@ -983,7 +976,7 @@ clonkview ld size zone isdirty model =
                                         ]
                                         [ E.none ]
                             in
-                            if Just te.startdate == lasttime then
+                            if Just te.startdate == ttotes.lasttime then
                                 case model.clonkOutDisplay of
                                     Just time ->
                                         E.row
@@ -1059,7 +1052,7 @@ clonkview ld size zone isdirty model =
                                     ]
                                 ]
 
-                        else if Just te.startdate == lasttime && te.startdate == te.enddate then
+                        else if Just te.startdate == ttotes.lasttime && te.startdate == te.enddate then
                             case model.clonkOutDisplay of
                                 Just time ->
                                     E.row
@@ -1082,7 +1075,7 @@ clonkview ld size zone isdirty model =
               , width = E.shrink
               , view =
                     \te ->
-                        if Set.member te.startdate lastofdays then
+                        if Set.member te.startdate ttotes.lastofdays then
                             let
                                 today =
                                     te.startdate
@@ -1090,7 +1083,7 @@ clonkview ld size zone isdirty model =
                                         |> TR.toDate zone
                                         |> Maybe.map Calendar.toMillis
                             in
-                            case today |> Maybe.andThen (\t -> Dict.get t daytotes) of
+                            case today |> Maybe.andThen (\t -> Dict.get t ttotes.daytotes) of
                                 Just millis ->
                                     E.text (millisAsHours millis)
 
@@ -1104,7 +1097,7 @@ clonkview ld size zone isdirty model =
               , width = E.shrink
               , view =
                     \te ->
-                        if Set.member te.startdate lastofweeks then
+                        if Set.member te.startdate ttotes.lastofweeks then
                             let
                                 today =
                                     te.startdate
@@ -1113,7 +1106,7 @@ clonkview ld size zone isdirty model =
                                         |> Maybe.map TR.toSunday
                                         |> Maybe.map Calendar.toMillis
                             in
-                            case today |> Maybe.andThen (\t -> Dict.get t weektotes) of
+                            case today |> Maybe.andThen (\t -> Dict.get t ttotes.weektotes) of
                                 Just millis ->
                                     E.text (millisAsHours millis)
 
@@ -1138,13 +1131,13 @@ clonkview ld size zone isdirty model =
     , E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
         { data =
             [ ( "team unpaid hours: "
-              , R.round 2 <| teamhours - teampay
+              , R.round 2 <| ttotes.teamhours - teampay
               )
             , ( "team allocated hours: "
-              , R.round 2 <| teamalloc - teamhours
+              , R.round 2 <| teamalloc - ttotes.teamhours
               )
             , ( "my unpaid hours: "
-              , R.round 2 <| myhours - mypay
+              , R.round 2 <| ttotes.myhours - mypay
               )
             ]
         , columns =
@@ -1162,10 +1155,10 @@ clonkview ld size zone isdirty model =
         }
     , let
         hasendtime =
-            lasttime
+            ttotes.lasttime
                 |> Maybe.andThen
                     (\t ->
-                        Dict.get t model.timeentries
+                        Dict.get t (getTes model.timeentries)
                     )
                 |> Maybe.map
                     (\te ->
@@ -1215,7 +1208,7 @@ distributionview ld size zone model =
             model.payentries |> Dict.values |> TR.payTotes
 
         timetotes =
-            model.timeentries |> Dict.values |> TR.timeTotes
+            getTes model.timeentries |> Dict.values |> TR.timeTotes
 
         unpaidtotes =
             timetotes
@@ -1236,7 +1229,7 @@ distributionview ld size zone model =
                 |> List.foldl (\e t -> t + e.duration) 0
 
         tmpd =
-            TR.teamMillisPerDay zone (Dict.values model.timeentries)
+            TR.teamMillisPerDay zone (Dict.values (getTes model.timeentries))
 
         anychecked =
             Dict.foldl (\_ pe c -> c || pe.checked) False model.payentries
@@ -1677,7 +1670,7 @@ allocationview ld size zone model =
                 |> List.foldl (\e t -> t + e.duration) 0
 
         timetote =
-            model.timeentries
+            getTes model.timeentries
                 |> Dict.values
                 |> List.foldl (\e t -> t + e.enddate - e.startdate) 0
 
@@ -1964,7 +1957,7 @@ payview ld size zone model =
                 |> List.foldl (\e t -> t + e.duration) 0
 
         timetote =
-            model.timeentries
+            getTes model.timeentries
                 |> Dict.values
                 |> List.foldl (\e t -> t + e.enddate - e.startdate) 0
 
@@ -2254,7 +2247,7 @@ update msg model ld zone =
 
         RevertPress ->
             ( { model
-                | timeentries = model.initialtimeentries
+                | timeentries = setTes model.timeentries model.initialtimeentries
                 , payentries = model.initialpayentries
                 , allocations = model.initialallocations
               }
@@ -2292,7 +2285,8 @@ update msg model ld zone =
                                 | timeentries =
                                     el
                                         |> List.map (\e -> ( e.startdate, e ))
-                                        |> List.foldl (\( k, v ) d -> Dict.insert k v d) model.timeentries
+                                        |> List.foldl (\( k, v ) d -> Dict.insert k v d) (getTes model.timeentries)
+                                        |> setTes model.timeentries
                               }
                             , None
                             )
@@ -2338,16 +2332,17 @@ update msg model ld zone =
                 nm =
                     { model
                         | timeentries =
-                            Dict.insert time
-                                { id = Nothing
-                                , description = model.description
-                                , user = ld.userid
-                                , startdate = time
-                                , enddate = time
-                                , ignore = False
-                                , checked = False
-                                }
-                                model.timeentries
+                            setTes model.timeentries <|
+                                Dict.insert time
+                                    { id = Nothing
+                                    , description = model.description
+                                    , user = ld.userid
+                                    , startdate = time
+                                    , enddate = time
+                                    , ignore = False
+                                    , checked = False
+                                    }
+                                    (getTes model.timeentries)
                     }
             in
             ( nm
@@ -2363,13 +2358,14 @@ update msg model ld zone =
                 nm =
                     { model
                         | timeentries =
-                            model.timeentries
+                            getTes model.timeentries
                                 |> Dict.values
                                 |> List.filter (.user >> (==) ld.userid)
                                 |> List.reverse
                                 >> List.head
-                                |> Maybe.map (\t -> Dict.insert t.startdate { t | enddate = time } model.timeentries)
-                                |> Maybe.withDefault model.timeentries
+                                |> Maybe.map (\t -> Dict.insert t.startdate { t | enddate = time } <| getTes model.timeentries)
+                                |> Maybe.withDefault (getTes model.timeentries)
+                                |> setTes model.timeentries
                     }
             in
             ( nm
@@ -2383,25 +2379,7 @@ update msg model ld zone =
         EteDescriptionChanged startdate text ->
             ( { model
                 | timeentries =
-                    case Dict.get startdate model.timeentries of
-                        Just te ->
-                            Dict.insert startdate { te | description = text } model.timeentries
-
-                        Nothing ->
-                            model.timeentries
-              }
-            , None
-            )
-
-        EteStartChanged startdate text ->
-            ( { model
-                | timeentries =
-                    case Dict.get startdate model.timeentries of
-                        Just te ->
-                            Dict.insert startdate { te | description = text } model.timeentries
-
-                        Nothing ->
-                            model.timeentries
+                    mapTimeentry model.timeentries startdate (\te -> { te | description = text })
               }
             , None
             )
@@ -2412,35 +2390,48 @@ update msg model ld zone =
         NowEndTime startdate enddate ->
             ( { model
                 | timeentries =
-                    case Dict.get startdate model.timeentries of
-                        Just te ->
-                            Dict.insert startdate { te | enddate = enddate } model.timeentries
-
-                        Nothing ->
-                            model.timeentries
+                    mapTimeentry model.timeentries startdate (\te -> { te | enddate = enddate })
                 , focus = Nothing
               }
             , None
             )
 
+        -- ( { model
+        --     | timeentries =
+        --         case Dict.get startdate model.timeentries of
+        --             Just te ->
+        --                 Dict.insert startdate { te | enddate = enddate } model.timeentries
+        --             Nothing ->
+        --                 model.timeentries
+        --     , focus = Nothing
+        --   }
+        -- , None
+        -- )
         ClearEnd startdate ->
             ( { model
                 | timeentries =
-                    case Dict.get startdate model.timeentries of
-                        Just te ->
-                            Dict.insert startdate { te | enddate = startdate } model.timeentries
-
-                        Nothing ->
-                            model.timeentries
+                    mapTimeentry model.timeentries startdate (\te -> { te | enddate = startdate })
                 , focus = Nothing
               }
             , None
             )
 
+        -- ( { model
+        --     | timeentries =
+        --         case Dict.get startdate model.timeentries of
+        --             Just te ->
+        --                 Dict.insert startdate { te | enddate = startdate } model.timeentries
+        --             Nothing ->
+        --                 model.timeentries
+        --     , focus = Nothing
+        --   }
+        -- , None
+        -- )
         DeleteClonk startdate ->
             ( { model
                 | timeentries =
-                    Dict.remove startdate model.timeentries
+                    setTes model.timeentries <|
+                        Dict.remove startdate (getTes model.timeentries)
               }
             , None
             )
@@ -2478,7 +2469,7 @@ update msg model ld zone =
             else
                 case model.viewmode of
                     Clonks ->
-                        case Dict.get i model.timeentries of
+                        case Dict.get i <| getTes model.timeentries of
                             Just te ->
                                 ( { model
                                     | focus = Just ( i, fc )
@@ -2557,12 +2548,7 @@ update msg model ld zone =
                         Clonks ->
                             ( { model
                                 | timeentries =
-                                    case Dict.get startdate model.timeentries of
-                                        Just te ->
-                                            Dict.insert startdate { te | description = model.focusdescription } model.timeentries
-
-                                        Nothing ->
-                                            model.timeentries
+                                    mapTimeentry model.timeentries startdate (\te -> { te | description = model.focusdescription })
                                 , focus = Nothing
                               }
                             , None
@@ -2608,12 +2594,15 @@ update msg model ld zone =
         ChangeStart newtime ->
             case model.focus of
                 Just ( startdate, _ ) ->
-                    case Dict.get startdate model.timeentries of
+                    case Dict.get startdate <| getTes model.timeentries of
                         Just te ->
                             ( { model
                                 | timeentries =
-                                    Dict.insert newtime { te | startdate = newtime } model.timeentries
-                                        |> Dict.remove startdate
+                                    setTes model.timeentries <|
+                                        (getTes model.timeentries
+                                            |> Dict.insert newtime { te | startdate = newtime }
+                                            |> Dict.remove startdate
+                                        )
                                 , focus = Nothing
                                 , focusstart = ""
                               }
@@ -2705,20 +2694,13 @@ update msg model ld zone =
             ( { model | focus = Nothing }, None )
 
         ChangeEnd startdate enddate ->
-            case Dict.get startdate model.timeentries of
-                Just te ->
-                    -- set end date AND clear focus.
-                    ( { model
-                        | timeentries =
-                            Dict.insert startdate { te | enddate = enddate } model.timeentries
-                        , focusend = ""
-                        , focus = Nothing
-                      }
-                    , None
-                    )
-
-                Nothing ->
-                    ( { model | focusend = "" }, None )
+            ( { model
+                | timeentries = mapTimeentry model.timeentries startdate (\te -> { te | enddate = enddate })
+                , focusend = ""
+                , focus = Nothing
+              }
+            , None
+            )
 
         FocusDurationChanged text ->
             ( { model | focusduration = text }, None )
@@ -2888,7 +2870,7 @@ update msg model ld zone =
                     let
                         -- total millis per day for each member.
                         utmpd =
-                            TR.teamMillisPerDay zone (Dict.values model.timeentries)
+                            TR.teamMillisPerDay zone (Dict.values <| getTes model.timeentries)
 
                         -- total pay so far for each member.
                         paytotes =
@@ -3098,26 +3080,23 @@ update msg model ld zone =
         CheckAll c ->
             ( { model
                 | timeentries =
-                    Dict.map
-                        (\_ te ->
-                            if te.user == ld.userid then
-                                { te | checked = c }
+                    setTes model.timeentries <|
+                        Dict.map
+                            (\_ te ->
+                                if te.user == ld.userid then
+                                    { te | checked = c }
 
-                            else
-                                te
-                        )
-                        model.timeentries
+                                else
+                                    te
+                            )
+                            (getTes model.timeentries)
               }
             , None
             )
 
         CheckItem sd c ->
             ( { model
-                | timeentries =
-                    model.timeentries
-                        |> Dict.get sd
-                        |> Maybe.map (\te -> Dict.insert sd { te | checked = c } model.timeentries)
-                        |> Maybe.withDefault model.timeentries
+                | timeentries = mapTimeentry model.timeentries sd (\te -> { te | checked = c })
               }
             , None
             )
@@ -3170,7 +3149,9 @@ update msg model ld zone =
 
         DeleteChecked ->
             ( { model
-                | timeentries = Dict.filter (\_ te -> not te.checked) model.timeentries
+                | timeentries =
+                    setTes model.timeentries <|
+                        Dict.filter (\_ te -> not te.checked) (getTes model.timeentries)
               }
             , None
             )
@@ -3201,7 +3182,7 @@ update msg model ld zone =
                                 any
                         )
                         False
-                        model.timeentries
+                        (getTes model.timeentries)
 
                 igftn =
                     if anyunignored then
@@ -3212,22 +3193,23 @@ update msg model ld zone =
             in
             ( { model
                 | timeentries =
-                    Dict.map
-                        (\_ te ->
-                            if te.checked then
-                                { te | ignore = igftn te.ignore }
+                    setTes model.timeentries <|
+                        Dict.map
+                            (\_ te ->
+                                if te.checked then
+                                    { te | ignore = igftn te.ignore }
 
-                            else
-                                te
-                        )
-                        model.timeentries
+                                else
+                                    te
+                            )
+                            (getTes model.timeentries)
               }
             , None
             )
 
         ExportChecked ->
             ( model
-            , SaveCsv (eteToCsv zone model.timeentries)
+            , SaveCsv (eteToCsv zone (getTes model.timeentries))
             )
 
         DonePress ->

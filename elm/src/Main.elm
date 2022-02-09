@@ -882,7 +882,7 @@ actualupdate msg model =
                         UI.ProjectTime x ->
                             case stateLogin state of
                                 Just login ->
-                                    ( { model | state = ProjectTime (ProjectTime.init login x model.saveonclonk mode) login }, Cmd.none )
+                                    ( { model | state = ProjectTime (ProjectTime.init model.timezone login x model.saveonclonk mode) login }, Cmd.none )
 
                                 Nothing ->
                                     ( model, Cmd.none )
@@ -1053,12 +1053,12 @@ actualupdate msg model =
                         UI.ProjectTime x ->
                             case state of
                                 ProjectTime st login ->
-                                    ( { model | state = ProjectTime (ProjectTime.onProjectTime login x st) login }, Cmd.none )
+                                    ( { model | state = ProjectTime (ProjectTime.onProjectTime model.timezone login x st) login }, Cmd.none )
 
                                 _ ->
                                     case stateLogin state of
                                         Just login ->
-                                            ( { model | state = ProjectTime (ProjectTime.init login x model.saveonclonk "") login }, Cmd.none )
+                                            ( { model | state = ProjectTime (ProjectTime.init model.timezone login x model.saveonclonk "") login }, Cmd.none )
 
                                         Nothing ->
                                             ( model, Cmd.none )
