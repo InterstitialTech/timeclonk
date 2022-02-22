@@ -11,8 +11,7 @@ import Element.Border as EBd
 import Element.Events as EE
 import Element.Font as EF
 import Element.Input as EI
-import Element.Keyed as EK
-import Element.Region
+import Paginator as P
 import Round as R
 import Set
 import TDict exposing (TDict)
@@ -21,7 +20,7 @@ import TangoColors as TC
 import TcCommon as TC
 import Time
 import TimeReporting as TR exposing (EditAllocation, EditPayEntry, EditTimeEntry, csvToEditAllocations, csvToEditTimeEntries, eteToCsv)
-import TimeTotaler as TT exposing (TTotaler, getTes, getTotes, mapTimeentry, mkTToteler, setTes)
+import TimeTotaler exposing (TTotaler, getTes, getTotes, mapTimeentry, mkTToteler, setTes)
 import Toop
 import Util
 import WindowKeys as WK
