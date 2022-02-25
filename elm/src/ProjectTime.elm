@@ -572,11 +572,15 @@ setPageIncrement pageincrement model =
 
         ap =
             model.apaginator
+
+        dp =
+            model.dpaginator
     in
     { model
         | tepaginator = { tp | pageincrement = pageincrement }
         , pepaginator = { pp | pageincrement = pageincrement }
         , apaginator = { ap | pageincrement = pageincrement }
+        , dpaginator = { dp | pageincrement = pageincrement }
     }
 
 
