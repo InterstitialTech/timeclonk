@@ -1249,7 +1249,7 @@ distributionview ld size zone model =
 
       else
         E.none
-    , P.view (Dict.size data) model.apaginator
+    , P.view (Dict.size data) model.dpaginator
     , E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
         { data =
             data
