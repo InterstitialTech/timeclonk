@@ -1,4 +1,4 @@
-module Paginator exposing (Model, filter, init, onBack, onForward, onToEnd, onToStart, view)
+module Paginator exposing (Model, WhichEnd(..), filter, init, onBack, onForward, onToEnd, onToStart, view)
 
 import Common
 import Element as E exposing (Element)
@@ -14,7 +14,7 @@ import Element.Region
 type alias Model msg =
     { offset : Int
     , pageincrement : Int
-    , toEnd : Bool
+    , atEnd : Bool
     , toStartMsg : msg
     , forwardMsg : msg
     , backMsg : Int -> msg
@@ -22,11 +22,22 @@ type alias Model msg =
     }
 
 
-init : msg -> (Int -> msg) -> msg -> (Int -> msg) -> Int -> Int -> Model msg
-init forwardMsg backMsg toStartMsg toEndMsg offset pageincrement =
-    { offset = offset
+type WhichEnd
+    = Start
+    | End
+
+
+init : msg -> (Int -> msg) -> msg -> (Int -> msg) -> WhichEnd -> Int -> Model msg
+init forwardMsg backMsg toStartMsg toEndMsg whichend pageincrement =
+    { offset = 0
     , pageincrement = pageincrement
-    , toEnd = False
+    , atEnd =
+        case whichend of
+            Start ->
+                False
+
+            End ->
+                True
     , forwardMsg = forwardMsg
     , backMsg = backMsg
     , toStartMsg = toStartMsg
@@ -36,35 +47,35 @@ init forwardMsg backMsg toStartMsg toEndMsg offset pageincrement =
 
 onForward : Model msg -> Model msg
 onForward model =
-    if model.toEnd then
+    if model.atEnd then
         model
 
     else
-        { model | offset = model.offset + model.pageincrement, toEnd = False }
+        { model | offset = model.offset + model.pageincrement, atEnd = False }
 
 
 onBack : Int -> Model msg -> Model msg
 onBack itemcount model =
-    if model.toEnd then
-        { model | offset = max 0 (itemcount - (2 * model.pageincrement)), toEnd = False }
+    if model.atEnd then
+        { model | offset = max 0 (itemcount - (2 * model.pageincrement)), atEnd = False }
 
     else
-        { model | offset = model.offset - model.pageincrement, toEnd = False }
+        { model | offset = max 0 <| model.offset - model.pageincrement, atEnd = False }
 
 
 onToStart : Model msg -> Model msg
 onToStart model =
-    { model | offset = 0, toEnd = False }
+    { model | offset = 0, atEnd = False }
 
 
 onToEnd : Int -> Model msg -> Model msg
 onToEnd itemcount model =
-    { model | offset = max 0 (itemcount - model.pageincrement), toEnd = True }
+    { model | offset = max 0 (itemcount - model.pageincrement), atEnd = True }
 
 
 filter : Model msg -> List a -> List a
 filter model list =
-    if model.toEnd then
+    if model.atEnd then
         list
             |> List.reverse
             |> List.take model.pageincrement
@@ -78,8 +89,15 @@ filter model list =
 
 view : Int -> Model msg -> Element msg
 view itemcount model =
+    let
+        bd =
+            model.offset == 0 && (not model.atEnd || itemcount <= model.pageincrement)
+
+        fe =
+            model.offset < itemcount - model.pageincrement && not model.atEnd
+    in
     E.row [ E.spacing 8 ]
-        [ if model.offset == 0 then
+        [ if bd then
             EI.button
                 Common.disabledButtonStyle
                 { onPress = Nothing, label = E.text "|<" }
@@ -88,7 +106,7 @@ view itemcount model =
             EI.button
                 Common.buttonStyle
                 { onPress = Just model.toStartMsg, label = E.text "|<" }
-        , if model.offset == 0 then
+        , if bd then
             EI.button
                 Common.disabledButtonStyle
                 { onPress = Nothing, label = E.text "<" }
@@ -97,7 +115,7 @@ view itemcount model =
             EI.button
                 Common.buttonStyle
                 { onPress = Just (model.backMsg itemcount), label = E.text "<" }
-        , if model.offset < itemcount - model.pageincrement && not model.toEnd then
+        , if fe then
             EI.button
                 Common.buttonStyle
                 { onPress = Just model.forwardMsg, label = E.text ">" }
@@ -106,7 +124,7 @@ view itemcount model =
             EI.button
                 Common.disabledButtonStyle
                 { onPress = Nothing, label = E.text ">" }
-        , if model.offset < itemcount - model.pageincrement && not model.toEnd then
+        , if fe then
             EI.button
                 Common.buttonStyle
                 { onPress = Just (model.toEndMsg itemcount), label = E.text ">|" }
