@@ -46,7 +46,7 @@ onForward model =
 onBack : Int -> Model msg -> Model msg
 onBack itemcount model =
     if model.toEnd then
-        { model | offset = itemcount - model.pageincrement, toEnd = False }
+        { model | offset = max 0 (itemcount - (2 * model.pageincrement)), toEnd = False }
 
     else
         { model | offset = model.offset - model.pageincrement, toEnd = False }

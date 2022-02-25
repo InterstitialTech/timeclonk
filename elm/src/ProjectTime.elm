@@ -493,8 +493,8 @@ isDirty model =
         /= model.initialallocations
 
 
-init : Time.Zone -> Data.LoginData -> Data.ProjectTime -> Bool -> String -> Model
-init zone ld pt saveonclonk mode =
+init : Time.Zone -> Data.LoginData -> Data.ProjectTime -> Bool -> Int -> String -> Model
+init zone ld pt saveonclonk pageincrement mode =
     let
         ietes =
             toEteDict pt.timeentries
@@ -514,7 +514,7 @@ init zone ld pt saveonclonk mode =
     , description = description
     , timeentries = mkTToteler ietes ld.userid zone
     , initialtimeentries = ietes
-    , tepaginator = P.init TeForward TeBack TeToStart TeToEnd 0 25
+    , tepaginator = P.init TeForward TeBack TeToStart TeToEnd 0 pageincrement
     , payentries = iepes
     , initialpayentries = iepes
     , allocations = ieas
@@ -543,11 +543,20 @@ init zone ld pt saveonclonk mode =
     }
 
 
+setPageIncrement : Int -> Model -> Model
+setPageIncrement pageincrement model =
+    let
+        tp =
+            model.tepaginator
+    in
+    { model | tepaginator = { tp | pageincrement = pageincrement } }
+
+
 onProjectTime : Time.Zone -> Data.LoginData -> Data.ProjectTime -> Model -> Model
 onProjectTime zone ld pt model =
     let
         nm =
-            init zone ld pt model.saveonclonk (showViewMode model.viewmode)
+            init zone ld pt model.saveonclonk model.tepaginator.pageincrement (showViewMode model.viewmode)
     in
     { nm | tepaginator = model.tepaginator }
 
