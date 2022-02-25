@@ -104,6 +104,10 @@ type Msg
     | ABack
     | AToStart
     | AToEnd
+    | DForward
+    | DBack
+    | DToStart
+    | DToEnd
     | Noop
 
 
@@ -148,6 +152,7 @@ type alias Model =
     , distributionhours : String
     , distributioncurrency : String
     , distribution : Maybe (TDict UserId Int String)
+    , dpaginator : P.Model Msg
     , shownewalloc : Bool
     , shownewpayment : Bool
     , allocdescription : String
@@ -542,6 +547,7 @@ init zone ld pt saveonclonk pageincrement mode =
     , distributionhours = ""
     , distributioncurrency = ""
     , distribution = Nothing
+    , dpaginator = P.init DForward DBack DToStart DToEnd 0 pageincrement
     , shownewalloc = False
     , shownewpayment = False
     , allocdescription = ""
@@ -1225,6 +1231,12 @@ distributionview ld size zone model =
 
         anychecked =
             Dict.foldl (\_ pe c -> c || pe.checked) False model.payentries
+
+        data =
+            Dict.union (Dict.map (\i v -> TimeDay v) tmpd) <|
+                Dict.union
+                    (Dict.map (\i v -> PayEntry v) model.payentries)
+                    (Dict.map (\i v -> Allocation v) model.allocations)
     in
     [ if anychecked then
         E.row [ E.spacing TC.defaultSpacing ]
@@ -1237,13 +1249,12 @@ distributionview ld size zone model =
 
       else
         E.none
+    , P.view (Dict.size data) model.apaginator
     , E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
         { data =
-            Dict.toList <|
-                Dict.union (Dict.map (\i v -> TimeDay v) tmpd) <|
-                    Dict.union
-                        (Dict.map (\i v -> PayEntry v) model.payentries)
-                        (Dict.map (\i v -> Allocation v) model.allocations)
+            data
+                |> Dict.toList
+                |> P.filter model.dpaginator
         , columns =
             { header =
                 EI.checkbox [ E.width E.shrink, E.centerY ]
