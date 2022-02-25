@@ -19,6 +19,7 @@ type Msg
     | ChangeEmailPress
     | SetFontSize Int
     | SaveOnClonkChecked Bool
+    | PageIncrementChanged String
     | LogOutPress
 
 
@@ -29,6 +30,7 @@ type Command
     | ChangeEmail
     | ChangeFontSize Int
     | ChangeSaveOnClonk Bool
+    | ChangePageIncrement Int
     | None
 
 
@@ -36,12 +38,19 @@ type alias Model =
     { login : Data.LoginData
     , fontsize : Int
     , saveonclonk : Bool
+    , pageincrement : Int
+    , pageincrementstr : String
     }
 
 
-init : Data.LoginData -> Int -> Bool -> Model
-init login fontsize saveonclonk =
-    { login = login, fontsize = fontsize, saveonclonk = saveonclonk }
+init : Data.LoginData -> Int -> Bool -> Int -> Model
+init login fontsize saveonclonk pageincrement =
+    { login = login
+    , fontsize = fontsize
+    , saveonclonk = saveonclonk
+    , pageincrement = pageincrement
+    , pageincrementstr = String.fromInt pageincrement
+    }
 
 
 view : Model -> Element Msg
@@ -79,6 +88,12 @@ view model =
                     , icon = EI.defaultCheckbox
                     , checked = model.saveonclonk
                     , label = EI.labelLeft [] <| E.text "Save on clonk in/out"
+                    }
+                , EI.text [ E.width <| E.px 100 ]
+                    { onChange = PageIncrementChanged
+                    , text = model.pageincrementstr
+                    , placeholder = Nothing
+                    , label = EI.labelLeft [] (E.text "page increment")
                     }
                 , EI.slider
                     [ E.height (E.px 30)
@@ -129,6 +144,18 @@ update msg model =
 
         SaveOnClonkChecked b ->
             ( { model | saveonclonk = b }, ChangeSaveOnClonk b )
+
+        PageIncrementChanged str ->
+            case String.toInt str of
+                Just i ->
+                    if model.pageincrement == i then
+                        ( { model | pageincrementstr = str }, None )
+
+                    else
+                        ( { model | pageincrementstr = str, pageincrement = i }, ChangePageIncrement i )
+
+                Nothing ->
+                    ( { model | pageincrementstr = str }, None )
 
         Noop ->
             ( model, None )

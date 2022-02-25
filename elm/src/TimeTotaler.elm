@@ -9,6 +9,7 @@ import TimeReporting as TR exposing (EditAllocation, EditPayEntry, EditTimeEntry
 
 type alias TimeTotes =
     { mytimeentries : List EditTimeEntry
+    , mtecount : Int
     , daytotes : Dict Int Int
     , lastofdays : Set.Set Int
     , lastofweeks : Set.Set Int
@@ -134,6 +135,7 @@ mkTToteler timeentries userid zone =
     in
     TTotaler timeentries
         { mytimeentries = mytimeentries
+        , mtecount = List.length mytimeentries
         , teamhours = teamhours
         , teammillis = teammillis
         , myhours = myhours

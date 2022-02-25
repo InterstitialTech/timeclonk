@@ -11,8 +11,7 @@ import Element.Border as EBd
 import Element.Events as EE
 import Element.Font as EF
 import Element.Input as EI
-import Element.Keyed as EK
-import Element.Region
+import Paginator as P
 import Round as R
 import Set
 import TDict exposing (TDict)
@@ -21,7 +20,7 @@ import TangoColors as TC
 import TcCommon as TC
 import Time
 import TimeReporting as TR exposing (EditAllocation, EditPayEntry, EditTimeEntry, csvToEditAllocations, csvToEditTimeEntries, eteToCsv)
-import TimeTotaler as TT exposing (TTotaler, getTes, getTotes, mapTimeentry, mkTToteler, setTes)
+import TimeTotaler exposing (TTotaler, getTes, getTotes, mapTimeentry, mkTToteler, setTes)
 import Toop
 import Util
 import WindowKeys as WK
@@ -93,6 +92,18 @@ type Msg
     | DeleteAllocationChecked
     | IgnoreChecked
     | ExportChecked
+    | TeForward
+    | TeBack
+    | TeToStart
+    | TeToEnd
+    | PeForward
+    | PeBack
+    | PeToStart
+    | PeToEnd
+    | AForward
+    | ABack
+    | AToStart
+    | AToEnd
     | Noop
 
 
@@ -120,10 +131,13 @@ type alias Model =
     , description : String
     , timeentries : TTotaler
     , initialtimeentries : Dict Int EditTimeEntry
+    , tepaginator : P.Model Msg
     , payentries : Dict Int EditPayEntry
     , initialpayentries : Dict Int EditPayEntry
+    , pepaginator : P.Model Msg
     , allocations : Dict Int EditAllocation
     , initialallocations : Dict Int EditAllocation
+    , apaginator : P.Model Msg
     , focusstart : String
     , focusend : String
     , focusduration : String
@@ -489,8 +503,8 @@ isDirty model =
         /= model.initialallocations
 
 
-init : Time.Zone -> Data.LoginData -> Data.ProjectTime -> Bool -> String -> Model
-init zone ld pt saveonclonk mode =
+init : Time.Zone -> Data.LoginData -> Data.ProjectTime -> Bool -> Int -> String -> Model
+init zone ld pt saveonclonk pageincrement mode =
     let
         ietes =
             toEteDict pt.timeentries
@@ -510,10 +524,13 @@ init zone ld pt saveonclonk mode =
     , description = description
     , timeentries = mkTToteler ietes ld.userid zone
     , initialtimeentries = ietes
+    , tepaginator = P.init TeForward TeBack TeToStart TeToEnd 0 pageincrement
     , payentries = iepes
     , initialpayentries = iepes
+    , pepaginator = P.init PeForward PeBack PeToStart PeToEnd 0 pageincrement
     , allocations = ieas
     , initialallocations = ieas
+    , apaginator = P.init AForward ABack AToStart AToEnd 0 pageincrement
     , viewmode = readViewMode mode |> Maybe.withDefault Clonks
     , focusstart = ""
     , focusend = ""
@@ -538,9 +555,36 @@ init zone ld pt saveonclonk mode =
     }
 
 
+setPageIncrement : Int -> Model -> Model
+setPageIncrement pageincrement model =
+    let
+        tp =
+            model.tepaginator
+
+        pp =
+            model.pepaginator
+
+        ap =
+            model.apaginator
+    in
+    { model
+        | tepaginator = { tp | pageincrement = pageincrement }
+        , pepaginator = { pp | pageincrement = pageincrement }
+        , apaginator = { ap | pageincrement = pageincrement }
+    }
+
+
 onProjectTime : Time.Zone -> Data.LoginData -> Data.ProjectTime -> Model -> Model
 onProjectTime zone ld pt model =
-    init zone ld pt model.saveonclonk (showViewMode model.viewmode)
+    let
+        nm =
+            init zone ld pt model.saveonclonk model.tepaginator.pageincrement (showViewMode model.viewmode)
+    in
+    { nm
+        | tepaginator = model.tepaginator
+        , pepaginator = model.pepaginator
+        , apaginator = model.apaginator
+    }
 
 
 viewModeBar : Model -> Element Msg
@@ -698,9 +742,10 @@ clonkview ld size zone isdirty model =
             , label = E.text "export"
             }
         ]
+    , P.view ttotes.mtecount model.tepaginator
     , E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
         { data =
-            ttotes.mytimeentries
+            P.filter model.tepaginator ttotes.mytimeentries
         , columns =
             [ { header =
                     EI.checkbox [ E.width E.shrink, E.centerY ]
@@ -1639,9 +1684,11 @@ allocationview ld size zone model =
 
       else
         E.none
+    , P.view (Dict.size model.allocations) model.apaginator
     , E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
         { data =
             Dict.toList model.allocations
+                |> P.filter model.apaginator
         , columns =
             { header =
                 EI.checkbox [ E.width E.shrink, E.centerY ]
@@ -1925,9 +1972,11 @@ payview ld size zone model =
 
       else
         E.none
+    , P.view (Dict.size model.payentries) model.pepaginator
     , E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
         { data =
             Dict.toList model.payentries
+                |> P.filter model.pepaginator
         , columns =
             { header =
                 EI.checkbox [ E.width E.shrink, E.centerY ]
@@ -3134,6 +3183,42 @@ update msg model ld zone =
             ( model
             , SaveCsv (eteToCsv zone (getTes model.timeentries))
             )
+
+        TeForward ->
+            ( { model | tepaginator = P.onForward model.tepaginator }, None )
+
+        TeBack ->
+            ( { model | tepaginator = P.onBack (getTotes model.timeentries).mtecount model.tepaginator }, None )
+
+        TeToStart ->
+            ( { model | tepaginator = P.onToStart model.tepaginator }, None )
+
+        TeToEnd ->
+            ( { model | tepaginator = P.onToEnd (getTotes model.timeentries).mtecount model.tepaginator }, None )
+
+        PeForward ->
+            ( { model | pepaginator = P.onForward model.pepaginator }, None )
+
+        PeBack ->
+            ( { model | pepaginator = P.onBack (Dict.size model.payentries) model.pepaginator }, None )
+
+        PeToStart ->
+            ( { model | pepaginator = P.onToStart model.pepaginator }, None )
+
+        PeToEnd ->
+            ( { model | pepaginator = P.onToEnd (Dict.size model.payentries) model.pepaginator }, None )
+
+        AForward ->
+            ( { model | apaginator = P.onForward model.apaginator }, None )
+
+        ABack ->
+            ( { model | apaginator = P.onBack (Dict.size model.allocations) model.apaginator }, None )
+
+        AToStart ->
+            ( { model | apaginator = P.onToStart model.apaginator }, None )
+
+        AToEnd ->
+            ( { model | apaginator = P.onToEnd (Dict.size model.allocations) model.apaginator }, None )
 
         DonePress ->
             ( model, Done )

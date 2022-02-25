@@ -41,6 +41,7 @@ import TangoColors as TC
 import Task exposing (Task)
 import Time
 import TimeReporting as TR
+import Toop
 import UUID exposing (UUID)
 import Url exposing (Url)
 import Url.Builder as UB
@@ -124,6 +125,7 @@ type alias Model =
     , savedRoute : SavedRoute
     , fontsize : Int
     , saveonclonk : Bool
+    , pageincrement : Int
     }
 
 
@@ -134,6 +136,7 @@ type alias PreInitModel =
     , mbzone : Maybe Time.Zone
     , mbfontsize : Maybe Int
     , mbsaveonclonk : Maybe Bool
+    , mbpageincrement : Maybe Int
     }
 
 
@@ -164,7 +167,7 @@ routeState model route =
         SettingsR ->
             case stateLogin model.state of
                 Just login ->
-                    ( UserSettings (UserSettings.init login model.fontsize model.saveonclonk) login model.state, Cmd.none )
+                    ( UserSettings (UserSettings.init login model.fontsize model.saveonclonk model.pageincrement) login model.state, Cmd.none )
 
                 Nothing ->
                     ( (displayMessageDialog { model | state = initLogin model.appname model.seed } "can't view user settings; you're not logged in!").state, Cmd.none )
@@ -572,6 +575,9 @@ piupdate msg initmodel =
 
                                 defaultsaveonclonk =
                                     True
+
+                                defaultpageincrement =
+                                    25
                             in
                             case lv.name of
                                 "fontsize" ->
@@ -600,17 +606,30 @@ piupdate msg initmodel =
                                         Nothing ->
                                             { imod | mbsaveonclonk = Just defaultsaveonclonk }
 
+                                "pageincrement" ->
+                                    case lv.value of
+                                        Just v ->
+                                            case String.toInt v of
+                                                Just i ->
+                                                    { imod | mbpageincrement = Just i }
+
+                                                Nothing ->
+                                                    { imod | mbpageincrement = Just defaultpageincrement }
+
+                                        Nothing ->
+                                            { imod | mbpageincrement = Just defaultpageincrement }
+
                                 _ ->
                                     { imod | mbfontsize = Nothing }
 
                         _ ->
                             imod
             in
-            case ( nmod.mbzone, nmod.mbfontsize, nmod.mbsaveonclonk ) of
-                ( Just zone, Just fontsize, Just saveonclonk ) ->
+            case Toop.T4 nmod.mbzone nmod.mbfontsize nmod.mbsaveonclonk nmod.mbpageincrement of
+                Toop.T4 (Just zone) (Just fontsize) (Just saveonclonk) (Just pageincrement) ->
                     let
                         ( m, c ) =
-                            init imod.flags imod.url imod.key zone fontsize saveonclonk
+                            init imod.flags imod.url imod.key zone fontsize saveonclonk pageincrement
                     in
                     ( Ready m, c )
 
@@ -793,7 +812,12 @@ actualupdate msg model =
                 UserSettings.Done ->
                     case prevstate of
                         ProjectTime ptm ld ->
-                            ( { model | state = ProjectTime { ptm | saveonclonk = numod.saveonclonk } ld }, Cmd.none )
+                            let
+                                nptm =
+                                    { ptm | saveonclonk = numod.saveonclonk }
+                                        |> ProjectTime.setPageIncrement numod.pageincrement
+                            in
+                            ( { model | state = ProjectTime nptm ld }, Cmd.none )
 
                         ShowMessage _ logindata Nothing ->
                             initialPage model
@@ -833,6 +857,14 @@ actualupdate msg model =
                         , fontsize = size
                       }
                     , LS.storeLocalVal { name = "fontsize", value = String.fromInt size }
+                    )
+
+                UserSettings.ChangePageIncrement i ->
+                    ( { model
+                        | state = UserSettings numod login prevstate
+                        , pageincrement = i
+                      }
+                    , LS.storeLocalVal { name = "pageincrement", value = String.fromInt i }
                     )
 
                 UserSettings.ChangeSaveOnClonk b ->
@@ -882,7 +914,7 @@ actualupdate msg model =
                         UI.ProjectTime x ->
                             case stateLogin state of
                                 Just login ->
-                                    ( { model | state = ProjectTime (ProjectTime.init model.timezone login x model.saveonclonk mode) login }, Cmd.none )
+                                    ( { model | state = ProjectTime (ProjectTime.init model.timezone login x model.saveonclonk model.pageincrement mode) login }, Cmd.none )
 
                                 Nothing ->
                                     ( model, Cmd.none )
@@ -1058,7 +1090,7 @@ actualupdate msg model =
                                 _ ->
                                     case stateLogin state of
                                         Just login ->
-                                            ( { model | state = ProjectTime (ProjectTime.init model.timezone login x model.saveonclonk "") login }, Cmd.none )
+                                            ( { model | state = ProjectTime (ProjectTime.init model.timezone login x model.saveonclonk model.pageincrement "") login }, Cmd.none )
 
                                         Nothing ->
                                             ( model, Cmd.none )
@@ -1179,7 +1211,7 @@ actualupdate msg model =
                 ProjectListing.Settings ->
                     ( { model
                         | state =
-                            UserSettings (UserSettings.init login model.fontsize model.saveonclonk) login model.state
+                            UserSettings (UserSettings.init login model.fontsize model.saveonclonk model.pageincrement) login model.state
                       }
                     , Cmd.none
                     )
@@ -1241,7 +1273,7 @@ handleProjectEdit model ( nm, cmd ) login =
         ProjectEdit.Settings ->
             ( { model
                 | state =
-                    UserSettings (UserSettings.init login model.fontsize model.saveonclonk) login model.state
+                    UserSettings (UserSettings.init login model.fontsize model.saveonclonk model.pageincrement) login model.state
               }
             , Cmd.none
             )
@@ -1276,7 +1308,7 @@ handleProjectTime model ( nm, cmd ) login =
         ProjectTime.Settings ->
             ( { model
                 | state =
-                    UserSettings (UserSettings.init login model.fontsize model.saveonclonk) login model.state
+                    UserSettings (UserSettings.init login model.fontsize model.saveonclonk model.pageincrement) login model.state
               }
             , Cmd.none
             )
@@ -1359,11 +1391,13 @@ preinit flags url key =
         , mbzone = Nothing
         , mbfontsize = Nothing
         , mbsaveonclonk = Nothing
+        , mbpageincrement = Nothing
         }
     , Cmd.batch
         [ Task.perform Zone Time.here
         , LS.getLocalVal { for = "", name = "fontsize" }
         , LS.getLocalVal { for = "", name = "saveonclonk" }
+        , LS.getLocalVal { for = "", name = "pageincrement" }
         ]
     )
 
@@ -1392,8 +1426,8 @@ initialPage curmodel =
            )
 
 
-init : Flags -> Url -> Browser.Navigation.Key -> Time.Zone -> Int -> Bool -> ( Model, Cmd Msg )
-init flags url key zone fontsize saveonclonk =
+init : Flags -> Url -> Browser.Navigation.Key -> Time.Zone -> Int -> Bool -> Int -> ( Model, Cmd Msg )
+init flags url key zone fontsize saveonclonk pageincrement =
     let
         seed =
             initialSeed (flags.seed + 7)
@@ -1415,6 +1449,7 @@ init flags url key zone fontsize saveonclonk =
             , savedRoute = { route = Top, save = False }
             , fontsize = fontsize
             , saveonclonk = saveonclonk
+            , pageincrement = pageincrement
             }
 
         setkeys =
