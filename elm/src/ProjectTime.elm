@@ -92,6 +92,10 @@ type Msg
     | DeleteAllocationChecked
     | IgnoreChecked
     | ExportChecked
+    | TeForward
+    | TeBack
+    | TeToStart
+    | TeToEnd
     | Noop
 
 
@@ -119,6 +123,7 @@ type alias Model =
     , description : String
     , timeentries : TTotaler
     , initialtimeentries : Dict Int EditTimeEntry
+    , tepaginator : P.Model Msg
     , payentries : Dict Int EditPayEntry
     , initialpayentries : Dict Int EditPayEntry
     , allocations : Dict Int EditAllocation
@@ -509,6 +514,7 @@ init zone ld pt saveonclonk mode =
     , description = description
     , timeentries = mkTToteler ietes ld.userid zone
     , initialtimeentries = ietes
+    , tepaginator = P.init TeForward TeBack TeToStart TeToEnd 0 25
     , payentries = iepes
     , initialpayentries = iepes
     , allocations = ieas
@@ -697,9 +703,10 @@ clonkview ld size zone isdirty model =
             , label = E.text "export"
             }
         ]
+    , P.view ttotes.mtecount model.tepaginator
     , E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
         { data =
-            ttotes.mytimeentries
+            P.filter model.tepaginator ttotes.mytimeentries
         , columns =
             [ { header =
                     EI.checkbox [ E.width E.shrink, E.centerY ]
@@ -3133,6 +3140,18 @@ update msg model ld zone =
             ( model
             , SaveCsv (eteToCsv zone (getTes model.timeentries))
             )
+
+        TeForward ->
+            ( { model | tepaginator = P.onForward model.tepaginator }, None )
+
+        TeBack ->
+            ( { model | tepaginator = P.onBack model.tepaginator }, None )
+
+        TeToStart ->
+            ( { model | tepaginator = P.onToStart model.tepaginator }, None )
+
+        TeToEnd ->
+            ( { model | tepaginator = P.onToEnd (getTotes model.timeentries).mtecount model.tepaginator }, None )
 
         DonePress ->
             ( model, Done )
