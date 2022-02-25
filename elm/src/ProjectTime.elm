@@ -96,6 +96,10 @@ type Msg
     | TeBack
     | TeToStart
     | TeToEnd
+    | PeForward
+    | PeBack
+    | PeToStart
+    | PeToEnd
     | Noop
 
 
@@ -126,6 +130,7 @@ type alias Model =
     , tepaginator : P.Model Msg
     , payentries : Dict Int EditPayEntry
     , initialpayentries : Dict Int EditPayEntry
+    , pepaginator : P.Model Msg
     , allocations : Dict Int EditAllocation
     , initialallocations : Dict Int EditAllocation
     , focusstart : String
@@ -517,6 +522,7 @@ init zone ld pt saveonclonk pageincrement mode =
     , tepaginator = P.init TeForward TeBack TeToStart TeToEnd 0 pageincrement
     , payentries = iepes
     , initialpayentries = iepes
+    , pepaginator = P.init PeForward PeBack PeToStart PeToEnd 0 pageincrement
     , allocations = ieas
     , initialallocations = ieas
     , viewmode = readViewMode mode |> Maybe.withDefault Clonks
@@ -548,8 +554,14 @@ setPageIncrement pageincrement model =
     let
         tp =
             model.tepaginator
+
+        pp =
+            model.pepaginator
     in
-    { model | tepaginator = { tp | pageincrement = pageincrement } }
+    { model
+        | tepaginator = { tp | pageincrement = pageincrement }
+        , pepaginator = { pp | pageincrement = pageincrement }
+    }
 
 
 onProjectTime : Time.Zone -> Data.LoginData -> Data.ProjectTime -> Model -> Model
@@ -558,7 +570,10 @@ onProjectTime zone ld pt model =
         nm =
             init zone ld pt model.saveonclonk model.tepaginator.pageincrement (showViewMode model.viewmode)
     in
-    { nm | tepaginator = model.tepaginator }
+    { nm
+        | tepaginator = model.tepaginator
+        , pepaginator = model.pepaginator
+    }
 
 
 viewModeBar : Model -> Element Msg
@@ -1944,9 +1959,11 @@ payview ld size zone model =
 
       else
         E.none
+    , P.view (Dict.size model.payentries) model.pepaginator
     , E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
         { data =
             Dict.toList model.payentries
+                |> P.filter model.pepaginator
         , columns =
             { header =
                 EI.checkbox [ E.width E.shrink, E.centerY ]
@@ -3165,6 +3182,18 @@ update msg model ld zone =
 
         TeToEnd ->
             ( { model | tepaginator = P.onToEnd (getTotes model.timeentries).mtecount model.tepaginator }, None )
+
+        PeForward ->
+            ( { model | pepaginator = P.onForward model.pepaginator }, None )
+
+        PeBack ->
+            ( { model | pepaginator = P.onBack (getTotes model.timeentries).mtecount model.pepaginator }, None )
+
+        PeToStart ->
+            ( { model | pepaginator = P.onToStart model.pepaginator }, None )
+
+        PeToEnd ->
+            ( { model | pepaginator = P.onToEnd (getTotes model.timeentries).mtecount model.pepaginator }, None )
 
         DonePress ->
             ( model, Done )
