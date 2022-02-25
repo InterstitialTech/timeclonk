@@ -93,17 +93,17 @@ type Msg
     | IgnoreChecked
     | ExportChecked
     | TeForward
-    | TeBack
+    | TeBack Int
     | TeToStart
-    | TeToEnd
+    | TeToEnd Int
     | PeForward
-    | PeBack
+    | PeBack Int
     | PeToStart
-    | PeToEnd
+    | PeToEnd Int
     | AForward
-    | ABack
+    | ABack Int
     | AToStart
-    | AToEnd
+    | AToEnd Int
     | Noop
 
 
@@ -3187,38 +3187,38 @@ update msg model ld zone =
         TeForward ->
             ( { model | tepaginator = P.onForward model.tepaginator }, None )
 
-        TeBack ->
-            ( { model | tepaginator = P.onBack (getTotes model.timeentries).mtecount model.tepaginator }, None )
+        TeBack c ->
+            ( { model | tepaginator = P.onBack c model.tepaginator }, None )
 
         TeToStart ->
             ( { model | tepaginator = P.onToStart model.tepaginator }, None )
 
-        TeToEnd ->
-            ( { model | tepaginator = P.onToEnd (getTotes model.timeentries).mtecount model.tepaginator }, None )
+        TeToEnd c ->
+            ( { model | tepaginator = P.onToEnd c model.tepaginator }, None )
 
         PeForward ->
             ( { model | pepaginator = P.onForward model.pepaginator }, None )
 
-        PeBack ->
-            ( { model | pepaginator = P.onBack (Dict.size model.payentries) model.pepaginator }, None )
+        PeBack c ->
+            ( { model | pepaginator = P.onBack c model.pepaginator }, None )
 
         PeToStart ->
             ( { model | pepaginator = P.onToStart model.pepaginator }, None )
 
-        PeToEnd ->
+        PeToEnd c ->
             ( { model | pepaginator = P.onToEnd (Dict.size model.payentries) model.pepaginator }, None )
 
         AForward ->
             ( { model | apaginator = P.onForward model.apaginator }, None )
 
-        ABack ->
-            ( { model | apaginator = P.onBack (Dict.size model.allocations) model.apaginator }, None )
+        ABack c ->
+            ( { model | apaginator = P.onBack c model.apaginator }, None )
 
         AToStart ->
             ( { model | apaginator = P.onToStart model.apaginator }, None )
 
-        AToEnd ->
-            ( { model | apaginator = P.onToEnd (Dict.size model.allocations) model.apaginator }, None )
+        AToEnd c ->
+            ( { model | apaginator = P.onToEnd c model.apaginator }, None )
 
         DonePress ->
             ( model, Done )

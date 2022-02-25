@@ -17,12 +17,12 @@ type alias Model msg =
     , toEnd : Bool
     , toStartMsg : msg
     , forwardMsg : msg
-    , backMsg : msg
-    , toEndMsg : msg
+    , backMsg : Int -> msg
+    , toEndMsg : Int -> msg
     }
 
 
-init : msg -> msg -> msg -> msg -> Int -> Int -> Model msg
+init : msg -> (Int -> msg) -> msg -> (Int -> msg) -> Int -> Int -> Model msg
 init forwardMsg backMsg toStartMsg toEndMsg offset pageincrement =
     { offset = offset
     , pageincrement = pageincrement
@@ -96,7 +96,7 @@ view itemcount model =
           else
             EI.button
                 Common.buttonStyle
-                { onPress = Just model.backMsg, label = E.text "<" }
+                { onPress = Just (model.backMsg itemcount), label = E.text "<" }
         , if model.offset < itemcount - model.pageincrement && not model.toEnd then
             EI.button
                 Common.buttonStyle
@@ -109,7 +109,7 @@ view itemcount model =
         , if model.offset < itemcount - model.pageincrement && not model.toEnd then
             EI.button
                 Common.buttonStyle
-                { onPress = Just model.toEndMsg, label = E.text ">|" }
+                { onPress = Just (model.toEndMsg itemcount), label = E.text ">|" }
 
           else
             EI.button
