@@ -95,8 +95,19 @@ view itemcount model =
 
         fe =
             model.offset < itemcount - model.pageincrement && not model.atEnd
+
+        ( lower, upper ) =
+            if model.atEnd then
+                if itemcount < model.pageincrement then
+                    ( 1, itemcount )
+
+                else
+                    ( itemcount - model.pageincrement + 1, itemcount )
+
+            else
+                ( model.offset + 1, min (model.offset + model.pageincrement) itemcount )
     in
-    E.row [ E.spacing 8 ]
+    E.row [ E.spacing 8, E.width E.fill ]
         [ if bd then
             EI.button
                 Common.disabledButtonStyle
@@ -133,4 +144,11 @@ view itemcount model =
             EI.button
                 Common.disabledButtonStyle
                 { onPress = Nothing, label = E.text ">|" }
+        , E.el [ E.alignRight ] <|
+            E.text <|
+                String.fromInt lower
+                    ++ " to "
+                    ++ String.fromInt upper
+                    ++ " of "
+                    ++ String.fromInt itemcount
         ]
