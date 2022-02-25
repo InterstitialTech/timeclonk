@@ -14,6 +14,7 @@ import Element.Region
 type alias Model msg =
     { offset : Int
     , pageincrement : Int
+    , toEnd : Bool
     , toStartMsg : msg
     , forwardMsg : msg
     , backMsg : msg
@@ -25,6 +26,7 @@ init : msg -> msg -> msg -> msg -> Int -> Int -> Model msg
 init forwardMsg backMsg toStartMsg toEndMsg offset pageincrement =
     { offset = offset
     , pageincrement = pageincrement
+    , toEnd = False
     , forwardMsg = forwardMsg
     , backMsg = backMsg
     , toStartMsg = toStartMsg
@@ -34,29 +36,44 @@ init forwardMsg backMsg toStartMsg toEndMsg offset pageincrement =
 
 onForward : Model msg -> Model msg
 onForward model =
-    { model | offset = model.offset + model.pageincrement }
+    if model.toEnd then
+        model
+
+    else
+        { model | offset = model.offset + model.pageincrement, toEnd = False }
 
 
-onBack : Model msg -> Model msg
-onBack model =
-    { model | offset = model.offset - model.pageincrement }
+onBack : Int -> Model msg -> Model msg
+onBack itemcount model =
+    if model.toEnd then
+        { model | offset = itemcount - model.pageincrement, toEnd = False }
+
+    else
+        { model | offset = model.offset - model.pageincrement, toEnd = False }
 
 
 onToStart : Model msg -> Model msg
 onToStart model =
-    { model | offset = 0 }
+    { model | offset = 0, toEnd = False }
 
 
 onToEnd : Int -> Model msg -> Model msg
 onToEnd itemcount model =
-    { model | offset = max 0 (itemcount - model.pageincrement) }
+    { model | offset = max 0 (itemcount - model.pageincrement), toEnd = True }
 
 
 filter : Model msg -> List a -> List a
 filter model list =
-    list
-        |> List.drop model.offset
-        |> List.take model.pageincrement
+    if model.toEnd then
+        list
+            |> List.reverse
+            |> List.take model.pageincrement
+            |> List.reverse
+
+    else
+        list
+            |> List.drop model.offset
+            |> List.take model.pageincrement
 
 
 view : Int -> Model msg -> Element msg
@@ -80,7 +97,7 @@ view itemcount model =
             EI.button
                 Common.buttonStyle
                 { onPress = Just model.backMsg, label = E.text "<" }
-        , if model.offset < itemcount - model.pageincrement then
+        , if model.offset < itemcount - model.pageincrement && not model.toEnd then
             EI.button
                 Common.buttonStyle
                 { onPress = Just model.forwardMsg, label = E.text ">" }
@@ -89,7 +106,7 @@ view itemcount model =
             EI.button
                 Common.disabledButtonStyle
                 { onPress = Nothing, label = E.text ">" }
-        , if model.offset < itemcount - model.pageincrement then
+        , if model.offset < itemcount - model.pageincrement && not model.toEnd then
             EI.button
                 Common.buttonStyle
                 { onPress = Just model.toEndMsg, label = E.text ">|" }

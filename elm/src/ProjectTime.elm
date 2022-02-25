@@ -545,7 +545,11 @@ init zone ld pt saveonclonk mode =
 
 onProjectTime : Time.Zone -> Data.LoginData -> Data.ProjectTime -> Model -> Model
 onProjectTime zone ld pt model =
-    init zone ld pt model.saveonclonk (showViewMode model.viewmode)
+    let
+        nm =
+            init zone ld pt model.saveonclonk (showViewMode model.viewmode)
+    in
+    { nm | tepaginator = model.tepaginator }
 
 
 viewModeBar : Model -> Element Msg
@@ -3145,7 +3149,7 @@ update msg model ld zone =
             ( { model | tepaginator = P.onForward model.tepaginator }, None )
 
         TeBack ->
-            ( { model | tepaginator = P.onBack model.tepaginator }, None )
+            ( { model | tepaginator = P.onBack (getTotes model.timeentries).mtecount model.tepaginator }, None )
 
         TeToStart ->
             ( { model | tepaginator = P.onToStart model.tepaginator }, None )
