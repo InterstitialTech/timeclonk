@@ -100,6 +100,10 @@ type Msg
     | PeBack
     | PeToStart
     | PeToEnd
+    | AForward
+    | ABack
+    | AToStart
+    | AToEnd
     | Noop
 
 
@@ -133,6 +137,7 @@ type alias Model =
     , pepaginator : P.Model Msg
     , allocations : Dict Int EditAllocation
     , initialallocations : Dict Int EditAllocation
+    , apaginator : P.Model Msg
     , focusstart : String
     , focusend : String
     , focusduration : String
@@ -525,6 +530,7 @@ init zone ld pt saveonclonk pageincrement mode =
     , pepaginator = P.init PeForward PeBack PeToStart PeToEnd 0 pageincrement
     , allocations = ieas
     , initialallocations = ieas
+    , apaginator = P.init AForward ABack AToStart AToEnd 0 pageincrement
     , viewmode = readViewMode mode |> Maybe.withDefault Clonks
     , focusstart = ""
     , focusend = ""
@@ -557,10 +563,14 @@ setPageIncrement pageincrement model =
 
         pp =
             model.pepaginator
+
+        ap =
+            model.apaginator
     in
     { model
         | tepaginator = { tp | pageincrement = pageincrement }
         , pepaginator = { pp | pageincrement = pageincrement }
+        , apaginator = { ap | pageincrement = pageincrement }
     }
 
 
@@ -573,6 +583,7 @@ onProjectTime zone ld pt model =
     { nm
         | tepaginator = model.tepaginator
         , pepaginator = model.pepaginator
+        , apaginator = model.apaginator
     }
 
 
@@ -1673,9 +1684,11 @@ allocationview ld size zone model =
 
       else
         E.none
+    , P.view (Dict.size model.allocations) model.apaginator
     , E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
         { data =
             Dict.toList model.allocations
+                |> P.filter model.apaginator
         , columns =
             { header =
                 EI.checkbox [ E.width E.shrink, E.centerY ]
@@ -3187,13 +3200,25 @@ update msg model ld zone =
             ( { model | pepaginator = P.onForward model.pepaginator }, None )
 
         PeBack ->
-            ( { model | pepaginator = P.onBack (getTotes model.timeentries).mtecount model.pepaginator }, None )
+            ( { model | pepaginator = P.onBack (Dict.size model.payentries) model.pepaginator }, None )
 
         PeToStart ->
             ( { model | pepaginator = P.onToStart model.pepaginator }, None )
 
         PeToEnd ->
-            ( { model | pepaginator = P.onToEnd (getTotes model.timeentries).mtecount model.pepaginator }, None )
+            ( { model | pepaginator = P.onToEnd (Dict.size model.payentries) model.pepaginator }, None )
+
+        AForward ->
+            ( { model | apaginator = P.onForward model.apaginator }, None )
+
+        ABack ->
+            ( { model | apaginator = P.onBack (Dict.size model.allocations) model.apaginator }, None )
+
+        AToStart ->
+            ( { model | apaginator = P.onToStart model.apaginator }, None )
+
+        AToEnd ->
+            ( { model | apaginator = P.onToEnd (Dict.size model.allocations) model.apaginator }, None )
 
         DonePress ->
             ( model, Done )
