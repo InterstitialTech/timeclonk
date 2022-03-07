@@ -926,7 +926,7 @@ pub fn save_project(
     None => {
       conn.execute(
         "insert into project (name, description, public, rate, currency, createdate, changeddate)
-         values (?1, ?2, ?3, ?4, ?5)",
+         values (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
         params![
           project.name,
           project.description,
