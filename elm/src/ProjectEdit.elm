@@ -280,7 +280,7 @@ view ld size model =
                             []
                             (E.text "name")
                     }
-                , EI.text
+                , EI.multiline
                     (if isdirty then
                         [ E.focused [ EBd.glow TC.darkYellow 3 ] ]
 
@@ -295,6 +295,7 @@ view ld size model =
                         EI.labelLeft
                             []
                             (E.text "description")
+                    , spellcheck = True
                     }
                 , EI.text
                     (if isdirty then
