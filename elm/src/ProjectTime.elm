@@ -164,6 +164,7 @@ type alias Model =
     , viewmode : ViewMode
     , saveonclonk : Bool
     , clonkOutDisplay : Maybe Time.Posix
+    , readonly : Bool
     }
 
 
@@ -558,6 +559,7 @@ init zone ld pt saveonclonk pageincrement mode =
     , paymentuser = Nothing
     , saveonclonk = saveonclonk
     , clonkOutDisplay = Nothing
+    , readonly = False
     }
 
 
@@ -1231,6 +1233,186 @@ clonkview ld size zone isdirty model =
                     }
                 , EI.button Common.buttonStyle { onPress = Just ClonkInPress, label = E.text "Clonk In" }
                 ]
+    ]
+
+
+teamclonks : Data.LoginData -> Util.Size -> Time.Zone -> Bool -> Model -> List (Element Msg)
+teamclonks ld size zone isdirty model =
+    let
+        ttotes =
+            getTotes model.timeentries
+
+        paytotes =
+            model.payentries |> Dict.values |> TR.payTotes
+
+        mypay =
+            paytotes
+                |> TDict.get ld.userid
+                |> Maybe.withDefault 0
+                |> TR.millisToHours
+
+        teampay =
+            paytotes
+                |> TDict.values
+                |> List.foldl (+) 0
+                |> TR.millisToHours
+
+        teamalloc =
+            model.allocations
+                |> Dict.values
+                |> List.foldl (\e t -> t + e.duration) 0
+                |> TR.millisToHours
+
+        igfont =
+            \te ->
+                if te.ignore then
+                    EF.strike
+
+                else
+                    EF.regular
+    in
+    [ P.view ttotes.mtecount model.tepaginator
+    , E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
+        { data =
+            P.filter model.tepaginator model.timeentries
+        , columns =
+            [ { header = E.el headerStyle <| E.text "task"
+              , width = E.fill
+              , view =
+                    \te ->
+                        E.row
+                            [ igfont te
+                            , E.width E.fill
+                            ]
+                            [ E.text te.description ]
+              }
+            , { header = E.el headerStyle <| E.text "start"
+              , width = E.fill
+              , view =
+                    \te ->
+                        E.row
+                            [ igfont te
+                            , E.width E.fill
+                            ]
+                            [ E.text <| Util.showDateTime zone (Time.millisToPosix te.startdate) ]
+              }
+            , { header = E.el headerStyle <| E.text "end"
+              , width = E.fill
+              , view =
+                    \te ->
+                        let
+                            endtext =
+                                \enddate ->
+                                    if
+                                        Util.sameDay zone
+                                            (Time.millisToPosix te.startdate)
+                                            (Time.millisToPosix enddate)
+                                    then
+                                        Util.showTime zone (Time.millisToPosix enddate)
+
+                                    else
+                                        Util.showDateTime zone (Time.millisToPosix enddate)
+                        in
+                        E.row
+                            [ EE.onClick <| OnRowItemClick te.startdate End
+                            , igfont te
+                            , E.width E.fill
+                            ]
+                            [ E.text <| endtext te.enddate
+                            ]
+              }
+            , { header = E.el headerStyle <| E.text "duration"
+              , width = E.shrink
+              , view =
+                    \te ->
+                        E.row
+                            [ igfont te
+                            , E.width E.fill
+                            ]
+                            [ E.text <| millisAsHours (te.enddate - te.startdate) ]
+              }
+            , { header = E.el headerStyle <| E.text "daily"
+              , width = E.shrink
+              , view =
+                    \te ->
+                        if Set.member te.startdate ttotes.lastofdays then
+                            let
+                                today =
+                                    te.startdate
+                                        |> Time.millisToPosix
+                                        |> TR.toDate zone
+                                        |> Maybe.map Calendar.toMillis
+                            in
+                            case today |> Maybe.andThen (\t -> Dict.get t ttotes.daytotes) of
+                                Just millis ->
+                                    E.text (millisAsHours millis)
+
+                                Nothing ->
+                                    E.none
+
+                        else
+                            E.none
+              }
+            , { header = E.el headerStyle <| E.text "weekly"
+              , width = E.shrink
+              , view =
+                    \te ->
+                        if Set.member te.startdate ttotes.lastofweeks then
+                            let
+                                today =
+                                    te.startdate
+                                        |> Time.millisToPosix
+                                        |> TR.toDate zone
+                                        |> Maybe.map TR.toSunday
+                                        |> Maybe.map Calendar.toMillis
+                            in
+                            case today |> Maybe.andThen (\t -> Dict.get t ttotes.weektotes) of
+                                Just millis ->
+                                    E.text (millisAsHours millis)
+
+                                Nothing ->
+                                    E.none
+
+                        else
+                            E.none
+              }
+            ]
+        }
+    , if isdirty then
+        E.row [ E.spacing TC.defaultSpacing ]
+            [ EI.button Common.buttonStyle { onPress = Just RevertPress, label = E.text "revert" }
+            , EI.button
+                (Common.buttonStyle ++ [ EBk.color TC.darkYellow ])
+                { onPress = Just SavePress, label = E.text "save" }
+            ]
+
+      else
+        E.none
+    , E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
+        { data =
+            [ ( "team unpaid hours: "
+              , R.round 2 <| ttotes.teamhours - teampay
+              )
+            , ( "team allocated hours: "
+              , R.round 2 <| teamalloc - ttotes.teamhours
+              )
+            , ( "my unpaid hours: "
+              , R.round 2 <| ttotes.myhours - mypay
+              )
+            ]
+        , columns =
+            [ { header = E.none
+              , width = E.shrink
+              , view =
+                    \( title, entry ) -> E.el headerStyle <| E.text title
+              }
+            , { header = E.none
+              , width = E.shrink
+              , view =
+                    \( title, entry ) -> E.text entry
+              }
+            ]
+        }
     ]
 
 
