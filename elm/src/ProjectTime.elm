@@ -728,6 +728,19 @@ clonkview ld size zone isdirty model =
 
         anychecked =
             Dict.foldl (\_ te c -> c || te.checked) False (getTes model.timeentries)
+
+        cmillis =
+            \te ->
+                if Just te.startdate == ttotes.lasttime && te.startdate == te.enddate then
+                    case model.clonkOutDisplay of
+                        Just time ->
+                            Just <| Time.posixToMillis time - te.startdate
+
+                        Nothing ->
+                            Nothing
+
+                else
+                    Nothing
     in
     [ E.row
         [ E.spacing TC.defaultSpacing
@@ -1054,8 +1067,8 @@ clonkview ld size zone isdirty model =
                                     ]
                                 ]
 
-                        else if Just te.startdate == ttotes.lasttime && te.startdate == te.enddate then
-                            case model.clonkOutDisplay of
+                        else
+                            case cmillis te of
                                 Just time ->
                                     E.row
                                         [ EE.onClick <| OnRowItemClick te.startdate Duration
@@ -1064,19 +1077,23 @@ clonkview ld size zone isdirty model =
                                         ]
                                         [ E.el [ EF.color TC.darkGreen ] <|
                                             E.text <|
-                                                millisAsHours (Time.posixToMillis time - te.startdate)
+                                                millisAsHours time
                                         ]
 
                                 Nothing ->
                                     row
-
-                        else
-                            row
               }
             , { header = E.el headerStyle <| E.text "daily"
               , width = E.shrink
               , view =
                     \te ->
+                        let
+                            mbcm =
+                                cmillis te
+
+                            cm =
+                                mbcm |> Maybe.withDefault 0
+                        in
                         if Set.member te.startdate ttotes.lastofdays then
                             let
                                 today =
@@ -1087,7 +1104,16 @@ clonkview ld size zone isdirty model =
                             in
                             case today |> Maybe.andThen (\t -> Dict.get t ttotes.daytotes) of
                                 Just millis ->
-                                    E.text (millisAsHours millis)
+                                    E.el
+                                        (case mbcm of
+                                            Just _ ->
+                                                [ EF.color TC.darkGreen ]
+
+                                            Nothing ->
+                                                []
+                                        )
+                                    <|
+                                        E.text (millisAsHours (cm + millis))
 
                                 Nothing ->
                                     E.none
@@ -1099,6 +1125,13 @@ clonkview ld size zone isdirty model =
               , width = E.shrink
               , view =
                     \te ->
+                        let
+                            mbcm =
+                                cmillis te
+
+                            cm =
+                                mbcm |> Maybe.withDefault 0
+                        in
                         if Set.member te.startdate ttotes.lastofweeks then
                             let
                                 today =
@@ -1110,7 +1143,16 @@ clonkview ld size zone isdirty model =
                             in
                             case today |> Maybe.andThen (\t -> Dict.get t ttotes.weektotes) of
                                 Just millis ->
-                                    E.text (millisAsHours millis)
+                                    E.el
+                                        (case mbcm of
+                                            Just _ ->
+                                                [ EF.color TC.darkGreen ]
+
+                                            Nothing ->
+                                                []
+                                        )
+                                    <|
+                                        E.text (millisAsHours (cm + millis))
 
                                 Nothing ->
                                     E.none
