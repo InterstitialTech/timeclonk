@@ -113,6 +113,7 @@ type Msg
 
 type ViewMode
     = Clonks
+    | Team
     | Payments
     | Allocations
     | Distributions
@@ -135,6 +136,7 @@ type alias Model =
     , description : String
     , timeentries : TTotaler
     , initialtimeentries : Dict Int EditTimeEntry
+    , teamentries : TTotaler
     , tepaginator : P.Model Msg
     , payentries : Dict Int EditPayEntry
     , initialpayentries : Dict Int EditPayEntry
@@ -215,6 +217,9 @@ showViewMode mode =
         Clonks ->
             "clonks"
 
+        Team ->
+            "team"
+
         Payments ->
             "payments"
 
@@ -230,6 +235,9 @@ readViewMode str =
     case String.toLower str of
         "clonks" ->
             Just Clonks
+
+        "team" ->
+            Just Team
 
         "payments" ->
             Just Payments
@@ -528,8 +536,9 @@ init zone ld pt saveonclonk pageincrement mode =
     , members = pt.members
     , membernames = pt.members |> List.map (\m -> ( Data.getUserIdVal m.id, m.name )) |> Dict.fromList
     , description = description
-    , timeentries = mkTToteler ietes ld.userid zone
+    , timeentries = mkTToteler ietes (\te -> te.user == ld.userid) zone
     , initialtimeentries = ietes
+    , teamentries = mkTToteler ietes (always True) zone
     , tepaginator = P.init TeForward TeBack TeToStart TeToEnd P.End pageincrement
     , payentries = iepes
     , initialpayentries = iepes
@@ -615,6 +624,7 @@ viewModeBar model =
     in
     E.row [ E.width E.fill, E.spacing TC.defaultSpacing, E.paddingXY 0 8 ]
         [ vbt Clonks "clonks"
+        , vbt Team "team"
         , vbt Payments "payments"
         , vbt Allocations "allocations"
         , vbt Distributions "distributions"
@@ -673,6 +683,9 @@ view ld size zone model =
                 ++ (case model.viewmode of
                         Clonks ->
                             clonkview ld size zone isdirty model
+
+                        Team ->
+                            teamview ld size zone isdirty model
 
                         Payments ->
                             payview ld size zone model
@@ -1236,11 +1249,11 @@ clonkview ld size zone isdirty model =
     ]
 
 
-teamclonks : Data.LoginData -> Util.Size -> Time.Zone -> Bool -> Model -> List (Element Msg)
-teamclonks ld size zone isdirty model =
+teamview : Data.LoginData -> Util.Size -> Time.Zone -> Bool -> Model -> List (Element Msg)
+teamview ld size zone isdirty model =
     let
         ttotes =
-            getTotes model.timeentries
+            getTotes model.teamentries
 
         paytotes =
             model.payentries |> Dict.values |> TR.payTotes
@@ -1274,7 +1287,7 @@ teamclonks ld size zone isdirty model =
     [ P.view ttotes.mtecount model.tepaginator
     , E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
         { data =
-            P.filter model.tepaginator model.timeentries
+            P.filter model.tepaginator ttotes.mytimeentries
         , columns =
             [ { header = E.el headerStyle <| E.text "task"
               , width = E.fill
@@ -1285,6 +1298,22 @@ teamclonks ld size zone isdirty model =
                             , E.width E.fill
                             ]
                             [ E.text te.description ]
+              }
+            , { header = E.el headerStyle <| E.text "member"
+              , width = E.fill
+              , view =
+                    \te ->
+                        E.row
+                            [ igfont te
+                            , E.width E.fill
+                            ]
+                            [ E.text
+                                (te.user
+                                    |> Data.getUserIdVal
+                                    |> (\i -> Dict.get i model.membernames)
+                                    |> Maybe.withDefault ""
+                                )
+                            ]
               }
             , { header = E.el headerStyle <| E.text "start"
               , width = E.fill
@@ -2527,6 +2556,9 @@ update msg model ld zone =
                         Err e ->
                             ( model, ShowError e )
 
+                Team ->
+                    ( model, ShowError "csv import is unimplemented for team." )
+
                 Payments ->
                     ( model, ShowError "csv import is unimplemented for payments." )
 
@@ -2694,6 +2726,9 @@ update msg model ld zone =
 
                             Nothing ->
                                 ( model, None )
+
+                    Team ->
+                        ( model, None )
 
                     Payments ->
                         case Dict.get i model.payentries of
