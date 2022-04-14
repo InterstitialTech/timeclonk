@@ -18,9 +18,13 @@ type alias TimeTotes =
     , teamhours : Float
     , teammillis : Int
     , weektotes : Dict Int Int
-    , userid : UserId
+    , filterf : FilterF
     , zone : Time.Zone
     }
+
+
+type alias FilterF =
+    EditTimeEntry -> Bool
 
 
 
@@ -50,7 +54,7 @@ setTes : TTotaler -> Dict Int EditTimeEntry -> TTotaler
 setTes ttotl timeentries =
     case ttotl of
         TTotaler te ttot ->
-            mkTToteler timeentries ttot.userid ttot.zone
+            mkTToteler timeentries ttot.filterf ttot.zone
 
 
 mapTimeentry : TTotaler -> Int -> (EditTimeEntry -> EditTimeEntry) -> TTotaler
@@ -64,8 +68,8 @@ mapTimeentry ttot startdate f =
             ttot
 
 
-mkTToteler : Dict Int EditTimeEntry -> UserId -> Time.Zone -> TTotaler
-mkTToteler timeentries userid zone =
+mkTToteler : Dict Int EditTimeEntry -> FilterF -> Time.Zone -> TTotaler
+mkTToteler timeentries filterf zone =
     let
         teammillis =
             timeentries |> Dict.values |> TR.totalMillis
@@ -76,7 +80,7 @@ mkTToteler timeentries userid zone =
         mytimeentries =
             timeentries
                 |> Dict.values
-                |> List.filter (\te -> te.user == userid)
+                |> List.filter filterf
 
         myhours =
             mytimeentries
@@ -144,6 +148,6 @@ mkTToteler timeentries userid zone =
         , lasttime = lasttime
         , lastofdays = lastofdays
         , lastofweeks = lastofweeks
-        , userid = userid
+        , filterf = filterf
         , zone = zone
         }

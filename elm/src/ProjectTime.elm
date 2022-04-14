@@ -96,6 +96,10 @@ type Msg
     | TeBack Int
     | TeToStart
     | TeToEnd Int
+    | TeamForward
+    | TeamBack Int
+    | TeamToStart
+    | TeamToEnd Int
     | PeForward
     | PeBack Int
     | PeToStart
@@ -113,6 +117,7 @@ type Msg
 
 type ViewMode
     = Clonks
+    | Team
     | Payments
     | Allocations
     | Distributions
@@ -136,6 +141,8 @@ type alias Model =
     , timeentries : TTotaler
     , initialtimeentries : Dict Int EditTimeEntry
     , tepaginator : P.Model Msg
+    , teamentries : TTotaler
+    , teampaginator : P.Model Msg
     , payentries : Dict Int EditPayEntry
     , initialpayentries : Dict Int EditPayEntry
     , pepaginator : P.Model Msg
@@ -164,6 +171,7 @@ type alias Model =
     , viewmode : ViewMode
     , saveonclonk : Bool
     , clonkOutDisplay : Maybe Time.Posix
+    , readonly : Bool
     }
 
 
@@ -214,6 +222,9 @@ showViewMode mode =
         Clonks ->
             "clonks"
 
+        Team ->
+            "team"
+
         Payments ->
             "payments"
 
@@ -229,6 +240,9 @@ readViewMode str =
     case String.toLower str of
         "clonks" ->
             Just Clonks
+
+        "team" ->
+            Just Team
 
         "payments" ->
             Just Payments
@@ -527,9 +541,11 @@ init zone ld pt saveonclonk pageincrement mode =
     , members = pt.members
     , membernames = pt.members |> List.map (\m -> ( Data.getUserIdVal m.id, m.name )) |> Dict.fromList
     , description = description
-    , timeentries = mkTToteler ietes ld.userid zone
+    , timeentries = mkTToteler ietes (\te -> te.user == ld.userid) zone
     , initialtimeentries = ietes
     , tepaginator = P.init TeForward TeBack TeToStart TeToEnd P.End pageincrement
+    , teamentries = mkTToteler ietes (always True) zone
+    , teampaginator = P.init TeamForward TeamBack TeamToStart TeamToEnd P.End pageincrement
     , payentries = iepes
     , initialpayentries = iepes
     , pepaginator = P.init PeForward PeBack PeToStart PeToEnd P.End pageincrement
@@ -558,6 +574,7 @@ init zone ld pt saveonclonk pageincrement mode =
     , paymentuser = Nothing
     , saveonclonk = saveonclonk
     , clonkOutDisplay = Nothing
+    , readonly = False
     }
 
 
@@ -613,6 +630,7 @@ viewModeBar model =
     in
     E.row [ E.width E.fill, E.spacing TC.defaultSpacing, E.paddingXY 0 8 ]
         [ vbt Clonks "clonks"
+        , vbt Team "team"
         , vbt Payments "payments"
         , vbt Allocations "allocations"
         , vbt Distributions "distributions"
@@ -671,6 +689,9 @@ view ld size zone model =
                 ++ (case model.viewmode of
                         Clonks ->
                             clonkview ld size zone isdirty model
+
+                        Team ->
+                            teamview ld size zone isdirty model
 
                         Payments ->
                             payview ld size zone model
@@ -1231,6 +1252,193 @@ clonkview ld size zone isdirty model =
                     }
                 , EI.button Common.buttonStyle { onPress = Just ClonkInPress, label = E.text "Clonk In" }
                 ]
+    ]
+
+
+teamview : Data.LoginData -> Util.Size -> Time.Zone -> Bool -> Model -> List (Element Msg)
+teamview ld size zone isdirty model =
+    let
+        ttotes =
+            getTotes model.teamentries
+
+        paytotes =
+            model.payentries |> Dict.values |> TR.payTotes
+
+        teampay =
+            paytotes
+                |> TDict.values
+                |> List.foldl (+) 0
+                |> TR.millisToHours
+
+        teamalloc =
+            model.allocations
+                |> Dict.values
+                |> List.foldl (\e t -> t + e.duration) 0
+                |> TR.millisToHours
+
+        igfont =
+            \te ->
+                if te.ignore then
+                    EF.strike
+
+                else
+                    EF.regular
+    in
+    [ P.view ttotes.mtecount model.teampaginator
+    , E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
+        { data =
+            P.filter model.teampaginator ttotes.mytimeentries
+        , columns =
+            [ { header = E.el headerStyle <| E.text "task"
+              , width = E.fill
+              , view =
+                    \te ->
+                        E.row
+                            [ igfont te
+                            , E.width E.fill
+                            ]
+                            [ E.text te.description ]
+              }
+            , { header = E.el headerStyle <| E.text "member"
+              , width = E.fill
+              , view =
+                    \te ->
+                        E.row
+                            [ igfont te
+                            , E.width E.fill
+                            ]
+                            [ E.text
+                                (te.user
+                                    |> Data.getUserIdVal
+                                    |> (\i -> Dict.get i model.membernames)
+                                    |> Maybe.withDefault ""
+                                )
+                            ]
+              }
+            , { header = E.el headerStyle <| E.text "start"
+              , width = E.fill
+              , view =
+                    \te ->
+                        E.row
+                            [ igfont te
+                            , E.width E.fill
+                            ]
+                            [ E.text <| Util.showDateTime zone (Time.millisToPosix te.startdate) ]
+              }
+            , { header = E.el headerStyle <| E.text "end"
+              , width = E.fill
+              , view =
+                    \te ->
+                        let
+                            endtext =
+                                \enddate ->
+                                    if
+                                        Util.sameDay zone
+                                            (Time.millisToPosix te.startdate)
+                                            (Time.millisToPosix enddate)
+                                    then
+                                        Util.showTime zone (Time.millisToPosix enddate)
+
+                                    else
+                                        Util.showDateTime zone (Time.millisToPosix enddate)
+                        in
+                        E.row
+                            [ EE.onClick <| OnRowItemClick te.startdate End
+                            , igfont te
+                            , E.width E.fill
+                            ]
+                            [ E.text <| endtext te.enddate
+                            ]
+              }
+            , { header = E.el headerStyle <| E.text "duration"
+              , width = E.shrink
+              , view =
+                    \te ->
+                        E.row
+                            [ igfont te
+                            , E.width E.fill
+                            ]
+                            [ E.text <| millisAsHours (te.enddate - te.startdate) ]
+              }
+            , { header = E.el headerStyle <| E.text "daily"
+              , width = E.shrink
+              , view =
+                    \te ->
+                        if Set.member te.startdate ttotes.lastofdays then
+                            let
+                                today =
+                                    te.startdate
+                                        |> Time.millisToPosix
+                                        |> TR.toDate zone
+                                        |> Maybe.map Calendar.toMillis
+                            in
+                            case today |> Maybe.andThen (\t -> Dict.get t ttotes.daytotes) of
+                                Just millis ->
+                                    E.text (millisAsHours millis)
+
+                                Nothing ->
+                                    E.none
+
+                        else
+                            E.none
+              }
+            , { header = E.el headerStyle <| E.text "weekly"
+              , width = E.shrink
+              , view =
+                    \te ->
+                        if Set.member te.startdate ttotes.lastofweeks then
+                            let
+                                today =
+                                    te.startdate
+                                        |> Time.millisToPosix
+                                        |> TR.toDate zone
+                                        |> Maybe.map TR.toSunday
+                                        |> Maybe.map Calendar.toMillis
+                            in
+                            case today |> Maybe.andThen (\t -> Dict.get t ttotes.weektotes) of
+                                Just millis ->
+                                    E.text (millisAsHours millis)
+
+                                Nothing ->
+                                    E.none
+
+                        else
+                            E.none
+              }
+            ]
+        }
+    , if isdirty then
+        E.row [ E.spacing TC.defaultSpacing ]
+            [ EI.button Common.buttonStyle { onPress = Just RevertPress, label = E.text "revert" }
+            , EI.button
+                (Common.buttonStyle ++ [ EBk.color TC.darkYellow ])
+                { onPress = Just SavePress, label = E.text "save" }
+            ]
+
+      else
+        E.none
+    , E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
+        { data =
+            [ ( "team unpaid hours: "
+              , R.round 2 <| ttotes.teamhours - teampay
+              )
+            , ( "team allocated hours: "
+              , R.round 2 <| teamalloc - ttotes.teamhours
+              )
+            ]
+        , columns =
+            [ { header = E.none
+              , width = E.shrink
+              , view =
+                    \( title, entry ) -> E.el headerStyle <| E.text title
+              }
+            , { header = E.none
+              , width = E.shrink
+              , view =
+                    \( title, entry ) -> E.text entry
+              }
+            ]
+        }
     ]
 
 
@@ -2345,6 +2553,9 @@ update msg model ld zone =
                         Err e ->
                             ( model, ShowError e )
 
+                Team ->
+                    ( model, ShowError "csv import is unimplemented for team." )
+
                 Payments ->
                     ( model, ShowError "csv import is unimplemented for payments." )
 
@@ -2512,6 +2723,9 @@ update msg model ld zone =
 
                             Nothing ->
                                 ( model, None )
+
+                    Team ->
+                        ( model, None )
 
                     Payments ->
                         case Dict.get i model.payentries of
@@ -3252,6 +3466,18 @@ update msg model ld zone =
 
         TeToEnd c ->
             ( { model | tepaginator = P.onToEnd c model.tepaginator }, None )
+
+        TeamForward ->
+            ( { model | teampaginator = P.onForward model.teampaginator }, None )
+
+        TeamBack c ->
+            ( { model | teampaginator = P.onBack c model.teampaginator }, None )
+
+        TeamToStart ->
+            ( { model | teampaginator = P.onToStart model.teampaginator }, None )
+
+        TeamToEnd c ->
+            ( { model | teampaginator = P.onToEnd c model.teampaginator }, None )
 
         PeForward ->
             ( { model | pepaginator = P.onForward model.pepaginator }, None )
