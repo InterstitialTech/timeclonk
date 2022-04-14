@@ -1318,9 +1318,9 @@ handleProjectTime model ( nm, cmd ) login =
             , FS.file [ "text/csv" ] (FileLoaded (ProjectTimeMsg << ProjectTime.CsvString))
             )
 
-        ProjectTime.SaveCsv csvstring ->
+        ProjectTime.SaveCsv filename csvstring ->
             ( { model | state = ProjectTime nm login }
-            , FD.string "timeclonk.csv" "text/csv" csvstring
+            , FD.string filename "text/csv" csvstring
             )
 
         ProjectTime.ShowError e ->

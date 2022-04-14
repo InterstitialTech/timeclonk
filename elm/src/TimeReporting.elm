@@ -379,15 +379,19 @@ csvToEditTimeEntries zone user csv =
 
 {-| just export the checked Etes
 -}
-eteToCsv : Time.Zone -> Dict Int EditTimeEntry -> String
-eteToCsv zone timeentries =
-    ("task,startdate,enddate"
+eteToCsv : Time.Zone -> String -> Dict Int String -> List EditTimeEntry -> String
+eteToCsv zone projectname membernames timeentries =
+    ("project,user,task,startdate,enddate"
         :: (timeentries
-                |> Dict.values
-                |> List.filter .checked
                 |> List.map
                     (\te ->
-                        te.description
+                        projectname
+                            ++ ","
+                            ++ (Dict.get (Data.getUserIdVal te.user) membernames
+                                    |> Maybe.withDefault ""
+                               )
+                            ++ ","
+                            ++ te.description
                             ++ ","
                             ++ Util.showDateTime zone (Time.millisToPosix te.startdate)
                             ++ ","

@@ -34,6 +34,7 @@ type Msg
     | EditPress
     | SettingsPress
     | ImportPress
+    | ExportAll
     | CsvString String
     | ClonkInPress
     | ClonkOutPress
@@ -91,7 +92,6 @@ type Msg
     | DeletePayChecked
     | DeleteAllocationChecked
     | IgnoreChecked
-    | ExportChecked
     | TeForward
     | TeBack Int
     | TeToStart
@@ -181,7 +181,7 @@ type Command
     | Done
     | GetTime (Int -> Msg)
     | GetCsv
-    | SaveCsv String
+    | SaveCsv String String
     | Settings
     | ShowError String
     | SelectMember (List Data.ProjectMember)
@@ -673,6 +673,7 @@ view ld size zone model =
                 [ EI.button Common.buttonStyle { onPress = Just DonePress, label = E.text "<-" }
                 , EI.button Common.buttonStyle { onPress = Just EditPress, label = E.text "edit project" }
                 , EI.button Common.buttonStyle { onPress = Just ImportPress, label = E.text "import" }
+                , EI.button Common.buttonStyle { onPress = Just ExportAll, label = E.text "export" }
                 ]
                     ++ (if isdirty then
                             [ EI.button Common.buttonStyle { onPress = Just RevertPress, label = E.text "revert" }
@@ -780,10 +781,6 @@ clonkview ld size zone isdirty model =
         , EI.button Common.buttonStyle
             { onPress = Just <| IgnoreChecked
             , label = E.text "ignore"
-            }
-        , EI.button Common.buttonStyle
-            { onPress = Just <| ExportChecked
-            , label = E.text "export"
             }
         ]
     , P.view ttotes.mtecount model.tepaginator
@@ -3450,9 +3447,9 @@ update msg model ld zone =
             , None
             )
 
-        ExportChecked ->
+        ExportAll ->
             ( model
-            , SaveCsv (eteToCsv zone (getTes model.timeentries))
+            , SaveCsv ("timeclonk-" ++ model.project.name ++ ".csv") (eteToCsv zone model.project.name model.membernames (getTes model.timeentries |> Dict.values))
             )
 
         TeForward ->
