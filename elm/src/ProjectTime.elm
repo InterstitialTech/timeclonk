@@ -96,6 +96,10 @@ type Msg
     | TeBack Int
     | TeToStart
     | TeToEnd Int
+    | TeamForward
+    | TeamBack Int
+    | TeamToStart
+    | TeamToEnd Int
     | PeForward
     | PeBack Int
     | PeToStart
@@ -136,8 +140,9 @@ type alias Model =
     , description : String
     , timeentries : TTotaler
     , initialtimeentries : Dict Int EditTimeEntry
-    , teamentries : TTotaler
     , tepaginator : P.Model Msg
+    , teamentries : TTotaler
+    , teampaginator : P.Model Msg
     , payentries : Dict Int EditPayEntry
     , initialpayentries : Dict Int EditPayEntry
     , pepaginator : P.Model Msg
@@ -538,8 +543,9 @@ init zone ld pt saveonclonk pageincrement mode =
     , description = description
     , timeentries = mkTToteler ietes (\te -> te.user == ld.userid) zone
     , initialtimeentries = ietes
-    , teamentries = mkTToteler ietes (always True) zone
     , tepaginator = P.init TeForward TeBack TeToStart TeToEnd P.End pageincrement
+    , teamentries = mkTToteler ietes (always True) zone
+    , teampaginator = P.init TeamForward TeamBack TeamToStart TeamToEnd P.End pageincrement
     , payentries = iepes
     , initialpayentries = iepes
     , pepaginator = P.init PeForward PeBack PeToStart PeToEnd P.End pageincrement
@@ -1284,10 +1290,10 @@ teamview ld size zone isdirty model =
                 else
                     EF.regular
     in
-    [ P.view ttotes.mtecount model.tepaginator
+    [ P.view ttotes.mtecount model.teampaginator
     , E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
         { data =
-            P.filter model.tepaginator ttotes.mytimeentries
+            P.filter model.teampaginator ttotes.mytimeentries
         , columns =
             [ { header = E.el headerStyle <| E.text "task"
               , width = E.fill
@@ -3469,6 +3475,18 @@ update msg model ld zone =
 
         TeToEnd c ->
             ( { model | tepaginator = P.onToEnd c model.tepaginator }, None )
+
+        TeamForward ->
+            ( { model | teampaginator = P.onForward model.teampaginator }, None )
+
+        TeamBack c ->
+            ( { model | teampaginator = P.onBack c model.teampaginator }, None )
+
+        TeamToStart ->
+            ( { model | teampaginator = P.onToStart model.teampaginator }, None )
+
+        TeamToEnd c ->
+            ( { model | teampaginator = P.onToEnd c model.teampaginator }, None )
 
         PeForward ->
             ( { model | pepaginator = P.onForward model.pepaginator }, None )
