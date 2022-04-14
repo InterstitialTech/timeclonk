@@ -1264,12 +1264,6 @@ teamview ld size zone isdirty model =
         paytotes =
             model.payentries |> Dict.values |> TR.payTotes
 
-        mypay =
-            paytotes
-                |> TDict.get ld.userid
-                |> Maybe.withDefault 0
-                |> TR.millisToHours
-
         teampay =
             paytotes
                 |> TDict.values
@@ -1430,9 +1424,6 @@ teamview ld size zone isdirty model =
               )
             , ( "team allocated hours: "
               , R.round 2 <| teamalloc - ttotes.teamhours
-              )
-            , ( "my unpaid hours: "
-              , R.round 2 <| ttotes.myhours - mypay
               )
             ]
         , columns =
