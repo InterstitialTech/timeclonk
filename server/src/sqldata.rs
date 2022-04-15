@@ -416,6 +416,63 @@ pub fn udpate4(dbfile: &Path) -> Result<(), Box<dyn Error>> {
   Ok(())
 }
 
+pub fn udpate5(dbfile: &Path) -> Result<(), Box<dyn Error>> {
+  // db connection without foreign key checking.
+  let conn = Connection::open(dbfile)?;
+  let mut m1 = Migration::new();
+
+  // back up the projctmember table.
+
+  // temp table to hold data while we make a new table.
+  m1.create_table("pmtemp", |t| {
+    t.add_column("project", types::integer());
+    t.add_column("user", types::integer());
+  });
+
+  conn.execute_batch(m1.make::<Sqlite>().as_str())?;
+
+  // copy everything from current table..
+  conn.execute(
+    "insert into pmtemp (
+      project, user)
+     select project, user from project",
+    params![],
+  )?;
+
+  let mut m2 = Migration::new();
+  // drop zknote.
+  m2.drop_table("projectmember");
+
+  m2.create_table("projectmember", |t| {
+    t.add_column("project", types::foreign("project", "id").nullable(false));
+    t.add_column("user", types::foreign("user", "id").nullable(false));
+    t.add_column("role", types::text().nullable(false));
+    t.add_index("unq", types::index(vec!["project", "user"]).unique(true));
+  });
+
+  // add 'rate' to timeentry.
+  conn.execute_batch(m2.make::<Sqlite>().as_str())?;
+
+  // copy everything from the temp table.
+  conn.execute(
+    "insert into projectmember (
+      project,
+      user,
+      role)
+     select
+      project, user, 'member' from pmtemp",
+    params![],
+  )?;
+
+  let mut m3 = Migration::new();
+  // drop timeentrytemp.
+  m3.drop_table("projecttemp");
+
+  conn.execute_batch(m3.make::<Sqlite>().as_str())?;
+
+  Ok(())
+}
+
 pub fn get_single_value(conn: &Connection, name: &str) -> Result<Option<String>, Box<dyn Error>> {
   match conn.query_row(
     "select value from singlevalue where name = ?1",
@@ -475,6 +532,11 @@ pub fn dbinit(dbfile: &Path, token_expiration_ms: i64) -> Result<(), Box<dyn Err
     info!("udpate4");
     udpate4(&dbfile)?;
     set_single_value(&conn, "migration_level", "4")?;
+  }
+  if nlevel < 5 {
+    info!("udpate5");
+    udpate5(&dbfile)?;
+    set_single_value(&conn, "migration_level", "5")?;
   }
 
   info!("db up to date.");
