@@ -19,7 +19,7 @@ import TSet exposing (TSet)
 import TangoColors as TC
 import TcCommon as TC
 import Time
-import TimeReporting as TR exposing (EditAllocation, EditPayEntry, EditTimeEntry, csvToEditAllocations, csvToEditTimeEntries, eteToCsv)
+import TimeReporting as TR exposing (EditAllocation, EditPayEntry, EditTimeEntry, csvToEditAllocations, csvToEditTimeEntries, eteToCsv, millisAsHours)
 import TimeTotaler exposing (TTotaler, getTes, getTotes, mapTimeentry, mkTToteler, setTes)
 import Toop
 import Util
@@ -1443,11 +1443,6 @@ type Entry
     = TimeDay (TDict UserId Int Int)
     | PayEntry EditPayEntry
     | Allocation EditAllocation
-
-
-millisAsHours : Int -> String
-millisAsHours millis =
-    R.round 2 (toFloat millis / (1000.0 * 60.0 * 60.0))
 
 
 distributionview : Data.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
