@@ -1,13 +1,14 @@
 use crate::data::{
-  Allocation, ChangeEmail, ChangePassword, ListProject, LoginData, PayEntry, Project, ProjectEdit,
-  ProjectMember, ProjectTime, SaveAllocation, SavePayEntry, SaveProject, SaveProjectEdit,
-  SaveProjectTime, SaveTimeEntry, SavedProject, SavedProjectEdit, TimeEntry, User,
+  Allocation, ListProject, PayEntry, Project, ProjectEdit, ProjectMember, ProjectTime,
+  SaveAllocation, SavePayEntry, SaveProject, SaveProjectEdit, SaveProjectTime, SaveTimeEntry,
+  SavedProject, SavedProjectEdit, TimeEntry,
 };
 use crate::util::{is_token_expired, now};
 use barrel::backend::Sqlite;
 use barrel::{types, Migration};
 use crypto_hash::{hex_digest, Algorithm};
 use log::info;
+use orgauth::data::{ChangeEmail, ChangePassword, LoginData, User};
 use rusqlite::{params, Connection};
 use simple_error::bail;
 use std::error::Error;
@@ -20,7 +21,24 @@ pub fn login_data(conn: &Connection, uid: i64) -> Result<LoginData, Box<dyn Erro
   Ok(LoginData {
     userid: uid,
     name: user.name,
+    data: None,
   })
+}
+
+pub fn on_new_user(
+  conn: &Connection,
+  rd: &orgauth::data::RegistrationData,
+  uid: i64,
+) -> Result<(), Box<dyn Error>> {
+  Ok(())
+}
+
+// callback to pass to orgauth
+pub fn extra_login_data_callback(
+  conn: &Connection,
+  uid: i64,
+) -> Result<Option<serde_json::Value>, Box<dyn Error>> {
+  Ok(None)
 }
 
 pub fn connection_open(dbfile: &Path) -> Result<Connection, Box<dyn Error>> {

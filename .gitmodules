@@ -1,0 +1,3 @@
+[submodule "orgauth"]
+	path = orgauth
+	url = git@github.com:bburdette/orgauth.git

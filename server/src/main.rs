@@ -14,6 +14,8 @@ use clap::Arg;
 use config::Config;
 use log::{error, info};
 use messages::{PublicMessage, ServerResponse, UserMessage};
+use orgauth::data::WhatMessage;
+use orgauth::endpoints::Callbacks;
 use serde_json;
 use std::env;
 use std::error::Error;
@@ -56,7 +58,10 @@ fn mainpage(session: Session, data: web::Data<Config>, req: HttpRequest) -> Http
           .content_type("text/html; charset=utf-8")
           .body(
             s.replace("{{logindata}}", logindata.to_string().as_str())
-              .replace("{{appname}}", data.appname.to_string().as_str()),
+              .replace(
+                "{{appname}}",
+                data.orgauth_config.appname.to_string().as_str(),
+              ),
           )
       }
       Err(e) => HttpResponse::from_error(actix_web::error::ErrorImATeapot(e)),
@@ -92,7 +97,7 @@ fn public(
 fn user(
   session: Session,
   data: web::Data<Config>,
-  item: web::Json<UserMessage>,
+  item: web::Json<WhatMessage>,
   req: HttpRequest,
 ) -> HttpResponse {
   info!(
@@ -101,7 +106,17 @@ fn user(
     &item.data,
     req.connection_info()
   );
-  match interfaces::user_interface(&session, &data, item.into_inner()) {
+  let mut cb = Callbacks {
+    on_new_user: Box::new(sqldata::on_new_user),
+    extra_login_data: Box::new(sqldata::extra_login_data_callback),
+  };
+
+  match orgauth::endpoints::user_interface(
+    &session,
+    &data.orgauth_config,
+    &mut cb,
+    item.into_inner(),
+  ) {
     Ok(sr) => HttpResponse::Ok().json(sr),
     Err(e) => {
       error!("'user' err: {:?}", e);
@@ -114,137 +129,93 @@ fn user(
   }
 }
 
-fn register(data: web::Data<Config>, req: HttpRequest) -> HttpResponse {
-  info!("registration: uid: {:?}", req.match_info().get("uid"));
-  match sqldata::connection_open(data.db.as_path()) {
-    Ok(conn) => match (req.match_info().get("uid"), req.match_info().get("key")) {
-      (Some(uid), Some(key)) => {
-        // read user record.  does the reg key match?
-        match sqldata::read_user_by_name(&conn, uid) {
-          Ok(user) => {
-            if user.registration_key == Some(key.to_string()) {
-              let mut mu = user;
-              mu.registration_key = None;
-              match sqldata::update_user(&conn, &mu) {
-                Ok(_) => HttpResponse::Ok().body(
-                  format!(
-                    "<h1>You are registered!<h1> <a href=\"{}\">\
-                       Proceed to the main site</a>",
-                    data.mainsite
-                  )
-                  .to_string(),
-                ),
-                Err(_e) => HttpResponse::Ok().body("<h1>registration failed</h1>".to_string()),
-              }
-            } else {
-              HttpResponse::Ok().body("<h1>registration failed</h1>".to_string())
-            }
-          }
-          Err(_e) => HttpResponse::Ok().body("registration key or user doesn't match".to_string()),
-        }
-      }
-      _ => HttpResponse::Ok().body("Uid, key not found!".to_string()),
-    },
-
-    Err(_e) => HttpResponse::Ok().body("<h1>registration failed</h1>".to_string()),
-  }
-}
-
-fn new_email(data: web::Data<Config>, req: HttpRequest) -> HttpResponse {
-  info!("new email: uid: {:?}", req.match_info().get("uid"));
-  match sqldata::connection_open(data.db.as_path()) {
-    Ok(conn) => match (req.match_info().get("uid"), req.match_info().get("token")) {
-      (Some(uid), Some(tokenstr)) => {
-        match Uuid::from_str(tokenstr) {
-          Err(_e) => HttpResponse::BadRequest().body("invalid token".to_string()),
-          Ok(token) => {
-            // read user record.  does the reg key match?
-            match sqldata::read_user_by_name(&conn, uid) {
-              Ok(user) => {
-                match sqldata::read_newemail(&conn, user.id, token) {
-                  Ok((email, tokendate)) => {
-                    match now() {
-                      Err(_e) => HttpResponse::InternalServerError()
-                        .body("<h1>'now' failed!</h1>".to_string()),
-
-                      Ok(now) => {
-                        if (now - tokendate) > data.email_token_expiration_ms {
-                          // TODO token expired?
-                          HttpResponse::UnprocessableEntity()
-                            .body("<h1>email change failed - token expired</h1>".to_string())
-                        } else {
-                          // put the email in the user record and update.
-                          let mut mu = user.clone();
-                          mu.email = email;
-                          match sqldata::update_user(&conn, &mu) {
-                            Ok(_) => {
-                              // delete the change email token record.
-                              match sqldata::remove_newemail(&conn, user.id, token) {
-                                Ok(_) => (),
-                                Err(e) => error!("error removing newemail record: {:?}", e),
-                              }
-                              HttpResponse::Ok().body(
-                                format!(
-                                  "<h1>Email address changed!<h1> <a href=\"{}\">\
-                                   Proceed to the main site</a>",
-                                  data.mainsite
-                                )
-                                .to_string(),
-                              )
-                            }
-                            Err(_e) => HttpResponse::InternalServerError()
-                              .body("<h1>email change failed</h1>".to_string()),
-                          }
-                        }
-                      }
-                    }
-                  }
-                  Err(_e) => HttpResponse::InternalServerError()
-                    .body("<h1>email change failed</h1>".to_string()),
-                }
-              }
-              Err(_e) => HttpResponse::BadRequest()
-                .body("email change token or user doesn't match".to_string()),
-            }
-          }
-        }
-      }
-      _ => HttpResponse::BadRequest().body("username or token not found!".to_string()),
-    },
-
-    Err(_e) => {
-      HttpResponse::InternalServerError().body("<h1>database connection failed</h1>".to_string())
+fn private(
+  session: Session,
+  data: web::Data<Config>,
+  item: web::Json<UserMessage>,
+  _req: HttpRequest,
+) -> HttpResponse {
+  match timeclonk_interface_check(&session, &data, item.into_inner()) {
+    Ok(sr) => HttpResponse::Ok().json(sr),
+    Err(e) => {
+      error!("'private' err: {:?}", e);
+      let se = ServerResponse {
+        what: "server error".to_string(),
+        content: serde_json::Value::String(e.to_string()),
+      };
+      HttpResponse::Ok().json(se)
     }
   }
 }
 
+fn timeclonk_interface_check(
+  session: &Session,
+  config: &Config,
+  msg: UserMessage,
+) -> Result<ServerResponse, Box<dyn Error>> {
+  match session.get::<Uuid>("token")? {
+    None => Ok(ServerResponse {
+      what: "not logged in".to_string(),
+      content: serde_json::Value::Null,
+    }),
+    Some(token) => {
+      let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
+      match orgauth::dbfun::read_user_by_token(
+        &conn,
+        token,
+        Some(config.orgauth_config.login_token_expiration_ms),
+      ) {
+        Err(e) => {
+          info!("read_user_by_token error: {:?}", e);
+
+          Ok(ServerResponse {
+            what: "invalid user or pwd".to_string(),
+            content: serde_json::Value::Null,
+          })
+        }
+        Ok(userdata) => {
+          // finally!  processing messages as logged in user.
+          interfaces::timeclonk_interface_loggedin(&config, userdata.id, &msg)
+        }
+      }
+    }
+  }
+}
+
+fn register(data: web::Data<Config>, req: HttpRequest) -> HttpResponse {
+  orgauth::endpoints::register(&data.orgauth_config, req)
+}
+
+fn new_email(data: web::Data<Config>, req: HttpRequest) -> HttpResponse {
+  orgauth::endpoints::new_email(&data.orgauth_config, req)
+}
+
 fn defcon() -> Config {
-  Config {
-    ip: "127.0.0.1".to_string(),
-    port: 8000,
-    createdirs: false,
-    db: PathBuf::from("./myapp.db"),
+  let oc = orgauth::data::Config {
+    db: PathBuf::from("./timeclonk.db"),
     mainsite: "http://localhost:8001".to_string(),
-    appname: "myappname".to_string(),
+    appname: "timeclonk".to_string(),
     domain: "localhost:8001".to_string(),
     admin_email: "admin@admin.admin".to_string(),
     login_token_expiration_ms: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
     email_token_expiration_ms: 1 * 24 * 60 * 60 * 1000, // 1 day in milliseconds
     reset_token_expiration_ms: 1 * 24 * 60 * 60 * 1000, // 1 day in milliseconds
+  };
+  Config {
+    ip: "127.0.0.1".to_string(),
+    port: 8000,
+    // createdirs: false,
+    // db: PathBuf::from("./myapp.db"),
+    // mainsite: "http://localhost:8001".to_string(),
+    // appname: "myappname".to_string(),
+    // domain: "localhost:8001".to_string(),
+    // admin_email: "admin@admin.admin".to_string(),
+    // login_token_expiration_ms: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+    // email_token_expiration_ms: 1 * 24 * 60 * 60 * 1000, // 1 day in milliseconds
+    // reset_token_expiration_ms: 1 * 24 * 60 * 60 * 1000, // 1 day in milliseconds
     static_path: None,
+    orgauth_config: oc,
   }
-}
-
-fn purge_tokens(config: &Config) -> Result<(), Box<dyn Error>> {
-  let conn = sqldata::connection_open(config.db.as_path())?;
-
-  sqldata::purge_login_tokens(&conn, config.login_token_expiration_ms)?;
-
-  sqldata::purge_email_tokens(&conn, config.email_token_expiration_ms)?;
-
-  sqldata::purge_reset_tokens(&conn, config.reset_token_expiration_ms)?;
-
-  Ok(())
 }
 
 fn load_config() -> Config {
@@ -292,7 +263,10 @@ async fn err_main() -> Result<(), Box<dyn Error>> {
       // do that exporting...
       let config = load_config();
 
-      sqldata::dbinit(config.db.as_path(), config.login_token_expiration_ms)?;
+      sqldata::dbinit(
+        config.orgauth_config.db.as_path(),
+        config.orgauth_config.login_token_expiration_ms,
+      )?;
 
       error!("export is unimplemented!");
 
@@ -321,19 +295,21 @@ async fn err_main() -> Result<(), Box<dyn Error>> {
 
       info!("config: {:?}", config);
 
-      sqldata::dbinit(config.db.as_path(), config.login_token_expiration_ms)?;
+      sqldata::dbinit(
+        config.orgauth_config.db.as_path(),
+        config.orgauth_config.login_token_expiration_ms,
+      )?;
 
       let timer = timer::Timer::new();
 
       let ptconfig = config.clone();
 
-      let _guard =
-        timer.schedule_repeating(chrono::Duration::days(1), move || {
-          match purge_tokens(&ptconfig) {
-            Err(e) => error!("purge_login_tokens error: {}", e),
-            Ok(_) => (),
-          }
-        });
+      let _guard = timer.schedule_repeating(chrono::Duration::days(1), move || {
+        match orgauth::dbfun::purge_tokens(&ptconfig.orgauth_config) {
+          Err(e) => error!("purge_login_tokens error: {}", e),
+          Ok(_) => (),
+        }
+      });
 
       let c = config.clone();
       HttpServer::new(move || {
