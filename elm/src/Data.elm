@@ -1,20 +1,15 @@
 module Data exposing
     ( Allocation
-    , AllocationId
-    , ChangeEmail
-    , ChangePassword
+    , AllocationId(..)
     , ListProject
-    , Login
     , LoginData
     , PayEntry
-    , PayEntryId
+    , PayEntryId(..)
     , Project
     , ProjectEdit
-    , ProjectId
+    , ProjectId(..)
     , ProjectMember
     , ProjectTime
-    , Registration
-    , ResetPassword
     , SaveAllocation
     , SavePayEntry
     , SaveProject
@@ -24,12 +19,11 @@ module Data exposing
     , SaveTimeEntry
     , SavedProject
     , SavedProjectEdit
-    , SetPassword
     , TimeEntry
-    , TimeEntryId
-    , UserId
+    , TimeEntryId(..)
+    , UserId(..)
+    , decodeAllocation
     , decodeListProject
-    , decodeLoginData
     , decodePayEntry
     , decodeProject
     , decodeProjectEdit
@@ -38,83 +32,53 @@ module Data exposing
     , decodeSavedProject
     , decodeSavedProjectEdit
     , decodeTimeEntry
-    , encodeChangeEmail
-    , encodeChangePassword
-    , encodeLogin
-    , encodeRegistration
-    , encodeResetPassword
+    , encodeSaveAllocation
     , encodeSavePayEntry
     , encodeSaveProject
     , encodeSaveProjectEdit
     , encodeSaveProjectMember
     , encodeSaveProjectTime
     , encodeSaveTimeEntry
-    , encodeSetPassword
     , getAllocationIdVal
     , getPayEntryIdVal
     , getProjectIdVal
     , getTimeEntryIdVal
     , getUserIdVal
+    , ldToOdLd
     , makeAllocationId
     , makePayEntryId
     , makeProjectId
     , makeTimeEntryId
     , makeUserId
+    , odLdToLd
     )
 
 import Json.Decode as JD
 import Json.Encode as JE
+import Orgauth.Data as OD
 import UUID exposing (UUID)
 import Url.Builder as UB
 import Util exposing (andMap)
 
 
-
-----------------------------------------
--- user, password, registration etc.
-----------------------------------------
-
-
-type alias Registration =
-    { uid : String
-    , pwd : String
-    , email : String
-    }
-
-
-type alias Login =
-    { uid : String
-    , pwd : String
-    }
-
-
-type alias ResetPassword =
-    { uid : String
-    }
-
-
-type alias SetPassword =
-    { uid : String
-    , newpwd : String
-    , reset_key : UUID
-    }
-
-
-type alias ChangePassword =
-    { oldpwd : String
-    , newpwd : String
-    }
-
-
-type alias ChangeEmail =
-    { pwd : String
-    , email : String
-    }
-
-
 type alias LoginData =
     { userid : UserId
     , name : String
+    }
+
+
+ldToOdLd : LoginData -> OD.LoginData
+ldToOdLd ld =
+    { userid = getUserIdVal ld.userid
+    , name = ld.name
+    , data = JE.null
+    }
+
+
+odLdToLd : OD.LoginData -> LoginData
+odLdToLd ld =
+    { userid = makeUserId ld.userid
+    , name = ld.name
     }
 
 
@@ -367,66 +331,6 @@ getAllocationIdVal uid =
 ----------------------------------------
 -- Json encoders/decoders
 ----------------------------------------
-
-
-encodeRegistration : Registration -> JE.Value
-encodeRegistration l =
-    JE.object
-        [ ( "uid", JE.string l.uid )
-        , ( "pwd", JE.string l.pwd )
-        , ( "email", JE.string l.email )
-        ]
-
-
-encodeLogin : Login -> JE.Value
-encodeLogin l =
-    JE.object
-        [ ( "uid", JE.string l.uid )
-        , ( "pwd", JE.string l.pwd )
-        ]
-
-
-encodeResetPassword : ResetPassword -> JE.Value
-encodeResetPassword l =
-    JE.object
-        [ ( "uid", JE.string l.uid )
-        ]
-
-
-encodeSetPassword : SetPassword -> JE.Value
-encodeSetPassword l =
-    JE.object
-        [ ( "uid", JE.string l.uid )
-        , ( "newpwd", JE.string l.newpwd )
-        , ( "reset_key", UUID.toValue l.reset_key )
-        ]
-
-
-encodeChangePassword : ChangePassword -> JE.Value
-encodeChangePassword l =
-    JE.object
-        [ ( "oldpwd", JE.string l.oldpwd )
-        , ( "newpwd", JE.string l.newpwd )
-        ]
-
-
-encodeChangeEmail : ChangeEmail -> JE.Value
-encodeChangeEmail l =
-    JE.object
-        [ ( "pwd", JE.string l.pwd )
-        , ( "email", JE.string l.email )
-        ]
-
-
-decodeLoginData : JD.Decoder LoginData
-decodeLoginData =
-    JD.succeed LoginData
-        |> andMap (JD.field "userid" JD.int |> JD.map makeUserId)
-        |> andMap (JD.field "name" JD.string)
-
-
-
-----------------------------------------------------------------
 
 
 decodeListProject : JD.Decoder ListProject

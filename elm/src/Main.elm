@@ -4,8 +4,6 @@ import Array
 import Browser
 import Browser.Events
 import Browser.Navigation
-import ChangeEmail as CE
-import ChangePassword as CP
 import Common exposing (buttonStyle)
 import Data
 import Dict exposing (Dict)
@@ -27,12 +25,15 @@ import Http
 import Json.Decode as JD
 import Json.Encode as JE
 import LocalStorage as LS
-import Login
+import Orgauth.ChangeEmail as CE
+import Orgauth.ChangePassword as CP
+import Orgauth.Login as Login
+import Orgauth.ResetPassword as ResetPassword
+import Orgauth.UserInterface as UI
 import ProjectEdit
 import ProjectListing
 import ProjectTime
 import Random exposing (Seed, initialSeed)
-import ResetPassword
 import Route exposing (Route(..), parseUrl, routeTitle, routeUrl)
 import SelectString as SS
 import ShowMessage
@@ -41,12 +42,12 @@ import TangoColors as TC
 import Task exposing (Task)
 import Time
 import TimeReporting as TR
+import TimeclonkInterface as TI
 import Toop
 import UUID exposing (UUID)
 import Url exposing (Url)
 import Url.Builder as UB
 import Url.Parser as UP exposing ((</>))
-import UserInterface as UI
 import UserSettings
 import Util
 import WindowKeys
@@ -57,7 +58,8 @@ type Msg
     | UserSettingsMsg UserSettings.Msg
     | ShowMessageMsg ShowMessage.Msg
     | UserReplyData (Result Http.Error UI.ServerResponse)
-    | ProjectTimeData String (Result Http.Error UI.ServerResponse)
+    | TimeclonkReplyData (Result Http.Error TI.ServerResponse)
+    | ProjectTimeData String (Result Http.Error TI.ServerResponse)
     | LoadUrl String
     | InternalUrl Url
     | SelectedText JD.Value
@@ -186,12 +188,12 @@ routeState model route =
 
         ProjectEditR id ->
             ( (displayMessageDialog model "loading project").state
-            , sendUIMsg model.location <| UI.GetProjectEdit id
+            , sendTIMsg model.location <| TI.GetProjectEdit id
             )
 
         ProjectTimeR id mode ->
             ( (displayMessageDialog model "loading project").state
-            , sendUIMsgExp model.location (UI.GetProjectTime id) (ProjectTimeData mode)
+            , sendTIMsgExp model.location (TI.GetProjectTime id) (ProjectTimeData mode)
             )
 
 
@@ -264,9 +266,23 @@ showMessage msg =
                            )
                    )
 
+        TimeclonkReplyData urd ->
+            "TimeclonkReplyData: "
+                ++ (Result.map TI.showServerResponse urd
+                        |> Result.mapError Util.httpErrorString
+                        |> (\r ->
+                                case r of
+                                    Ok m ->
+                                        "message: " ++ m
+
+                                    Err e ->
+                                        "error: " ++ e
+                           )
+                   )
+
         ProjectTimeData mode urd ->
             "ProjectTimeData: "
-                ++ (Result.map UI.showServerResponse urd
+                ++ (Result.map TI.showServerResponse urd
                         |> Result.mapError Util.httpErrorString
                         |> (\r ->
                                 case r of
@@ -487,6 +503,20 @@ stateLogin state =
 
         ProjectTime _ login ->
             Just login
+
+
+sendTIMsg : String -> TI.SendMsg -> Cmd Msg
+sendTIMsg location msg =
+    sendTIMsgExp location msg TimeclonkReplyData
+
+
+sendTIMsgExp : String -> TI.SendMsg -> (Result Http.Error TI.ServerResponse -> Msg) -> Cmd Msg
+sendTIMsgExp location msg tomsg =
+    Http.post
+        { url = location ++ "/private"
+        , body = Http.jsonBody (TI.encodeSendMsg msg)
+        , expect = Http.expectJson tomsg TI.serverResponseDecoder
+        }
 
 
 sendUIMsg : String -> UI.SendMsg -> Cmd Msg
@@ -836,7 +866,7 @@ actualupdate msg model =
                 UserSettings.ChangePassword ->
                     ( { model
                         | state =
-                            ChangePasswordDialog (CP.init login Common.buttonStyle (UserSettings.view numod |> E.map (always ())))
+                            ChangePasswordDialog (CP.init (Data.ldToOdLd login) Common.buttonStyle (UserSettings.view numod |> E.map (always ())))
                                 (UserSettings numod login prevstate)
                       }
                     , Cmd.none
@@ -845,7 +875,7 @@ actualupdate msg model =
                 UserSettings.ChangeEmail ->
                     ( { model
                         | state =
-                            ChangeEmailDialog (CE.init login Common.buttonStyle (UserSettings.view numod |> E.map (always ())))
+                            ChangeEmailDialog (CE.init (Data.ldToOdLd login) Common.buttonStyle (UserSettings.view numod |> E.map (always ())))
                                 (UserSettings numod login prevstate)
                       }
                     , Cmd.none
@@ -911,7 +941,7 @@ actualupdate msg model =
 
                 Ok uiresponse ->
                     case uiresponse of
-                        UI.ProjectTime x ->
+                        TI.ProjectTime x ->
                             case stateLogin state of
                                 Just login ->
                                     ( { model | state = ProjectTime (ProjectTime.init model.timezone login x model.saveonclonk model.pageincrement mode) login }, Cmd.none )
@@ -919,14 +949,12 @@ actualupdate msg model =
                                 Nothing ->
                                     ( model, Cmd.none )
 
-                        UI.NotLoggedIn ->
-                            case state of
-                                Login lmod ->
-                                    ( { model | state = Login lmod }, Cmd.none )
-
-                                _ ->
-                                    ( { model | state = Login <| Login.initialModel Nothing model.appname model.seed }, Cmd.none )
-
+                        -- TI.NotLoggedIn ->
+                        --     case state of
+                        --         Login lmod ->
+                        --             ( { model | state = Login lmod }, Cmd.none )
+                        --         _ ->
+                        --             ( { model | state = Login <| Login.initialModel Nothing model.appname model.seed }, Cmd.none )
                         _ ->
                             ( unexpectedMsg model msg
                             , Cmd.none
@@ -951,7 +979,7 @@ actualupdate msg model =
                                     { model
                                         | state =
                                             ShowMessage { message = "logged in" }
-                                                login
+                                                (Data.odLdToLd login)
                                                 Nothing
                                     }
                             in
@@ -1066,7 +1094,17 @@ actualupdate msg model =
                                     , Cmd.none
                                     )
 
-                        UI.ProjectList x ->
+        ( TimeclonkReplyData urd, state ) ->
+            case urd of
+                Err e ->
+                    ( displayMessageDialog model <| Util.httpErrorString e, Cmd.none )
+
+                Ok uiresponse ->
+                    case uiresponse of
+                        TI.ServerError e ->
+                            ( displayMessageDialog model <| e, Cmd.none )
+
+                        TI.ProjectList x ->
                             case stateLogin state of
                                 Just login ->
                                     ( { model | state = ProjectListing (ProjectListing.init x) login }, Cmd.none )
@@ -1074,7 +1112,7 @@ actualupdate msg model =
                                 Nothing ->
                                     ( model, Cmd.none )
 
-                        UI.ProjectEdit x ->
+                        TI.ProjectEdit x ->
                             case stateLogin state of
                                 Just login ->
                                     ( { model | state = ProjectEdit (ProjectEdit.initEdit x.project x.members) login }, Cmd.none )
@@ -1082,7 +1120,7 @@ actualupdate msg model =
                                 Nothing ->
                                     ( model, Cmd.none )
 
-                        UI.ProjectTime x ->
+                        TI.ProjectTime x ->
                             case state of
                                 ProjectTime st login ->
                                     ( { model | state = ProjectTime (ProjectTime.onProjectTime model.timezone login x st) login }, Cmd.none )
@@ -1095,7 +1133,7 @@ actualupdate msg model =
                                         Nothing ->
                                             ( model, Cmd.none )
 
-                        UI.SavedProjectEdit x ->
+                        TI.SavedProjectEdit x ->
                             case state of
                                 ProjectEdit s l ->
                                     ( { model | state = ProjectEdit (ProjectEdit.onSavedProjectEdit x s) l }, Cmd.none )
@@ -1103,7 +1141,7 @@ actualupdate msg model =
                                 _ ->
                                     ( model, Cmd.none )
 
-                        UI.AllMembers x ->
+                        TI.AllMembers x ->
                             case state of
                                 ProjectEdit s l ->
                                     let
@@ -1197,7 +1235,7 @@ actualupdate msg model =
             case cmd of
                 ProjectListing.Selected id ->
                     ( { model | state = ProjectListing nm login }
-                    , sendUIMsg model.location <| UI.GetProjectEdit id
+                    , sendTIMsg model.location <| TI.GetProjectEdit id
                     )
 
                 ProjectListing.New ->
@@ -1252,7 +1290,7 @@ handleProjectEdit model ( nm, cmd ) login =
     case cmd of
         ProjectEdit.Save s ->
             ( { model | state = ProjectEdit nm login }
-            , sendUIMsg model.location <| UI.SaveProjectEdit s
+            , sendTIMsg model.location <| TI.SaveProjectEdit s
             )
 
         ProjectEdit.New ->
@@ -1262,12 +1300,12 @@ handleProjectEdit model ( nm, cmd ) login =
 
         ProjectEdit.AddMember ->
             ( { model | state = ProjectEdit nm login }
-            , sendUIMsg model.location <| UI.GetAllMembers
+            , sendTIMsg model.location <| TI.GetAllMembers
             )
 
         ProjectEdit.Done ->
             ( { model | state = ProjectEdit nm login }
-            , sendUIMsg model.location <| UI.GetProjectList login.userid
+            , sendTIMsg model.location <| TI.GetProjectList login.userid
             )
 
         ProjectEdit.Settings ->
@@ -1287,7 +1325,7 @@ handleProjectTime model ( nm, cmd ) login =
     case cmd of
         ProjectTime.Save s ->
             ( { model | state = ProjectTime nm login }
-            , sendUIMsg model.location <| UI.SaveProjectTime s
+            , sendTIMsg model.location <| TI.SaveProjectTime s
             )
 
         ProjectTime.Edit ->
@@ -1302,7 +1340,7 @@ handleProjectTime model ( nm, cmd ) login =
 
         ProjectTime.Done ->
             ( { model | state = ProjectTime nm login }
-            , sendUIMsg model.location <| UI.GetProjectList login.userid
+            , sendTIMsg model.location <| TI.GetProjectList login.userid
             )
 
         ProjectTime.Settings ->
@@ -1409,7 +1447,7 @@ initialPage curmodel =
             ( { curmodel
                 | state = ShowMessage { message = "congrats, you are logged in!" } login Nothing
               }
-            , sendUIMsg curmodel.location <| UI.GetProjectList login.userid
+            , sendTIMsg curmodel.location <| TI.GetProjectList login.userid
             )
 
         Nothing ->
