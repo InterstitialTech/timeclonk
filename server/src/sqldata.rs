@@ -9,6 +9,7 @@ use barrel::{types, Migration};
 use crypto_hash::{hex_digest, Algorithm};
 use log::info;
 use orgauth::data::{ChangeEmail, ChangePassword, LoginData, User};
+use orgauth::migrations;
 use rusqlite::{params, Connection};
 use simple_error::bail;
 use std::error::Error;
@@ -17,7 +18,7 @@ use std::time::Duration;
 use uuid::Uuid;
 
 pub fn login_data(conn: &Connection, uid: i64) -> Result<LoginData, Box<dyn Error>> {
-  let user = read_user_by_id(&conn, uid)?;
+  let user = orgauth::dbfun::read_user_by_id(&conn, uid)?;
   Ok(LoginData {
     userid: uid,
     name: user.name,
@@ -434,6 +435,175 @@ pub fn udpate4(dbfile: &Path) -> Result<(), Box<dyn Error>> {
   Ok(())
 }
 
+// --------------------------------------------------------------------------------
+// orgauth enters the chat
+// --------------------------------------------------------------------------------
+pub fn udpate5(dbfile: &Path) -> Result<(), Box<dyn Error>> {
+  // db connection without foreign key checking.
+  let conn = Connection::open(dbfile)?;
+
+  migrations::udpate1(dbfile)?;
+
+  // copy from old user tables into orgauth tables.
+  conn.execute(
+    "insert into orgauth_user (id, name, hashwd, salt, email, registration_key, createdate)
+        select id, name, hashwd, salt, email, registration_key, createdate from user",
+    params![],
+  )?;
+
+  conn.execute(
+    "insert into orgauth_token (user, token, tokendate)
+        select user, token, tokendate from token",
+    params![],
+  )?;
+
+  conn.execute(
+    "insert into orgauth_newemail (user, email, token, tokendate)
+        select user, email, token, tokendate from newemail",
+    params![],
+  )?;
+
+  conn.execute(
+    "insert into orgauth_newpassword (user, token, tokendate)
+        select user, token, tokendate from newpassword",
+    params![],
+  )?;
+
+  // // Hmmm would switch to 'zkuser', but I'll keep the user table so I don't have to rebuild every table with
+  // // new foreign keys.
+  // let mut m1 = Migration::new();
+
+  // m1.create_table("usertemp", |t| {
+  //   t.add_column("id", types::foreign("orgauth_user", "id").nullable(false));
+  //   t.add_column("zknote", types::foreign("zknote", "id").nullable(true));
+  //   t.add_column("homenote", types::foreign("zknote", "id").nullable(true));
+  // });
+
+  // conn.execute_batch(m1.make::<Sqlite>().as_str())?;
+
+  // // copy from user.
+  // conn.execute(
+  //   "insert into usertemp (id, zknote, homenote)
+  //       select id, zknote, homenote from user",
+  //   params![],
+  // )?;
+
+  // let mut m2 = Migration::new();
+  // m2.drop_table("user");
+
+  // // new user table with homenote
+  // m2.create_table("user", |t| {
+  //   t.add_column("id", types::foreign("orgauth_user", "id").nullable(false));
+  //   t.add_column("zknote", types::foreign("zknote", "id").nullable(true));
+  //   t.add_column("homenote", types::foreign("zknote", "id").nullable(true));
+  // });
+
+  // conn.execute_batch(m2.make::<Sqlite>().as_str())?;
+
+  // // copy everything from usertemp.
+  // conn.execute(
+  //   "insert into user (id, zknote, homenote)
+  //       select id, zknote, homenote from usertemp",
+  //   params![],
+  // )?;
+
+  let mut m3 = Migration::new();
+  m3.drop_table("user");
+  m3.drop_table("token");
+  m3.drop_table("newemail");
+  m3.drop_table("newpassword");
+
+  conn.execute_batch(m3.make::<Sqlite>().as_str())?;
+
+  // --------------------------------------------------------------------------------------
+  // remake zknotes table to point at orgauth_user instead of user.
+  // CREATE TABLE IF NOT EXISTS "singlevalue" ("name" TEXT NOT NULL UNIQUE, "value" TEXT NOT NULL);
+
+  // CREATE TABLE IF NOT EXISTS "user" ("id" INTEGER PRIMARY KEY NOT NULL, "name" TEXT NOT NULL UNIQUE, "hashwd" TEXT NOT NULL, "salt" TEXT NOT NULL, "email" TEXT NOT NULL, "registration_key" TEXT, "createdate" INTEGER NOT NULL);
+  // CREATE TABLE IF NOT EXISTS "token" ("user" INTEGER REFERENCES user(id) NOT NULL, "token" TEXT NOT NULL, "tokendate" INTEGER NOT NULL);
+  // CREATE UNIQUE INDEX "tokenunq" ON "token" ("user", "token");
+  // CREATE TABLE IF NOT EXISTS "newemail" ("user" INTEGER REFERENCES user(id) NOT NULL, "email" TEXT NOT NULL, "token" TEXT NOT NULL, "tokendate" INTEGER NOT NULL);
+  // CREATE UNIQUE INDEX "newemailunq" ON "newemail" ("user", "token");
+  // CREATE TABLE IF NOT EXISTS "newpassword" ("user" INTEGER REFERENCES user(id) NOT NULL, "token" TEXT NOT NULL, "tokendate" INTEGER NOT NULL);
+  // CREATE UNIQUE INDEX "resetpasswordunq" ON "newpassword" ("user", "token");
+
+  // create temp tables.
+  conn.execute(
+  "CREATE TABLE IF NOT EXISTS \"tempprojectmember\" (\"project\" INTEGER REFERENCES project(id) NOT NULL, \"user\" INTEGER REFERENCES user(id) NOT NULL);
+  CREATE TABLE IF NOT EXISTS \"temppayentry\" (\"id\" INTEGER PRIMARY KEY NOT NULL, \"project\" INTEGER REFERENCES project(id) NOT NULL, \"user\" INTEGER REFERENCES user(id) NOT NULL, \"description\" TEXT NOT NULL, \"duration\" INTEGER NOT NULL, \"paymentdate\" INTEGER NOT NULL, \"createdate\" INTEGER NOT NULL, \"changeddate\" INTEGER NOT NULL, \"creator\" INTEGER REFERENCES user(id) NOT NULL);
+  CREATE TABLE IF NOT EXISTS \"temptimeentry\" (\"id\" INTEGER PRIMARY KEY NOT NULL, \"project\" INTEGER REFERENCES project(id) NOT NULL, \"user\" INTEGER REFERENCES user(id) NOT NULL, \"description\" TEXT NOT NULL, \"startdate\" INTEGER NOT NULL, \"enddate\" INTEGER NOT NULL, \"ignore\" BOOLEAN NOT NULL, \"createdate\" INTEGER NOT NULL, \"changeddate\" INTEGER NOT NULL, \"creator\" INTEGER REFERENCES user(id) NOT NULL);
+  CREATE TABLE IF NOT EXISTS \"tempallocation\" (\"id\" INTEGER PRIMARY KEY NOT NULL, \"project\" INTEGER REFERENCES project(id) NOT NULL, \"description\" TEXT NOT NULL, \"duration\" INTEGER NOT NULL, \"allocationdate\" INTEGER NOT NULL, \"createdate\" INTEGER NOT NULL, \"changeddate\" INTEGER NOT NULL, \"creator\" INTEGER REFERENCES user(id) NOT NULL);
+  CREATE TABLE IF NOT EXISTS \"tempproject\" (\"id\" INTEGER PRIMARY KEY NOT NULL, \"name\" TEXT NOT NULL, \"description\" TEXT NOT NULL, \"public\" BOOLEAN NOT NULL, \"rate\" REAL, \"currency\" TEXT, \"createdate\" INTEGER NOT NULL, \"changeddate\" INTEGER NOT NULL);"
+    ,params![],
+  )?;
+
+  // insert into temp tables.
+  conn.execute(
+   "insert into tempprojectmember (project, user)
+     select project, user from projectmember;
+   insert into temppayentry (id, project, user, description, duration, paymentdate, createdate, changeddate, creator)
+     select id, project, user, description, duration, paymentdate, createdate, changeddate, creator from payentry;
+   insert into temptimeentry (id, project, user, description, startdate, enddate, ignore, createdate, changeddate, creator)
+     select id, project, user, description, startdate, enddate, ignore, createdate, changeddate, creator from timeentry;
+   insert into tempallocation (id, project, description, duration, allocationdate, createdate, changeddate, creator)
+     select id, project, description, duration, allocationdate, createdate, changeddate, creator from allocation;
+   insert into tempproject (id, name, description, public, rate, currency, createdate, changeddate)
+     select id, name, description, public, rate, currency, createdate, changeddate from project;"
+    ,params![],
+  )?;
+
+  // drop tables.
+  conn.execute(
+    "drop table projectmember;
+   drop table payentry;
+   drop table timeentry;
+   drop table allocation;
+   drop table project;",
+    params![],
+  )?;
+
+  // create tables that use orgauth_user foreighn keys and not user.
+  conn.execute(
+  "CREATE TABLE IF NOT EXISTS \"projectmember\" (\"project\" INTEGER REFERENCES project(id) NOT NULL, \"user\" INTEGER REFERENCES orgauth_user(id) NOT NULL);
+  CREATE UNIQUE INDEX \"unq\" ON \"projectmember\" (\"project\", \"user\");
+  CREATE TABLE IF NOT EXISTS \"payentry\" (\"id\" INTEGER PRIMARY KEY NOT NULL, \"project\" INTEGER REFERENCES project(id) NOT NULL, \"user\" INTEGER REFERENCES orgauth_user(id) NOT NULL, \"description\" TEXT NOT NULL, \"duration\" INTEGER NOT NULL, \"paymentdate\" INTEGER NOT NULL, \"createdate\" INTEGER NOT NULL, \"changeddate\" INTEGER NOT NULL, \"creator\" INTEGER REFERENCES orgauth_user(id) NOT NULL);
+  CREATE UNIQUE INDEX \"payentryunq\" ON \"payentry\" (\"user\", \"paymentdate\");
+  CREATE TABLE IF NOT EXISTS \"timeentry\" (\"id\" INTEGER PRIMARY KEY NOT NULL, \"project\" INTEGER REFERENCES project(id) NOT NULL, \"user\" INTEGER REFERENCES orgauth_user(id) NOT NULL, \"description\" TEXT NOT NULL, \"startdate\" INTEGER NOT NULL, \"enddate\" INTEGER NOT NULL, \"ignore\" BOOLEAN NOT NULL, \"createdate\" INTEGER NOT NULL, \"changeddate\" INTEGER NOT NULL, \"creator\" INTEGER REFERENCES orgauth_user(id) NOT NULL);
+  CREATE UNIQUE INDEX \"timeentryunq\" ON \"timeentry\" (\"user\", \"startdate\");
+  CREATE TABLE IF NOT EXISTS \"allocation\" (\"id\" INTEGER PRIMARY KEY NOT NULL, \"project\" INTEGER REFERENCES project(id) NOT NULL, \"description\" TEXT NOT NULL, \"duration\" INTEGER NOT NULL, \"allocationdate\" INTEGER NOT NULL, \"createdate\" INTEGER NOT NULL, \"changeddate\" INTEGER NOT NULL, \"creator\" INTEGER REFERENCES orgauth_user(id) NOT NULL);
+  CREATE UNIQUE INDEX \"allocationunq\" ON \"allocation\" (\"user\", \"allocationdate\");
+  CREATE TABLE IF NOT EXISTS \"project\" (\"id\" INTEGER PRIMARY KEY NOT NULL, \"name\" TEXT NOT NULL, \"description\" TEXT NOT NULL, \"public\" BOOLEAN NOT NULL, \"rate\" REAL, \"currency\" TEXT, \"createdate\" INTEGER NOT NULL, \"changeddate\" INTEGER NOT NULL);"
+    ,params![],
+  )?;
+
+  // copy out of temp tables.
+  conn.execute(
+   "insert into projectmember (project, user)
+     select project, user from tempprojectmember;
+   insert into payentry (id, project, user, description, duration, paymentdate, createdate, changeddate, creator)
+     select id, project, user, description, duration, paymentdate, createdate, changeddate, creator from temppayentry;
+   insert into timeentry (id, project, user, description, startdate, enddate, ignore, createdate, changeddate, creator)
+     select id, project, user, description, startdate, enddate, ignore, createdate, changeddate, creator from temptimeentry;
+   insert into allocation (id, project, description, duration, allocationdate, createdate, changeddate, creator)
+     select id, project, description, duration, allocationdate, createdate, changeddate, creator from tempallocation;
+   insert into project (id, name, description, public, rate, currency, createdate, changeddate)
+     select id, name, description, public, rate, currency, createdate, changeddate from tempproject;"
+    ,params![],
+  )?;
+
+  // drop temp tables.
+  conn.execute(
+    "drop table tempprojectmember;
+   drop table temppayentry;
+   drop table temptimeentry;
+   drop table tempallocation;
+   drop table tempproject;",
+    params![],
+  )?;
+
+  Ok(())
+}
+
 pub fn get_single_value(conn: &Connection, name: &str) -> Result<Option<String>, Box<dyn Error>> {
   match conn.query_row(
     "select value from singlevalue where name = ?1",
@@ -494,376 +664,17 @@ pub fn dbinit(dbfile: &Path, token_expiration_ms: i64) -> Result<(), Box<dyn Err
     udpate4(&dbfile)?;
     set_single_value(&conn, "migration_level", "4")?;
   }
+  if nlevel < 5 {
+    info!("udpate5");
+    udpate5(&dbfile)?;
+    set_single_value(&conn, "migration_level", "5")?;
+  }
 
   info!("db up to date.");
 
-  purge_login_tokens(&conn, token_expiration_ms)?;
+  orgauth::dbfun::purge_login_tokens(&conn, token_expiration_ms)?;
 
   Ok(())
-}
-
-// user CRUD
-
-pub fn new_user(
-  dbfile: &Path,
-  name: String,
-  hashwd: String,
-  salt: String,
-  email: String,
-  registration_key: String,
-) -> Result<i64, Box<dyn Error>> {
-  let conn = connection_open(dbfile)?;
-
-  let now = now()?;
-
-  // make a user record.
-  conn.execute(
-    "insert into user (name, hashwd, salt, email, registration_key, createdate)
-      values (?1, ?2, ?3, ?4, ?5, ?6)",
-    params![name, hashwd, salt, email, registration_key, now],
-  )?;
-
-  let uid = conn.last_insert_rowid();
-
-  Ok(uid)
-}
-
-pub fn read_user_by_name(conn: &Connection, name: &str) -> Result<User, Box<dyn Error>> {
-  let user = conn.query_row(
-    "select id, hashwd, salt, email, registration_key
-      from user where name = ?1",
-    params![name],
-    |row| {
-      Ok(User {
-        id: row.get(0)?,
-        name: name.to_string(),
-        hashwd: row.get(1)?,
-        salt: row.get(2)?,
-        email: row.get(3)?,
-        registration_key: row.get(4)?,
-      })
-    },
-  )?;
-
-  Ok(user)
-}
-
-pub fn read_user_by_id(conn: &Connection, id: i64) -> Result<User, Box<dyn Error>> {
-  let user = conn.query_row(
-    "select id, name, hashwd, salt, email, registration_key
-      from user where id = ?1",
-    params![id],
-    |row| {
-      Ok(User {
-        id: row.get(0)?,
-        name: row.get(1)?,
-        hashwd: row.get(2)?,
-        salt: row.get(3)?,
-        email: row.get(4)?,
-        registration_key: row.get(5)?,
-      })
-    },
-  )?;
-
-  Ok(user)
-}
-
-pub fn read_user_by_token(
-  conn: &Connection,
-  token: Uuid,
-  token_expiration_ms: Option<i64>,
-) -> Result<User, Box<dyn Error>> {
-  let (user, tokendate) = conn.query_row(
-    "select id, name, hashwd, salt, email, registration_key, token.tokendate
-      from user, token where user.id = token.user and token = ?1",
-    params![token.to_string()],
-    |row| {
-      Ok((
-        User {
-          id: row.get(0)?,
-          name: row.get(1)?,
-          hashwd: row.get(2)?,
-          salt: row.get(3)?,
-          email: row.get(4)?,
-          registration_key: row.get(5)?,
-        },
-        row.get(6)?,
-      ))
-    },
-  )?;
-
-  match token_expiration_ms {
-    Some(texp) => {
-      if is_token_expired(texp, tokendate) {
-        bail!("login expired")
-      } else {
-        Ok(user)
-      }
-    }
-    None => Ok(user),
-  }
-}
-
-pub fn add_token(conn: &Connection, user: i64, token: Uuid) -> Result<(), Box<dyn Error>> {
-  let now = now()?;
-  conn.execute(
-    "insert into token (user, token, tokendate)
-     values (?1, ?2, ?3)",
-    params![user, token.to_string(), now],
-  )?;
-
-  Ok(())
-}
-
-pub fn purge_login_tokens(
-  conn: &Connection,
-  token_expiration_ms: i64,
-) -> Result<(), Box<dyn Error>> {
-  let now = now()?;
-  let expdt = now - token_expiration_ms;
-
-  let count: i64 = conn.query_row(
-    "select count(*) from
-      token where tokendate < ?1",
-    params![expdt],
-    |row| Ok(row.get(0)?),
-  )?;
-
-  if count > 0 {
-    info!("removing {} expired token records", count);
-
-    conn.execute(
-      "delete from token
-        where tokendate < ?1",
-      params![expdt],
-    )?;
-  }
-
-  Ok(())
-}
-
-pub fn purge_email_tokens(
-  conn: &Connection,
-  token_expiration_ms: i64,
-) -> Result<(), Box<dyn Error>> {
-  let now = now()?;
-  let expdt = now - token_expiration_ms;
-
-  let count: i64 = conn.query_row(
-    "select count(*) from
-      newemail where tokendate < ?1",
-    params![expdt],
-    |row| Ok(row.get(0)?),
-  )?;
-
-  if count > 0 {
-    info!("removing {} expired newemail records", count);
-
-    conn.execute(
-      "delete from newemail
-        where tokendate < ?1",
-      params![expdt],
-    )?;
-  }
-
-  Ok(())
-}
-
-pub fn purge_reset_tokens(
-  conn: &Connection,
-  token_expiration_ms: i64,
-) -> Result<(), Box<dyn Error>> {
-  let now = now()?;
-  let expdt = now - token_expiration_ms;
-
-  let count: i64 = conn.query_row(
-    "select count(*) from
-      newpassword where tokendate < ?1",
-    params![expdt],
-    |row| Ok(row.get(0)?),
-  )?;
-
-  if count > 0 {
-    info!("removing {} expired newpassword records", count);
-
-    conn.execute(
-      "delete from newpassword
-        where tokendate < ?1",
-      params![expdt],
-    )?;
-  }
-
-  Ok(())
-}
-
-pub fn update_user(conn: &Connection, user: &User) -> Result<(), Box<dyn Error>> {
-  conn.execute(
-    "update user set name = ?1, hashwd = ?2, salt = ?3, email = ?4, registration_key = ?5
-           where id = ?6",
-    params![
-      user.name,
-      user.hashwd,
-      user.salt,
-      user.email,
-      user.registration_key,
-      user.id,
-    ],
-  )?;
-
-  Ok(())
-}
-
-// email change request.
-pub fn add_newemail(
-  conn: &Connection,
-  user: i64,
-  token: Uuid,
-  email: String,
-) -> Result<(), Box<dyn Error>> {
-  let now = now()?;
-  conn.execute(
-    "insert into newemail (user, email, token, tokendate)
-     values (?1, ?2, ?3, ?4)",
-    params![user, email, token.to_string(), now],
-  )?;
-
-  Ok(())
-}
-
-// email change request.
-pub fn read_newemail(
-  conn: &Connection,
-  user: i64,
-  token: Uuid,
-) -> Result<(String, i64), Box<dyn Error>> {
-  let result = conn.query_row(
-    "select email, tokendate from newemail
-     where user = ?1
-      and token = ?2",
-    params![user, token.to_string()],
-    |row| Ok((row.get(0)?, row.get(1)?)),
-  )?;
-  Ok(result)
-}
-
-// email change request.
-pub fn remove_newemail(conn: &Connection, user: i64, token: Uuid) -> Result<(), Box<dyn Error>> {
-  conn.execute(
-    "delete from newemail
-     where user = ?1 and token = ?2",
-    params![user, token.to_string()],
-  )?;
-
-  Ok(())
-}
-
-// password reset request.
-pub fn add_newpassword(conn: &Connection, user: i64, token: Uuid) -> Result<(), Box<dyn Error>> {
-  let now = now()?;
-  conn.execute(
-    "insert into newpassword (user, token, tokendate)
-     values (?1, ?2, ?3)",
-    params![user, token.to_string(), now],
-  )?;
-
-  Ok(())
-}
-
-// password reset request.
-pub fn read_newpassword(conn: &Connection, user: i64, token: Uuid) -> Result<i64, Box<dyn Error>> {
-  let result = conn.query_row(
-    "select tokendate from newpassword
-     where user = ?1
-      and token = ?2",
-    params![user, token.to_string()],
-    |row| Ok(row.get(0)?),
-  )?;
-  Ok(result)
-}
-
-// password reset request.
-pub fn remove_newpassword(conn: &Connection, user: i64, token: Uuid) -> Result<(), Box<dyn Error>> {
-  conn.execute(
-    "delete from newpassword
-     where user = ?1 and token = ?2",
-    params![user, token.to_string()],
-  )?;
-
-  Ok(())
-}
-
-pub fn user_id(conn: &Connection, name: &str) -> Result<i64, Box<dyn Error>> {
-  let id: i64 = conn.query_row(
-    "select id from user
-      where user.name = ?1",
-    params![name],
-    |row| Ok(row.get(0)?),
-  )?;
-  Ok(id)
-}
-
-pub fn change_password(
-  conn: &Connection,
-  uid: i64,
-  cp: ChangePassword,
-) -> Result<(), Box<dyn Error>> {
-  let mut userdata = read_user_by_id(&conn, uid)?;
-  match userdata.registration_key {
-    Some(_reg_key) => bail!("invalid user or password"),
-    None => {
-      if hex_digest(
-        Algorithm::SHA256,
-        (cp.oldpwd.clone() + userdata.salt.as_str())
-          .into_bytes()
-          .as_slice(),
-      ) != userdata.hashwd
-      {
-        // bad password, can't change.
-        bail!("invalid password!")
-      } else {
-        let newhash = hex_digest(
-          Algorithm::SHA256,
-          (cp.newpwd.clone() + userdata.salt.as_str())
-            .into_bytes()
-            .as_slice(),
-        );
-        userdata.hashwd = newhash;
-        update_user(&conn, &userdata)?;
-        info!("changed password for {}", userdata.name);
-
-        Ok(())
-      }
-    }
-  }
-}
-
-pub fn change_email(
-  conn: &Connection,
-  uid: i64,
-  cp: ChangeEmail,
-) -> Result<(String, Uuid), Box<dyn Error>> {
-  let userdata = read_user_by_id(&conn, uid)?;
-  match userdata.registration_key {
-    Some(_reg_key) => bail!("invalid user or password"),
-    None => {
-      if hex_digest(
-        Algorithm::SHA256,
-        (cp.pwd.clone() + userdata.salt.as_str())
-          .into_bytes()
-          .as_slice(),
-      ) != userdata.hashwd
-      {
-        // bad password, can't change.
-        bail!("invalid password!")
-      } else {
-        // create a 'newemail' record.
-        let token = Uuid::new_v4();
-        add_newemail(&conn, uid, token, cp.email)?;
-
-        Ok((userdata.name, token))
-      }
-    }
-  }
 }
 
 // --------------------------------------------------------

@@ -1,15 +1,13 @@
 use crate::config::Config;
 use crate::data::{SaveProjectEdit, SaveProjectTime};
-use crate::email;
 use crate::messages::{PublicMessage, ServerResponse, UserMessage};
 use crate::sqldata;
-use crate::util;
-use crate::util::is_token_expired;
 use actix_session::Session;
 use crypto_hash::{hex_digest, Algorithm};
 use log::info;
 use orgauth::data::LoginData;
 use orgauth::data::{ChangeEmail, ChangePassword};
+use orgauth::util::is_token_expired;
 use std::error::Error;
 use std::path::Path;
 use uuid::Uuid;
@@ -40,36 +38,6 @@ pub fn timeclonk_interface_loggedin(
   msg: &UserMessage,
 ) -> Result<ServerResponse, Box<dyn Error>> {
   match msg.what.as_str() {
-    "ChangePassword" => {
-      let msgdata = Option::ok_or(msg.data.as_ref(), "malformed json data")?;
-      let cp: ChangePassword = serde_json::from_value(msgdata.clone())?;
-      let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
-      sqldata::change_password(&conn, uid, cp)?;
-      Ok(ServerResponse {
-        what: "changed password".to_string(),
-        content: serde_json::Value::Null,
-      })
-    }
-    "ChangeEmail" => {
-      let msgdata = Option::ok_or(msg.data.as_ref(), "malformed json data")?;
-      let cp: ChangeEmail = serde_json::from_value(msgdata.clone())?;
-      let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
-      let (name, token) = sqldata::change_email(&conn, uid, cp.clone())?;
-      // send a confirmation email.
-      email::send_newemail_confirmation(
-        config.orgauth_config.appname.as_str(),
-        config.orgauth_config.domain.as_str(),
-        config.orgauth_config.mainsite.as_str(),
-        cp.email.as_str(),
-        name.as_str(),
-        token.to_string().as_str(),
-      )?;
-
-      Ok(ServerResponse {
-        what: "changed email".to_string(),
-        content: serde_json::Value::Null,
-      })
-    }
     "GetProjectList" => {
       let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
       let projects = sqldata::project_list(&conn, uid)?;

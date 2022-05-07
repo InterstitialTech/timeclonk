@@ -1,6 +1,5 @@
 mod config;
 mod data;
-mod email;
 mod interfaces;
 mod messages;
 mod sqldata;
