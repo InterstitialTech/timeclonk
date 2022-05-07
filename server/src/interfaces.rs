@@ -3,14 +3,8 @@ use crate::data::{SaveProjectEdit, SaveProjectTime};
 use crate::messages::{PublicMessage, ServerResponse, UserMessage};
 use crate::sqldata;
 use actix_session::Session;
-use crypto_hash::{hex_digest, Algorithm};
 use log::info;
-use orgauth::data::LoginData;
-use orgauth::data::{ChangeEmail, ChangePassword};
-use orgauth::util::is_token_expired;
 use std::error::Error;
-use std::path::Path;
-use uuid::Uuid;
 
 pub fn login_data_for_token(
   session: Session,

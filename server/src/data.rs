@@ -1,5 +1,4 @@
 use serde_derive::{Deserialize, Serialize};
-use uuid::Uuid;
 
 // -------------------------------------------------
 

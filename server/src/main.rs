@@ -2,10 +2,8 @@ mod config;
 mod data;
 mod interfaces;
 mod messages;
+mod migrations;
 mod sqldata;
-mod util;
-// mod sqltest;
-use crate::util::now;
 use actix_session::{CookieSession, Session};
 use actix_web::{middleware, web, App, HttpRequest, HttpResponse, HttpServer, Result};
 use chrono;
@@ -50,7 +48,7 @@ fn mainpage(session: Session, data: web::Data<Config>, req: HttpRequest) -> Http
   let mut staticpath = data.static_path.clone().unwrap_or(PathBuf::from("static/"));
   staticpath.push("index.html");
   match staticpath.to_str() {
-    Some(path) => match util::load_string(path) {
+    Some(path) => match orgauth::util::load_string(path) {
       Ok(s) => {
         // search and replace with logindata!
         HttpResponse::Ok()
@@ -218,7 +216,7 @@ fn defcon() -> Config {
 }
 
 fn load_config() -> Config {
-  match util::load_string("config.toml") {
+  match orgauth::util::load_string("config.toml") {
     Err(e) => {
       error!("error loading config.toml: {:?}", e);
       defcon()
@@ -322,6 +320,7 @@ async fn err_main() -> Result<(), Box<dyn Error>> {
               .max_age(10 * 24 * 60 * 60), // 10 days
           )
           .service(web::resource("/public").route(web::post().to(public)))
+          .service(web::resource("/private").route(web::post().to(private)))
           .service(web::resource("/user").route(web::post().to(user)))
           .service(web::resource(r"/register/{uid}/{key}").route(web::get().to(register)))
           .service(web::resource(r"/newemail/{uid}/{token}").route(web::get().to(new_email)))
