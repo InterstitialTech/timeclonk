@@ -31,6 +31,7 @@ pub fn timeclonk_interface_loggedin(
   uid: i64,
   msg: &UserMessage,
 ) -> Result<ServerResponse, Box<dyn Error>> {
+  println!("usernmalksdndf:{:?}", msg);
   match msg.what.as_str() {
     "GetProjectList" => {
       let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;

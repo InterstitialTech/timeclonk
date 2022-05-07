@@ -4,6 +4,8 @@ use orgauth::migrations;
 use rusqlite::{params, Connection};
 use std::error::Error;
 use std::path::Path;
+use std::time::Duration;
+use uuid::Uuid;
 
 pub fn initialdb() -> Migration {
   let mut m = Migration::new();
@@ -416,90 +418,142 @@ pub fn udpate5(dbfile: &Path) -> Result<(), Box<dyn Error>> {
     params![],
   )?;
 
-  let mut m3 = Migration::new();
-  m3.drop_table("user");
-  m3.drop_table("token");
-  m3.drop_table("newemail");
-  m3.drop_table("newpassword");
-
-  conn.execute_batch(m3.make::<Sqlite>().as_str())?;
-
   // --------------------------------------------------------------------------------------
   // remake tables to point at orgauth_user instead of user.
 
   // create temp tables.
   conn.execute(
-  "CREATE TABLE IF NOT EXISTS \"tempprojectmember\" (\"project\" INTEGER REFERENCES project(id) NOT NULL, \"user\" INTEGER REFERENCES user(id) NOT NULL);
-  CREATE TABLE IF NOT EXISTS \"temppayentry\" (\"id\" INTEGER PRIMARY KEY NOT NULL, \"project\" INTEGER REFERENCES project(id) NOT NULL, \"user\" INTEGER REFERENCES user(id) NOT NULL, \"description\" TEXT NOT NULL, \"duration\" INTEGER NOT NULL, \"paymentdate\" INTEGER NOT NULL, \"createdate\" INTEGER NOT NULL, \"changeddate\" INTEGER NOT NULL, \"creator\" INTEGER REFERENCES user(id) NOT NULL);
-  CREATE TABLE IF NOT EXISTS \"temptimeentry\" (\"id\" INTEGER PRIMARY KEY NOT NULL, \"project\" INTEGER REFERENCES project(id) NOT NULL, \"user\" INTEGER REFERENCES user(id) NOT NULL, \"description\" TEXT NOT NULL, \"startdate\" INTEGER NOT NULL, \"enddate\" INTEGER NOT NULL, \"ignore\" BOOLEAN NOT NULL, \"createdate\" INTEGER NOT NULL, \"changeddate\" INTEGER NOT NULL, \"creator\" INTEGER REFERENCES user(id) NOT NULL);
-  CREATE TABLE IF NOT EXISTS \"tempallocation\" (\"id\" INTEGER PRIMARY KEY NOT NULL, \"project\" INTEGER REFERENCES project(id) NOT NULL, \"description\" TEXT NOT NULL, \"duration\" INTEGER NOT NULL, \"allocationdate\" INTEGER NOT NULL, \"createdate\" INTEGER NOT NULL, \"changeddate\" INTEGER NOT NULL, \"creator\" INTEGER REFERENCES user(id) NOT NULL);
-  CREATE TABLE IF NOT EXISTS \"tempproject\" (\"id\" INTEGER PRIMARY KEY NOT NULL, \"name\" TEXT NOT NULL, \"description\" TEXT NOT NULL, \"public\" BOOLEAN NOT NULL, \"rate\" REAL, \"currency\" TEXT, \"createdate\" INTEGER NOT NULL, \"changeddate\" INTEGER NOT NULL);"
+  "CREATE TABLE IF NOT EXISTS \"tempprojectmember\" (\"project\" INTEGER REFERENCES project(id) NOT NULL, \"user\" INTEGER REFERENCES user(id) NOT NULL);"
+    ,params![],
+  )?;
+  conn.execute(
+  "CREATE TABLE IF NOT EXISTS \"temppayentry\" (\"id\" INTEGER PRIMARY KEY NOT NULL, \"project\" INTEGER REFERENCES project(id) NOT NULL, \"user\" INTEGER REFERENCES user(id) NOT NULL, \"description\" TEXT NOT NULL, \"duration\" INTEGER NOT NULL, \"paymentdate\" INTEGER NOT NULL, \"createdate\" INTEGER NOT NULL, \"changeddate\" INTEGER NOT NULL, \"creator\" INTEGER REFERENCES user(id) NOT NULL);"
+    ,params![],
+  )?;
+  conn.execute(
+  "CREATE TABLE IF NOT EXISTS \"temptimeentry\" (\"id\" INTEGER PRIMARY KEY NOT NULL, \"project\" INTEGER REFERENCES project(id) NOT NULL, \"user\" INTEGER REFERENCES user(id) NOT NULL, \"description\" TEXT NOT NULL, \"startdate\" INTEGER NOT NULL, \"enddate\" INTEGER NOT NULL, \"ignore\" BOOLEAN NOT NULL, \"createdate\" INTEGER NOT NULL, \"changeddate\" INTEGER NOT NULL, \"creator\" INTEGER REFERENCES user(id) NOT NULL);"
+    ,params![],
+  )?;
+  conn.execute(
+  "CREATE TABLE IF NOT EXISTS \"tempallocation\" (\"id\" INTEGER PRIMARY KEY NOT NULL, \"project\" INTEGER REFERENCES project(id) NOT NULL, \"description\" TEXT NOT NULL, \"duration\" INTEGER NOT NULL, \"allocationdate\" INTEGER NOT NULL, \"createdate\" INTEGER NOT NULL, \"changeddate\" INTEGER NOT NULL, \"creator\" INTEGER REFERENCES user(id) NOT NULL);"
+    ,params![],
+  )?;
+  conn.execute(
+  "CREATE TABLE IF NOT EXISTS \"tempproject\" (\"id\" INTEGER PRIMARY KEY NOT NULL, \"name\" TEXT NOT NULL, \"description\" TEXT NOT NULL, \"public\" BOOLEAN NOT NULL, \"rate\" REAL, \"currency\" TEXT, \"createdate\" INTEGER NOT NULL, \"changeddate\" INTEGER NOT NULL);"
     ,params![],
   )?;
 
   // insert into temp tables.
   conn.execute(
-   "insert into tempprojectmember (project, user)
-     select project, user from projectmember;
-   insert into temppayentry (id, project, user, description, duration, paymentdate, createdate, changeddate, creator)
-     select id, project, user, description, duration, paymentdate, createdate, changeddate, creator from payentry;
-   insert into temptimeentry (id, project, user, description, startdate, enddate, ignore, createdate, changeddate, creator)
-     select id, project, user, description, startdate, enddate, ignore, createdate, changeddate, creator from timeentry;
-   insert into tempallocation (id, project, description, duration, allocationdate, createdate, changeddate, creator)
-     select id, project, description, duration, allocationdate, createdate, changeddate, creator from allocation;
-   insert into tempproject (id, name, description, public, rate, currency, createdate, changeddate)
+    "insert into tempprojectmember (project, user)
+     select project, user from projectmember;",
+    params![],
+  )?;
+  conn.execute(
+   "insert into temppayentry (id, project, user, description, duration, paymentdate, createdate, changeddate, creator)
+     select id, project, user, description, duration, paymentdate, createdate, changeddate, creator from payentry;"
+    ,params![],
+  )?;
+  conn.execute(
+   "insert into temptimeentry (id, project, user, description, startdate, enddate, ignore, createdate, changeddate, creator)
+     select id, project, user, description, startdate, enddate, ignore, createdate, changeddate, creator from timeentry;"
+    ,params![],
+  )?;
+  conn.execute(
+   "insert into tempallocation (id, project, description, duration, allocationdate, createdate, changeddate, creator)
+     select id, project, description, duration, allocationdate, createdate, changeddate, creator from allocation;"
+    ,params![],
+  )?;
+  conn.execute(
+   "insert into tempproject (id, name, description, public, rate, currency, createdate, changeddate)
      select id, name, description, public, rate, currency, createdate, changeddate from project;"
     ,params![],
   )?;
 
   // drop tables.
-  conn.execute(
-    "drop table projectmember;
-   drop table payentry;
-   drop table timeentry;
-   drop table allocation;
-   drop table project;",
-    params![],
-  )?;
+  conn.execute("drop table projectmember;", params![])?;
+  conn.execute("drop table payentry;", params![])?;
+  conn.execute("drop table timeentry;", params![])?;
+  conn.execute("drop table allocation;", params![])?;
+  conn.execute("drop table project;", params![])?;
 
   // create tables that use orgauth_user foreighn keys and not user.
   conn.execute(
-  "CREATE TABLE IF NOT EXISTS \"projectmember\" (\"project\" INTEGER REFERENCES project(id) NOT NULL, \"user\" INTEGER REFERENCES orgauth_user(id) NOT NULL);
-  CREATE UNIQUE INDEX \"unq\" ON \"projectmember\" (\"project\", \"user\");
-  CREATE TABLE IF NOT EXISTS \"payentry\" (\"id\" INTEGER PRIMARY KEY NOT NULL, \"project\" INTEGER REFERENCES project(id) NOT NULL, \"user\" INTEGER REFERENCES orgauth_user(id) NOT NULL, \"description\" TEXT NOT NULL, \"duration\" INTEGER NOT NULL, \"paymentdate\" INTEGER NOT NULL, \"createdate\" INTEGER NOT NULL, \"changeddate\" INTEGER NOT NULL, \"creator\" INTEGER REFERENCES orgauth_user(id) NOT NULL);
-  CREATE UNIQUE INDEX \"payentryunq\" ON \"payentry\" (\"user\", \"paymentdate\");
-  CREATE TABLE IF NOT EXISTS \"timeentry\" (\"id\" INTEGER PRIMARY KEY NOT NULL, \"project\" INTEGER REFERENCES project(id) NOT NULL, \"user\" INTEGER REFERENCES orgauth_user(id) NOT NULL, \"description\" TEXT NOT NULL, \"startdate\" INTEGER NOT NULL, \"enddate\" INTEGER NOT NULL, \"ignore\" BOOLEAN NOT NULL, \"createdate\" INTEGER NOT NULL, \"changeddate\" INTEGER NOT NULL, \"creator\" INTEGER REFERENCES orgauth_user(id) NOT NULL);
-  CREATE UNIQUE INDEX \"timeentryunq\" ON \"timeentry\" (\"user\", \"startdate\");
-  CREATE TABLE IF NOT EXISTS \"allocation\" (\"id\" INTEGER PRIMARY KEY NOT NULL, \"project\" INTEGER REFERENCES project(id) NOT NULL, \"description\" TEXT NOT NULL, \"duration\" INTEGER NOT NULL, \"allocationdate\" INTEGER NOT NULL, \"createdate\" INTEGER NOT NULL, \"changeddate\" INTEGER NOT NULL, \"creator\" INTEGER REFERENCES orgauth_user(id) NOT NULL);
-  CREATE UNIQUE INDEX \"allocationunq\" ON \"allocation\" (\"user\", \"allocationdate\");
-  CREATE TABLE IF NOT EXISTS \"project\" (\"id\" INTEGER PRIMARY KEY NOT NULL, \"name\" TEXT NOT NULL, \"description\" TEXT NOT NULL, \"public\" BOOLEAN NOT NULL, \"rate\" REAL, \"currency\" TEXT, \"createdate\" INTEGER NOT NULL, \"changeddate\" INTEGER NOT NULL);"
+    "CREATE TABLE IF NOT EXISTS \"projectmember\" (\"project\" INTEGER REFERENCES project(id) NOT NULL, \"user\" INTEGER REFERENCES orgauth_user(id) NOT NULL);"
     ,params![],
   )?;
+  conn.execute(
+    "CREATE UNIQUE INDEX \"unq\" ON \"projectmember\" (\"project\", \"user\");",
+    params![],
+  )?;
+  conn.execute(
+    "CREATE TABLE IF NOT EXISTS \"payentry\" (\"id\" INTEGER PRIMARY KEY NOT NULL, \"project\" INTEGER REFERENCES project(id) NOT NULL, \"user\" INTEGER REFERENCES orgauth_user(id) NOT NULL, \"description\" TEXT NOT NULL, \"duration\" INTEGER NOT NULL, \"paymentdate\" INTEGER NOT NULL, \"createdate\" INTEGER NOT NULL, \"changeddate\" INTEGER NOT NULL, \"creator\" INTEGER REFERENCES orgauth_user(id) NOT NULL);"
+    ,params![],
+  )?;
+  conn.execute(
+    "CREATE UNIQUE INDEX \"payentryunq\" ON \"payentry\" (\"user\", \"paymentdate\");",
+    params![],
+  )?;
+  conn.execute(
+    "CREATE TABLE IF NOT EXISTS \"timeentry\" (\"id\" INTEGER PRIMARY KEY NOT NULL, \"project\" INTEGER REFERENCES project(id) NOT NULL, \"user\" INTEGER REFERENCES orgauth_user(id) NOT NULL, \"description\" TEXT NOT NULL, \"startdate\" INTEGER NOT NULL, \"enddate\" INTEGER NOT NULL, \"ignore\" BOOLEAN NOT NULL, \"createdate\" INTEGER NOT NULL, \"changeddate\" INTEGER NOT NULL, \"creator\" INTEGER REFERENCES orgauth_user(id) NOT NULL);"
+    ,params![],
+  )?;
+  conn.execute(
+    "CREATE UNIQUE INDEX \"timeentryunq\" ON \"timeentry\" (\"user\", \"startdate\");",
+    params![],
+  )?;
+  conn.execute(
+    "CREATE TABLE IF NOT EXISTS \"allocation\" (\"id\" INTEGER PRIMARY KEY NOT NULL, \"project\" INTEGER REFERENCES project(id) NOT NULL, \"description\" TEXT NOT NULL, \"duration\" INTEGER NOT NULL, \"allocationdate\" INTEGER NOT NULL, \"createdate\" INTEGER NOT NULL, \"changeddate\" INTEGER NOT NULL, \"creator\" INTEGER REFERENCES orgauth_user(id) NOT NULL);"
+    ,params![],
+  )?;
+  conn.execute(
+    "CREATE UNIQUE INDEX \"allocationunq\" ON \"allocation\" (\"user\", \"allocationdate\");",
+    params![],
+  )?;
+  conn.execute(
+    "CREATE TABLE IF NOT EXISTS \"project\" (\"id\" INTEGER PRIMARY KEY NOT NULL, \"name\" TEXT NOT NULL, \"description\" TEXT NOT NULL, \"public\" BOOLEAN NOT NULL, \"rate\" REAL, \"currency\" TEXT, \"createdate\" INTEGER NOT NULL, \"changeddate\" INTEGER NOT NULL);"
+      ,params![],
+    )?;
 
   // copy out of temp tables.
   conn.execute(
-   "insert into projectmember (project, user)
-     select project, user from tempprojectmember;
-   insert into payentry (id, project, user, description, duration, paymentdate, createdate, changeddate, creator)
-     select id, project, user, description, duration, paymentdate, createdate, changeddate, creator from temppayentry;
-   insert into timeentry (id, project, user, description, startdate, enddate, ignore, createdate, changeddate, creator)
-     select id, project, user, description, startdate, enddate, ignore, createdate, changeddate, creator from temptimeentry;
-   insert into allocation (id, project, description, duration, allocationdate, createdate, changeddate, creator)
-     select id, project, description, duration, allocationdate, createdate, changeddate, creator from tempallocation;
-   insert into project (id, name, description, public, rate, currency, createdate, changeddate)
-     select id, name, description, public, rate, currency, createdate, changeddate from tempproject;"
-    ,params![],
-  )?;
-
-  // drop temp tables.
-  conn.execute(
-    "drop table tempprojectmember;
-   drop table temppayentry;
-   drop table temptimeentry;
-   drop table tempallocation;
-   drop table tempproject;",
+    "insert into projectmember (project, user)
+       select project, user from tempprojectmember;",
     params![],
   )?;
+  conn.execute(
+     "insert into payentry (id, project, user, description, duration, paymentdate, createdate, changeddate, creator)
+       select id, project, user, description, duration, paymentdate, createdate, changeddate, creator from temppayentry;"
+    ,params![],
+  )?;
+  conn.execute(
+     "insert into timeentry (id, project, user, description, startdate, enddate, ignore, createdate, changeddate, creator)
+       select id, project, user, description, startdate, enddate, ignore, createdate, changeddate, creator from temptimeentry;"
+    ,params![],
+  )?;
+  conn.execute(
+     "insert into allocation (id, project, description, duration, allocationdate, createdate, changeddate, creator)
+       select id, project, description, duration, allocationdate, createdate, changeddate, creator from tempallocation;"
+    ,params![],
+  )?;
+  conn.execute(
+     "insert into project (id, name, description, public, rate, currency, createdate, changeddate)
+       select id, name, description, public, rate, currency, createdate, changeddate from tempproject;"
+      ,params![],
+    )?;
+  // drop old user tables
+  let mut m3 = Migration::new();
+  m3.drop_table("user");
+  m3.drop_table("token");
+  m3.drop_table("newemail");
+  m3.drop_table("newpassword");
+  conn.execute_batch(m3.make::<Sqlite>().as_str())?;
 
+  // drop temp tables.
+  conn.execute("drop table tempprojectmember;", params![])?;
+  conn.execute("drop table temppayentry;", params![])?;
+  conn.execute("drop table temptimeentry;", params![])?;
+  conn.execute("drop table tempallocation;", params![])?;
+  conn.execute("drop table tempproject;", params![])?;
   Ok(())
 }

@@ -256,8 +256,8 @@ pub fn member_list(
   let r = match projectid {
     Some(projectid) => {
       let mut pstmt = conn.prepare(
-        "select user.id, user.name from user, projectmember where
-          user.id = projectmember.user and
+        "select orgauth_user.id, orgauth_user.name from orgauth_user, projectmember where
+          orgauth_user.id = projectmember.user and
           projectmember.project = ?1",
       )?;
       let r = pstmt
@@ -272,7 +272,8 @@ pub fn member_list(
       Ok(r)
     }
     None => {
-      let mut pstmt = conn.prepare("select user.id, user.name from user")?;
+      let mut pstmt =
+        conn.prepare("select orgauth_user.id, orgauth_user.name from orgauth_user")?;
       let r = pstmt
         .query_map(params![], |row| {
           Ok(ProjectMember {
