@@ -1,0 +1,16 @@
+ip = "0.0.0.0"
+port = 8000
+createdirs = false
+
+[orgauth_config]
+db = "./timeclonk.db"
+mainsite = "http://localhost:8000"
+altmainsite = []
+appname = "TIMECLONK"
+domain = "timeclonk.com"
+admin_email = "admin@admin.admin"
+login_token_expiration_ms = 604800000
+email_token_expiration_ms = 86400000
+reset_token_expiration_ms = 86400000
+static_path = "./static/"
+

@@ -40,7 +40,7 @@
         elm-stuff = makeElmPkg { inherit pkgs; };
         rust-stuff = naersk-lib.buildPackage {
             pname = pname;
-            root = ./server;
+            root = ./.;
             buildInputs = with pkgs; [
               cargo
               rustc
