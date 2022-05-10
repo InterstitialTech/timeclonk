@@ -577,7 +577,7 @@ pub fn udpate6(dbfile: &Path) -> Result<(), Box<dyn Error>> {
   conn.execute(
     "insert into pmtemp (
       project, user)
-     select project, user from project",
+     select project, user from projectmember",
     params![],
   )?;
 
@@ -587,7 +587,7 @@ pub fn udpate6(dbfile: &Path) -> Result<(), Box<dyn Error>> {
 
   m2.create_table("projectmember", |t| {
     t.add_column("project", types::foreign("project", "id").nullable(false));
-    t.add_column("user", types::foreign("user", "id").nullable(false));
+    t.add_column("user", types::foreign("orgauth_user", "id").nullable(false));
     t.add_column("role", types::text().nullable(false));
     t.add_index("unq", types::index(vec!["project", "user"]).unique(true));
   });
@@ -608,7 +608,7 @@ pub fn udpate6(dbfile: &Path) -> Result<(), Box<dyn Error>> {
 
   let mut m3 = Migration::new();
   // drop timeentrytemp.
-  m3.drop_table("projecttemp");
+  m3.drop_table("pmtemp");
 
   conn.execute_batch(m3.make::<Sqlite>().as_str())?;
 
