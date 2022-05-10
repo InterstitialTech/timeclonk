@@ -1,4 +1,6 @@
 use serde_derive::{Deserialize, Serialize};
+use std::fmt;
+use std::str::FromStr;
 
 // -------------------------------------------------
 
@@ -18,10 +20,37 @@ pub struct SaveProject {
   pub currency: Option<String>,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum Role {
+  Member,
+  Admin,
+  Observer,
+}
+
+impl fmt::Display for Role {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "{:?}", self)
+  }
+}
+
+impl FromStr for Role {
+  type Err = ();
+
+  fn from_str(input: &str) -> Result<Role, Self::Err> {
+    match input {
+      "Member" => Ok(Role::Member),
+      "Admin" => Ok(Role::Admin),
+      "Observer" => Ok(Role::Observer),
+      _ => Err(()),
+    }
+  }
+}
+
 #[derive(Deserialize, Debug, Clone)]
 pub struct SaveProjectMember {
   pub id: i64,
   pub delete: bool,
+  pub role: Role,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -58,6 +87,7 @@ pub struct Project {
 pub struct ProjectMember {
   pub id: i64,
   pub name: String,
+  pub role: Role,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

@@ -1,5 +1,5 @@
 use crate::data::{
-  Allocation, ListProject, PayEntry, Project, ProjectEdit, ProjectMember, ProjectTime,
+  Allocation, ListProject, PayEntry, Project, ProjectEdit, ProjectMember, ProjectTime, Role,
   SaveAllocation, SavePayEntry, SaveProject, SaveProjectEdit, SaveProjectTime, SaveTimeEntry,
   SavedProject, SavedProjectEdit, TimeEntry,
 };
@@ -10,6 +10,7 @@ use orgauth::util::now;
 use rusqlite::{params, Connection};
 use std::error::Error;
 use std::path::Path;
+use std::str::FromStr;
 use std::time::Duration;
 
 pub fn on_new_user(
@@ -261,29 +262,47 @@ pub fn member_list(
   let r = match projectid {
     Some(projectid) => {
       let mut pstmt = conn.prepare(
-        "select orgauth_user.id, orgauth_user.name from orgauth_user, projectmember where
+        "select orgauth_user.id, orgauth_user.name, projectmember.role from orgauth_user, projectmember where
           orgauth_user.id = projectmember.user and
           projectmember.project = ?1",
       )?;
       let r = pstmt
         .query_map(params![projectid], |row| {
-          Ok(ProjectMember {
-            id: row.get(0)?,
-            name: row.get(1)?,
-          })
+          match Role::from_str(row.get::<usize, String>(2)?.as_str()) {
+            Ok(role) => Ok(ProjectMember {
+              id: row.get(0)?,
+              name: row.get(1)?,
+              role: role,
+              // role: row.get(2)?,
+            }),
+            // Err(_) => Err(rusqlite::Error::InvalidColumnName("meh".to_string())),
+            Err(_) => {
+              println!("errorrrr {:?}", row.get::<usize, String>(2));
+              Err(rusqlite::Error::InvalidColumnType(
+                2,
+                "role".to_string(),
+                rusqlite::types::Type::Text,
+              ))
+            }
+          }
         })?
         .filter_map(|x| x.ok())
         .collect();
+
+      // TODO: return error in case of error, instead of just leaving records out.
+
       Ok(r)
     }
     None => {
-      let mut pstmt =
-        conn.prepare("select orgauth_user.id, orgauth_user.name from orgauth_user")?;
+      let mut pstmt = conn.prepare(
+        "select orgauth_user.id, orgauth_user.name, projectmember.role from orgauth_user",
+      )?;
       let r = pstmt
         .query_map(params![], |row| {
           Ok(ProjectMember {
             id: row.get(0)?,
             name: row.get(1)?,
+            role: Role::Member,
           })
         })?
         .filter_map(|x| x.ok())

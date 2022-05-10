@@ -602,7 +602,7 @@ pub fn udpate6(dbfile: &Path) -> Result<(), Box<dyn Error>> {
       user,
       role)
      select
-      project, user, 'member' from pmtemp",
+      project, user, 'Member' from pmtemp",
     params![],
   )?;
 
