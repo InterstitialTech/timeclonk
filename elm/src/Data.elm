@@ -122,9 +122,16 @@ type alias SavedProject =
     }
 
 
+type Role
+    = Member
+    | Admin
+    | Observer
+
+
 type alias ProjectMember =
     { id : UserId
     , name : String
+    , role : Role
     }
 
 
@@ -381,11 +388,55 @@ decodeSavedProject =
         |> andMap (JD.field "changeddate" JD.int)
 
 
+stringToRole : String -> Result String Role
+stringToRole s =
+    case s of
+        "Member" ->
+            Ok Member
+
+        "Admin" ->
+            Ok Admin
+
+        "Observer" ->
+            Ok Observer
+
+        _ ->
+            Err ("invalid role string: " ++ s)
+
+
+roleToString : Role -> String
+roleToString r =
+    case r of
+        Member ->
+            "Member"
+
+        Admin ->
+            "Admin"
+
+        Observer ->
+            "Observer"
+
+
+decodeRole : JD.Decoder Role
+decodeRole =
+    JD.string
+        |> JD.andThen
+            (\s ->
+                case stringToRole s of
+                    Ok r ->
+                        JD.succeed r
+
+                    Err e ->
+                        JD.fail e
+            )
+
+
 decodeProjectMember : JD.Decoder ProjectMember
 decodeProjectMember =
     JD.succeed ProjectMember
         |> andMap (JD.field "id" JD.int |> JD.map makeUserId)
         |> andMap (JD.field "name" JD.string)
+        |> andMap (JD.field "role" decodeRole)
 
 
 decodeProjectEdit : JD.Decoder ProjectEdit

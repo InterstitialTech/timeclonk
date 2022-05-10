@@ -4,8 +4,6 @@ use orgauth::migrations;
 use rusqlite::{params, Connection};
 use std::error::Error;
 use std::path::Path;
-use std::time::Duration;
-use uuid::Uuid;
 
 pub fn initialdb() -> Migration {
   let mut m = Migration::new();
