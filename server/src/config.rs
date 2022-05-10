@@ -1,18 +1,14 @@
-use serde_derive::Deserialize;
+use orgauth::data as orgauth_data;
+use serde_derive::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Config {
   pub ip: String,
   pub port: u16,
-  pub createdirs: bool,
-  pub db: PathBuf,
-  pub mainsite: String,
-  pub appname: String,
-  pub domain: String,
-  pub admin_email: String,
-  pub login_token_expiration_ms: i64,
-  pub email_token_expiration_ms: i64,
-  pub reset_token_expiration_ms: i64,
+  // pub createdirs: bool,
+  // pub altmainsite: Vec<String>,
   pub static_path: Option<PathBuf>,
+  // pub error_index_note: Option<i64>,
+  pub orgauth_config: orgauth_data::Config,
 }

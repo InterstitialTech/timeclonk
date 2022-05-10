@@ -50,6 +50,11 @@ millisToHours millis =
         / (1000 * 60 * 60)
 
 
+millisAsHours : Int -> String
+millisAsHours millis =
+    R.round 2 (toFloat millis / (1000.0 * 60.0 * 60.0))
+
+
 
 -- totalMillis : {starttime, endtime} -> Int
 
@@ -381,7 +386,7 @@ csvToEditTimeEntries zone user csv =
 -}
 eteToCsv : Time.Zone -> String -> Dict Int String -> List EditTimeEntry -> String
 eteToCsv zone projectname membernames timeentries =
-    ("project,user,task,startdate,enddate"
+    ("project,user,task,startdate,enddate,duration"
         :: (timeentries
                 |> List.map
                     (\te ->
@@ -396,6 +401,8 @@ eteToCsv zone projectname membernames timeentries =
                             ++ Util.showDateTime zone (Time.millisToPosix te.startdate)
                             ++ ","
                             ++ Util.showDateTime zone (Time.millisToPosix te.enddate)
+                            ++ ","
+                            ++ (te.enddate - te.startdate |> millisAsHours)
                     )
            )
     )
