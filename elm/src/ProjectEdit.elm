@@ -30,6 +30,7 @@ type Msg
     | SettingsPress
     | NewPress
     | AddMemberPress
+    | TogglePublic Bool
     | Noop
 
 
@@ -329,6 +330,12 @@ view ld size model =
                             []
                             (E.text "currency")
                     }
+                , EI.checkbox []
+                    { onChange = TogglePublic
+                    , icon = EI.defaultCheckbox
+                    , checked = model.public
+                    , label = EI.labelLeft [] (E.text "public")
+                    }
                 ]
             , E.column
                 [ E.padding 8
@@ -380,6 +387,9 @@ update msg model ld =
 
         AddMemberPress ->
             ( model, AddMember )
+
+        TogglePublic b ->
+            ( { model | public = b }, None )
 
         Noop ->
             ( model, None )
