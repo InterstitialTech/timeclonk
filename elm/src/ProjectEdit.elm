@@ -338,6 +338,7 @@ view ld size model =
                 , EBk.color TC.white
                 , E.spacing TC.defaultSpacing
                 ]
+                -- TODO table listing roles.
                 (E.row [ E.spacing 10 ]
                     [ E.el [ EF.bold ] <| E.text "members"
                     , EI.button Common.buttonStyle { onPress = Just AddMemberPress, label = E.text "add" }
