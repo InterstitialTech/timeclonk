@@ -125,6 +125,21 @@ pub fn dbinit(dbfile: &Path, token_expiration_ms: i64) -> Result<(), Box<dyn Err
 
 // --------------------------------------------------------
 
+pub fn member_role(conn: &Connection, uid: i64, pid: i64) -> Result<Option<Role>, Box<dyn Error>> {
+  match conn.query_row(
+    "select role from projectmember where project = ?1 and user = ?2",
+    params![pid, uid],
+    |row| Ok(row.get::<usize, String>(0)?),
+  ) {
+    Ok(v) => match Role::from_str(v.as_str()) {
+      Ok(r) => Ok(Some(r)),
+      Err(_) => Ok(None),
+    },
+    Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+    Err(x) => Err(Box::new(x)),
+  }
+}
+
 pub fn project_list(conn: &Connection, uid: i64) -> Result<Vec<ListProject>, Box<dyn Error>> {
   let mut pstmt = conn.prepare(
     "select project.id, project.name from project, projectmember where
@@ -145,7 +160,6 @@ pub fn project_list(conn: &Connection, uid: i64) -> Result<Vec<ListProject>, Box
   r
 }
 
-// password reset request.
 pub fn save_project_edit(
   conn: &Connection,
   user: i64,
@@ -153,18 +167,19 @@ pub fn save_project_edit(
 ) -> Result<SavedProjectEdit, Box<dyn Error>> {
   let sp = save_project(conn, user, project_edit.project)?;
 
+  // TODO: user role
   for m in project_edit.members {
     if m.delete {
       conn.execute(
-        "insert into projectmember (project, user)
-         values (?1, ?2)",
+        "delete from projectmember
+         where user = ?1 and project = ?2",
         params![sp.id, m.id],
       )?;
     } else {
       conn.execute(
-        "insert into projectmember (project, user)
-         values (?1, ?2)",
-        params![sp.id, m.id],
+        "insert into projectmember (project, user, role)
+         values (?1, ?2, ?3)",
+        params![sp.id, m.id, m.role.to_string().as_str()],
       )?;
     }
   }
