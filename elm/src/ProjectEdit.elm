@@ -346,12 +346,18 @@ view ld size model =
                 , E.spacing TC.defaultSpacing
                 ]
                 -- TODO table listing roles.
-                (E.row [ E.spacing 10 ]
+                [ E.row [ E.spacing 10 ]
                     [ E.el [ EF.bold ] <| E.text "members"
                     , EI.button Common.buttonStyle { onPress = Just AddMemberPress, label = E.text "add" }
                     ]
-                    :: (model.members |> TDict.values |> List.map (\m -> E.text m.name))
-                )
+                , E.table [ E.spacing 10 ]
+                    { data = TDict.values model.members
+                    , columns =
+                        [ { header = E.el [ EF.underline ] <| E.text "member", width = E.shrink, view = \m -> E.text m.name }
+                        , { header = E.el [ EF.underline ] <| E.text "role", width = E.shrink, view = \m -> E.text (Data.showRole m.role) }
+                        ]
+                    }
+                ]
             ]
 
 

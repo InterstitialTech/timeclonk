@@ -55,6 +55,7 @@ module Data exposing
     , makeUserId
     , odLdToLd
     , projectMemberToUser
+    , showRole
     )
 
 import Json.Decode as JD
@@ -137,6 +138,19 @@ type alias ProjectMember =
     , name : String
     , role : Role
     }
+
+
+showRole : Role -> String
+showRole r =
+    case r of
+        Member ->
+            "member"
+
+        Admin ->
+            "admin"
+
+        Observer ->
+            "observer"
 
 
 projectMemberToUser : ProjectMember -> User
