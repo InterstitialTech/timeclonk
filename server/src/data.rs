@@ -91,6 +91,12 @@ pub struct ProjectMember {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct User {
+  pub id: i64,
+  pub name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ProjectEdit {
   pub project: Project,
   pub members: Vec<ProjectMember>,

@@ -66,7 +66,7 @@ type Msg
     | UrlChanged Url
     | WindowSize Util.Size
     | DisplayMessageMsg (GD.Msg DisplayMessage.Msg)
-    | SelectDialogMsg (GD.Msg (SS.Msg Data.ProjectMember))
+    | SelectDialogMsg (GD.Msg (SS.Msg Data.User))
     | ChangePasswordDialogMsg (GD.Msg CP.Msg)
     | ChangeEmailDialogMsg (GD.Msg CE.Msg)
     | ResetPasswordMsg ResetPassword.Msg
@@ -87,7 +87,7 @@ type State
     | ShowMessage ShowMessage.Model Data.LoginData (Maybe State)
     | PubShowMessage ShowMessage.Model (Maybe State)
     | LoginShowMessage ShowMessage.Model Data.LoginData Url
-    | SelectDialog (SS.GDModel Data.ProjectMember) State
+    | SelectDialog (SS.GDModel Data.User) State
     | ChangePasswordDialog CP.GDModel State
     | ChangeEmailDialog CE.GDModel State
     | ResetPassword ResetPassword.Model
@@ -1141,7 +1141,7 @@ actualupdate msg model =
                                 _ ->
                                     ( model, Cmd.none )
 
-                        TI.AllMembers x ->
+                        TI.AllUsers x ->
                             case state of
                                 ProjectEdit s l ->
                                     let
@@ -1149,7 +1149,12 @@ actualupdate msg model =
                                             x |> List.map (\m -> ( m.id, m )) |> TDict.insertList TR.emptyUmDict
 
                                         somems =
-                                            TDict.diff alms s.members
+                                            -- should be TDict.diff, but ...
+                                            --    https://github.com/bburdette/typed-collections/issues/3
+                                            TDict.foldl
+                                                (\k v t -> TDict.remove k t)
+                                                alms
+                                                s.members
                                     in
                                     ( { model
                                         | state =
@@ -1206,7 +1211,7 @@ actualupdate msg model =
                 GD.Ok return ->
                     case instate of
                         ProjectEdit pemod login ->
-                            ( { model | state = ProjectEdit (ProjectEdit.addMember return pemod) login }
+                            ( { model | state = ProjectEdit (ProjectEdit.addMember return Data.Member pemod) login }
                             , Cmd.none
                             )
 
@@ -1300,7 +1305,7 @@ handleProjectEdit model ( nm, cmd ) login =
 
         ProjectEdit.AddMember ->
             ( { model | state = ProjectEdit nm login }
-            , sendTIMsg model.location <| TI.GetAllMembers
+            , sendTIMsg model.location <| TI.GetAllUsers
             )
 
         ProjectEdit.Done ->

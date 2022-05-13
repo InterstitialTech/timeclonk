@@ -10,6 +10,7 @@ module Data exposing
     , ProjectId(..)
     , ProjectMember
     , ProjectTime
+    , Role(..)
     , SaveAllocation
     , SavePayEntry
     , SaveProject
@@ -21,6 +22,7 @@ module Data exposing
     , SavedProjectEdit
     , TimeEntry
     , TimeEntryId(..)
+    , User
     , UserId(..)
     , decodeAllocation
     , decodeListProject
@@ -32,6 +34,7 @@ module Data exposing
     , decodeSavedProject
     , decodeSavedProjectEdit
     , decodeTimeEntry
+    , decodeUser
     , encodeSaveAllocation
     , encodeSavePayEntry
     , encodeSaveProject
@@ -51,6 +54,7 @@ module Data exposing
     , makeTimeEntryId
     , makeUserId
     , odLdToLd
+    , projectMemberToUser
     )
 
 import Json.Decode as JD
@@ -135,6 +139,19 @@ type alias ProjectMember =
     }
 
 
+projectMemberToUser : ProjectMember -> User
+projectMemberToUser pm =
+    { id = pm.id
+    , name = pm.name
+    }
+
+
+type alias User =
+    { id : UserId
+    , name : String
+    }
+
+
 type alias ProjectEdit =
     { project : Project
     , members : List ProjectMember
@@ -143,6 +160,7 @@ type alias ProjectEdit =
 
 type alias SaveProjectMember =
     { id : UserId
+    , role : Role
     , delete : Bool
     }
 
@@ -431,12 +449,24 @@ decodeRole =
             )
 
 
+encodeRole : Role -> JE.Value
+encodeRole r =
+    JE.string (roleToString r)
+
+
 decodeProjectMember : JD.Decoder ProjectMember
 decodeProjectMember =
     JD.succeed ProjectMember
         |> andMap (JD.field "id" JD.int |> JD.map makeUserId)
         |> andMap (JD.field "name" JD.string)
         |> andMap (JD.field "role" decodeRole)
+
+
+decodeUser : JD.Decoder User
+decodeUser =
+    JD.succeed User
+        |> andMap (JD.field "id" JD.int |> JD.map makeUserId)
+        |> andMap (JD.field "name" JD.string)
 
 
 decodeProjectEdit : JD.Decoder ProjectEdit
@@ -450,6 +480,7 @@ encodeSaveProjectMember : SaveProjectMember -> JE.Value
 encodeSaveProjectMember m =
     JE.object
         [ ( "id", JE.int (getUserIdVal m.id) )
+        , ( "role", encodeRole m.role )
         , ( "delete", JE.bool m.delete )
         ]
 

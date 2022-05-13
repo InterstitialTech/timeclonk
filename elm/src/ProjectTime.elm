@@ -184,7 +184,7 @@ type Command
     | SaveCsv String String
     | Settings
     | ShowError String
-    | SelectMember (List Data.ProjectMember)
+    | SelectMember (List Data.User)
     | None
 
 
@@ -1836,7 +1836,7 @@ distributionview ld size zone model =
         Just dist ->
             let
                 md =
-                    model.members |> List.map (\m -> ( m.id, m )) |> TDict.insertList TR.emptyUmDict
+                    model.members |> List.map (\m -> ( m.id, Data.projectMemberToUser m )) |> TDict.insertList TR.emptyUmDict
             in
             E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
                 { data = dist |> TDict.toList
@@ -2678,7 +2678,7 @@ update msg model ld zone =
 
         SelectPaymentUser ->
             ( model
-            , SelectMember model.members
+            , SelectMember (List.map Data.projectMemberToUser model.members)
             )
 
         AllocDescriptionChanged date text ->

@@ -5,17 +5,13 @@ import Json.Decode as JD
 import Json.Encode as JE
 
 
-
--- import Search as S
-
-
 type SendMsg
     = GetProjectList UserId
     | GetProjectEdit Int
     | SaveProjectEdit Data.SaveProjectEdit
     | GetProjectTime Int
     | SaveProjectTime Data.SaveProjectTime
-    | GetAllMembers
+    | GetAllUsers
 
 
 type ServerResponse
@@ -23,7 +19,7 @@ type ServerResponse
     | ProjectList (List Data.ListProject)
     | ProjectEdit Data.ProjectEdit
     | SavedProjectEdit Data.SavedProjectEdit
-    | AllMembers (List Data.ProjectMember)
+    | AllUsers (List Data.User)
     | ProjectTime Data.ProjectTime
 
 
@@ -45,7 +41,7 @@ showServerResponse sr =
         SavedProjectEdit _ ->
             "SavedProjectEdit"
 
-        AllMembers _ ->
+        AllUsers _ ->
             "AllMembers"
 
 
@@ -82,9 +78,9 @@ encodeSendMsg sm =
                 , ( "data", Data.encodeSaveProjectTime p )
                 ]
 
-        GetAllMembers ->
+        GetAllUsers ->
             JE.object
-                [ ( "what", JE.string "GetAllMembers" )
+                [ ( "what", JE.string "GetAllUsers" )
                 ]
 
 
@@ -117,8 +113,8 @@ serverResponseDecoder =
                     "projecttime" ->
                         JD.map ProjectTime (JD.at [ "content" ] Data.decodeProjectTime)
 
-                    "allmembers" ->
-                        JD.map AllMembers (JD.at [ "content" ] (JD.list Data.decodeProjectMember))
+                    "allusers" ->
+                        JD.map AllUsers (JD.at [ "content" ] (JD.list Data.decodeUser))
 
                     wat ->
                         JD.succeed

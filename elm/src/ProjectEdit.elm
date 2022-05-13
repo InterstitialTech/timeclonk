@@ -108,11 +108,11 @@ toSaveProjectEdit model =
     , members =
         (TDict.diff model.members model.initialMembers
             |> TDict.values
-            |> List.map (\m -> { id = m.id, delete = False })
+            |> List.map (\m -> { id = m.id, delete = False, role = m.role })
         )
             ++ (TDict.diff model.initialMembers model.members
                     |> TDict.values
-                    |> List.map (\m -> { id = m.id, delete = True })
+                    |> List.map (\m -> { id = m.id, delete = True, role = m.role })
                )
     }
 
@@ -141,9 +141,9 @@ onSavedProjectEdit spe model =
     }
 
 
-addMember : Data.ProjectMember -> Model -> Model
-addMember pm model =
-    { model | members = TDict.insert pm.id pm model.members }
+addMember : Data.User -> Data.Role -> Model -> Model
+addMember pm role model =
+    { model | members = TDict.insert pm.id { id = pm.id, name = pm.name, role = role } model.members }
 
 
 isDirty : Model -> Bool
