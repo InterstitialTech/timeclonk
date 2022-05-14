@@ -582,6 +582,9 @@ setPageIncrement pageincrement model =
         tp =
             model.tepaginator
 
+        tep =
+            model.teampaginator
+
         pp =
             model.pepaginator
 
@@ -593,6 +596,7 @@ setPageIncrement pageincrement model =
     in
     { model
         | tepaginator = { tp | pageincrement = pageincrement }
+        , teampaginator = { tep | pageincrement = pageincrement }
         , pepaginator = { pp | pageincrement = pageincrement }
         , apaginator = { ap | pageincrement = pageincrement }
         , dpaginator = { dp | pageincrement = pageincrement }

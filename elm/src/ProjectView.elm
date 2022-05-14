@@ -30,24 +30,11 @@ type Msg
     = DonePress
     | SettingsPress
     | ExportAll
-    | CsvString String
-    | FocusCancel
     | SetViewMode ViewMode
-    | OnRowItemClick Int FocusColumn
     | OnDistributionChanged String
     | OnDistCurrencyChanged String
     | ClearDistribution
     | CalcDistribution
-    | CheckAll Bool
-    | CheckItem Int Bool
-    | CheckPayAll Bool
-    | CheckAllocAll Bool
-    | CheckPayItem Int Bool
-    | CheckAllocationItem Int Bool
-    | TeForward
-    | TeBack Int
-    | TeToStart
-    | TeToEnd Int
     | TeamForward
     | TeamBack Int
     | TeamToStart
@@ -90,8 +77,8 @@ type alias Model =
     , membernames : Dict Int String
 
     -- , description : String
-    , timeentries : TTotaler
-    , tepaginator : P.Model Msg
+    -- , timeentries : TTotaler
+    -- , tepaginator : P.Model Msg
     , teamentries : TTotaler
     , teampaginator : P.Model Msg
     , payentries : Dict Int EditPayEntry
@@ -277,7 +264,7 @@ init zone pt pageincrement mode =
     , membernames = pt.members |> List.map (\m -> ( Data.getUserIdVal m.id, m.name )) |> Dict.fromList
 
     -- , description = description
-    , timeentries = mkTToteler ietes (\te -> te.user == ld.userid) zone
+    -- , timeentries = mkTToteler ietes (\te -> te.user == ld.userid) zone
     , teamentries = mkTToteler ietes (always True) zone
     , teampaginator = P.init TeamForward TeamBack TeamToStart TeamToEnd P.End pageincrement
     , payentries = iepes
@@ -311,7 +298,7 @@ setPageIncrement : Int -> Model -> Model
 setPageIncrement pageincrement model =
     let
         tp =
-            model.tepaginator
+            model.teampaginator
 
         pp =
             model.pepaginator
@@ -323,7 +310,7 @@ setPageIncrement pageincrement model =
             model.dpaginator
     in
     { model
-        | tepaginator = { tp | pageincrement = pageincrement }
+        | teampaginator = { tp | pageincrement = pageincrement }
         , pepaginator = { pp | pageincrement = pageincrement }
         , apaginator = { ap | pageincrement = pageincrement }
         , dpaginator = { dp | pageincrement = pageincrement }
@@ -334,12 +321,13 @@ onProjectTime : Time.Zone -> Data.LoginData -> Data.ProjectTime -> Model -> Mode
 onProjectTime zone ld pt model =
     let
         nm =
-            init zone ld pt model.saveonclonk model.tepaginator.pageincrement (showViewMode model.viewmode)
+            init zone pt model.teampaginator.pageincrement (showViewMode model.viewmode)
     in
     { nm
-        | tepaginator = model.tepaginator
+        | teampaginator = model.teampaginator
         , pepaginator = model.pepaginator
         , apaginator = model.apaginator
+        , dpaginator = model.dpaginator
     }
 
 
@@ -424,8 +412,8 @@ dateTimeWidth =
     200
 
 
-teamview : Util.Size -> Time.Zone -> Bool -> Model -> List (Element Msg)
-teamview size zone isdirty model =
+teamview : Util.Size -> Time.Zone -> Model -> List (Element Msg)
+teamview size zone model =
     let
         ttotes =
             getTotes model.teamentries
@@ -512,8 +500,7 @@ teamview size zone isdirty model =
                                         Util.showDateTime zone (Time.millisToPosix enddate)
                         in
                         E.row
-                            [ EE.onClick <| OnRowItemClick te.startdate End
-                            , igfont te
+                            [ igfont te
                             , E.width E.fill
                             ]
                             [ E.text <| endtext te.enddate
@@ -607,14 +594,14 @@ type Entry
     | Allocation EditAllocation
 
 
-distributionview : Data.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
-distributionview ld size zone model =
+distributionview : Util.Size -> Time.Zone -> Model -> List (Element Msg)
+distributionview size zone model =
     let
         paytotes =
             model.payentries |> Dict.values |> TR.payTotes
 
         timetotes =
-            getTes model.timeentries |> Dict.values |> TR.timeTotes
+            getTes model.teamentries |> Dict.values |> TR.timeTotes
 
         unpaidtotes =
             timetotes
@@ -635,7 +622,7 @@ distributionview ld size zone model =
                 |> List.foldl (\e t -> t + e.duration) 0
 
         tmpd =
-            TR.teamMillisPerDay zone (Dict.values (getTes model.timeentries))
+            TR.teamMillisPerDay zone (Dict.values (getTes model.teamentries))
 
         anychecked =
             Dict.foldl (\_ pe c -> c || pe.checked) False model.payentries
@@ -653,95 +640,63 @@ distributionview ld size zone model =
                 |> Dict.toList
                 |> P.filter model.dpaginator
         , columns =
-            { header =
-                EI.checkbox [ E.width E.shrink, E.centerY ]
-                    { onChange = CheckPayAll
-                    , icon = TC.checkboxIcon
-                    , checked =
-                        Dict.foldl
-                            (\_ pe ac ->
-                                ac && pe.checked
-                            )
-                            True
-                            model.payentries
-                    , label = EI.labelHidden "check all"
-                    }
-            , width = E.shrink
+            { header = E.el headerStyle <| E.text "date"
+            , width = E.fill
             , view =
                 \( date, entry ) ->
                     case entry of
+                        TimeDay td ->
+                            date
+                                |> Time.millisToPosix
+                                |> Calendar.fromPosix
+                                |> (\cdate ->
+                                        E.row []
+                                            [ E.text <|
+                                                String.fromInt (Calendar.getYear cdate)
+                                                    ++ "/"
+                                                    ++ (cdate
+                                                            |> Calendar.getMonth
+                                                            |> Calendar.monthToInt
+                                                            |> String.fromInt
+                                                       )
+                                                    ++ "/"
+                                                    ++ String.fromInt
+                                                        (Calendar.getDay cdate)
+                                            ]
+                                   )
+
                         PayEntry pe ->
-                            EI.checkbox [ E.width E.shrink, E.centerY ]
-                                { onChange = CheckPayItem pe.paymentdate
-                                , icon = TC.checkboxIcon
-                                , checked = pe.checked
-                                , label = EI.labelHidden "check item"
-                                }
+                            date
+                                |> Time.millisToPosix
+                                |> Calendar.fromPosix
+                                |> (\cdate ->
+                                        E.row
+                                            [ EF.bold
+                                            ]
+                                            [ E.text <|
+                                                String.fromInt (Calendar.getYear cdate)
+                                                    ++ "/"
+                                                    ++ (cdate |> Calendar.getMonth |> Calendar.monthToInt |> String.fromInt)
+                                                    ++ "/"
+                                                    ++ String.fromInt
+                                                        (Calendar.getDay cdate)
+                                            ]
+                                   )
 
-                        Allocation e ->
-                            E.none
-
-                        TimeDay _ ->
-                            E.none
+                        Allocation a ->
+                            date
+                                |> Time.millisToPosix
+                                |> Calendar.fromPosix
+                                |> (\cdate ->
+                                        E.text <|
+                                            String.fromInt (Calendar.getYear cdate)
+                                                ++ "/"
+                                                ++ (cdate |> Calendar.getMonth |> Calendar.monthToInt |> String.fromInt)
+                                                ++ "/"
+                                                ++ String.fromInt
+                                                    (Calendar.getDay cdate)
+                                   )
             }
-                :: { header = E.el headerStyle <| E.text "date"
-                   , width = E.fill
-                   , view =
-                        \( date, entry ) ->
-                            case entry of
-                                TimeDay td ->
-                                    date
-                                        |> Time.millisToPosix
-                                        |> Calendar.fromPosix
-                                        |> (\cdate ->
-                                                E.row []
-                                                    [ E.text <|
-                                                        String.fromInt (Calendar.getYear cdate)
-                                                            ++ "/"
-                                                            ++ (cdate
-                                                                    |> Calendar.getMonth
-                                                                    |> Calendar.monthToInt
-                                                                    |> String.fromInt
-                                                               )
-                                                            ++ "/"
-                                                            ++ String.fromInt
-                                                                (Calendar.getDay cdate)
-                                                    ]
-                                           )
-
-                                PayEntry pe ->
-                                    date
-                                        |> Time.millisToPosix
-                                        |> Calendar.fromPosix
-                                        |> (\cdate ->
-                                                E.row
-                                                    [ EE.onClick <| OnRowItemClick date PaymentDate
-                                                    , EF.bold
-                                                    ]
-                                                    [ E.text <|
-                                                        String.fromInt (Calendar.getYear cdate)
-                                                            ++ "/"
-                                                            ++ (cdate |> Calendar.getMonth |> Calendar.monthToInt |> String.fromInt)
-                                                            ++ "/"
-                                                            ++ String.fromInt
-                                                                (Calendar.getDay cdate)
-                                                    ]
-                                           )
-
-                                Allocation a ->
-                                    date
-                                        |> Time.millisToPosix
-                                        |> Calendar.fromPosix
-                                        |> (\cdate ->
-                                                E.text <|
-                                                    String.fromInt (Calendar.getYear cdate)
-                                                        ++ "/"
-                                                        ++ (cdate |> Calendar.getMonth |> Calendar.monthToInt |> String.fromInt)
-                                                        ++ "/"
-                                                        ++ String.fromInt
-                                                            (Calendar.getDay cdate)
-                                           )
-                   }
                 :: (model.members
                         |> List.map
                             (\member ->
@@ -757,7 +712,7 @@ distributionview ld size zone model =
                                                 case TDict.get member.id ums of
                                                     Just millis ->
                                                         if millis > 0 then
-                                                            E.row [ EE.onClick <| OnRowItemClick date PaymentAmount ]
+                                                            E.row []
                                                                 [ E.text <| millisAsHours millis
                                                                 ]
 
@@ -967,7 +922,7 @@ allocationview size zone model =
                 |> List.foldl (\e t -> t + e.duration) 0
 
         timetote =
-            getTotes model.timeentries
+            getTotes model.teamentries
                 |> .teammillis
 
         alloctote =
@@ -981,50 +936,26 @@ allocationview size zone model =
             Dict.toList model.allocations
                 |> P.filter model.apaginator
         , columns =
-            { header =
-                EI.checkbox [ E.width E.shrink, E.centerY ]
-                    { onChange = CheckAllocAll
-                    , icon = TC.checkboxIcon
-                    , checked =
-                        Dict.foldl
-                            (\_ pe ac ->
-                                ac && pe.checked
-                            )
-                            True
-                            model.allocations
-                    , label = EI.labelHidden "check all"
-                    }
-            , width = E.shrink
+            { header = E.el headerStyle <| E.text "date"
+            , width = E.fill
             , view =
-                \( date, e ) ->
-                    EI.checkbox [ E.width E.shrink, E.centerY ]
-                        { onChange = CheckAllocationItem e.allocationdate
-                        , icon = TC.checkboxIcon
-                        , checked = e.checked
-                        , label = EI.labelHidden "check item"
-                        }
+                \( date, a ) ->
+                    date
+                        |> Time.millisToPosix
+                        |> Calendar.fromPosix
+                        |> (\cdate ->
+                                E.row
+                                    []
+                                    [ E.text <|
+                                        String.fromInt (Calendar.getYear cdate)
+                                            ++ "/"
+                                            ++ (cdate |> Calendar.getMonth |> Calendar.monthToInt |> String.fromInt)
+                                            ++ "/"
+                                            ++ String.fromInt
+                                                (Calendar.getDay cdate)
+                                    ]
+                           )
             }
-                :: { header = E.el headerStyle <| E.text "date"
-                   , width = E.fill
-                   , view =
-                        \( date, a ) ->
-                            date
-                                |> Time.millisToPosix
-                                |> Calendar.fromPosix
-                                |> (\cdate ->
-                                        E.row
-                                            [ EE.onClick <| OnRowItemClick date PaymentDate
-                                            ]
-                                            [ E.text <|
-                                                String.fromInt (Calendar.getYear cdate)
-                                                    ++ "/"
-                                                    ++ (cdate |> Calendar.getMonth |> Calendar.monthToInt |> String.fromInt)
-                                                    ++ "/"
-                                                    ++ String.fromInt
-                                                        (Calendar.getDay cdate)
-                                            ]
-                                   )
-                   }
                 :: { header = E.el headerStyle <| E.text "description"
                    , width = E.fill
                    , view =
@@ -1044,7 +975,7 @@ allocationview size zone model =
                                 p =
                                     E.el [] <| E.text <| s
                             in
-                            E.row [ EE.onClick <| OnRowItemClick date PaymentAmount ]
+                            E.row []
                                 [ p
                                 ]
                    }
@@ -1102,7 +1033,7 @@ payview size zone model =
                 |> List.foldl (\e t -> t + e.duration) 0
 
         timetote =
-            getTotes model.timeentries
+            getTotes model.teamentries
                 |> .teammillis
 
         alloctote =
@@ -1125,8 +1056,7 @@ payview size zone model =
                         |> Calendar.fromPosix
                         |> (\cdate ->
                                 E.row
-                                    [ EE.onClick <| OnRowItemClick date PaymentDate
-                                    ]
+                                    []
                                     [ E.text <|
                                         String.fromInt (Calendar.getYear cdate)
                                             ++ "/"
@@ -1253,7 +1183,7 @@ update msg model zone =
                     let
                         -- total millis per day for each member.
                         utmpd =
-                            TR.teamMillisPerDay zone (Dict.values <| getTes model.timeentries)
+                            TR.teamMillisPerDay zone (Dict.values <| getTes model.teamentries)
 
                         -- total pay so far for each member.
                         paytotes =
@@ -1429,20 +1359,8 @@ update msg model zone =
 
         ExportAll ->
             ( model
-            , SaveCsv ("timeclonk-" ++ model.project.name ++ ".csv") (eteToCsv zone model.project.name model.membernames (getTes model.timeentries |> Dict.values))
+            , SaveCsv ("timeclonk-" ++ model.project.name ++ ".csv") (eteToCsv zone model.project.name model.membernames (getTes model.teamentries |> Dict.values))
             )
-
-        TeForward ->
-            ( { model | tepaginator = P.onForward model.tepaginator }, None )
-
-        TeBack c ->
-            ( { model | tepaginator = P.onBack c model.tepaginator }, None )
-
-        TeToStart ->
-            ( { model | tepaginator = P.onToStart model.tepaginator }, None )
-
-        TeToEnd c ->
-            ( { model | tepaginator = P.onToEnd c model.tepaginator }, None )
 
         TeamForward ->
             ( { model | teampaginator = P.onForward model.teampaginator }, None )

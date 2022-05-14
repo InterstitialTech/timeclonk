@@ -76,6 +76,7 @@ type Msg
     | ReceiveLocalVal { for : String, name : String, value : Maybe String }
     | ClockTick Time.Posix
     | ProjectListingMsg ProjectListing.Msg
+    | ProjectViewMsg ProjectView.Msg
     | ProjectEditMsg ProjectEdit.Msg
     | ProjectTimeMsg ProjectTime.Msg
     | FileLoaded (String -> Msg) F.File
@@ -96,6 +97,7 @@ type State
     | Wait State (Model -> Msg -> ( Model, Cmd Msg ))
     | ProjectListing ProjectListing.Model Data.LoginData
     | ProjectEdit ProjectEdit.Model Data.LoginData
+    | ProjectView ProjectView.Model (Maybe Data.LoginData)
     | ProjectTime ProjectTime.Model Data.LoginData
 
 
@@ -342,6 +344,9 @@ showMessage msg =
         ProjectListingMsg _ ->
             "ProjectListingMsg"
 
+        ProjectViewMsg _ ->
+            "ProjectViewMsg"
+
         ProjectEditMsg _ ->
             "ProjectEditMsg"
 
@@ -396,6 +401,9 @@ showState state =
 
         ProjectTime _ _ ->
             "ProjectTime"
+
+        ProjectView _ _ ->
+            "ProjectView"
 
 
 unexpectedMsg : Model -> Msg -> Model
@@ -459,6 +467,9 @@ viewState size state model =
         ProjectTime em ld ->
             E.map ProjectTimeMsg <| ProjectTime.view ld size model.timezone em
 
+        ProjectView em ld ->
+            E.map ProjectViewMsg <| ProjectView.view size model.timezone em
+
 
 stateLogin : State -> Maybe Data.LoginData
 stateLogin state =
@@ -504,6 +515,9 @@ stateLogin state =
 
         ProjectTime _ login ->
             Just login
+
+        ProjectView _ mblogin ->
+            mblogin
 
 
 sendTIMsg : String -> TI.SendMsg -> Cmd Msg
@@ -1285,6 +1299,9 @@ actualupdate msg model =
         ( ProjectTimeMsg ms, ProjectTime st login ) ->
             handleProjectTime model (ProjectTime.update ms st login model.timezone) login
 
+        ( ProjectViewMsg ms, ProjectView st mblogin ) ->
+            handleProjectView model (ProjectView.update ms st model.timezone) mblogin
+
         ( x, y ) ->
             ( unexpectedMsg model x
             , Cmd.none
@@ -1389,6 +1406,40 @@ handleProjectTime model ( nm, cmd ) login =
 
         ProjectTime.None ->
             ( { model | state = ProjectTime nm login }, Cmd.none )
+
+
+handleProjectView : Model -> ( ProjectView.Model, ProjectView.Command ) -> Maybe Data.LoginData -> ( Model, Cmd Msg )
+handleProjectView model ( nm, cmd ) mblogin =
+    case cmd of
+        -- ProjectView.GetTime tomsg ->
+        --     ( { model | state = ProjectView nm mblogin }
+        --     , Task.perform (Time.posixToMillis >> tomsg >> ProjectView) Time.now
+        --     )
+        ProjectView.Done ->
+            -- ( { model | state = ProjectView nm mblogin }
+            -- , sendTIMsg model.location <| TI.GetProjectList mblogin.userid
+            -- )
+            ( model, Cmd.none )
+
+        ProjectView.Settings ->
+            ( model, Cmd.none )
+
+        -- ( { model
+        --     | state =
+        --         UserSettings (UserSettings.init mblogin model.fontsize model.saveonclonk model.pageincrement) mblogin model.state
+        --   }
+        -- , Cmd.none
+        -- )
+        ProjectView.SaveCsv filename csvstring ->
+            ( { model | state = ProjectView nm mblogin }
+            , FD.string filename "text/csv" csvstring
+            )
+
+        ProjectView.ShowError e ->
+            ( displayMessageDialog { model | state = ProjectView nm mblogin } e, Cmd.none )
+
+        ProjectView.None ->
+            ( { model | state = ProjectView nm mblogin }, Cmd.none )
 
 
 handleLogin : Model -> ( Login.Model, Login.Cmd ) -> ( Model, Cmd Msg )
