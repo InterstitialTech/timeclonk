@@ -64,6 +64,7 @@ type Msg
     | PublicReplyData (Result Http.Error PI.ServerResponse)
     | ProjectTimeData String (Result Http.Error TI.ServerResponse)
     | ProjectViewData String (Result Http.Error PI.ServerResponse)
+    | TProjectViewData String (Result Http.Error TI.ServerResponse)
     | LoadUrl String
     | InternalUrl Url
     | SelectedText JD.Value
@@ -203,9 +204,16 @@ routeState model route =
             )
 
         ProjectViewR id mode ->
-            ( (displayMessageDialog model "loading project").state
-            , sendPIMsgExp model.location (PI.GetProjectTime id) (ProjectViewData mode)
-            )
+            case stateLogin model.state of
+                Just login ->
+                    ( (displayMessageDialog model "loading project").state
+                    , sendTIMsgExp model.location (TI.GetProjectTime id) (TProjectViewData mode)
+                    )
+
+                Nothing ->
+                    ( (displayMessageDialog model "loading project").state
+                    , sendPIMsgExp model.location (PI.GetProjectTime id) (ProjectViewData mode)
+                    )
 
 
 stateRoute : State -> SavedRoute
@@ -324,6 +332,22 @@ showMessage msg =
         ProjectViewData mode urd ->
             "ProjectViewData: "
                 ++ (Result.map PI.showServerResponse urd
+                        |> Result.mapError Util.httpErrorString
+                        |> (\r ->
+                                case r of
+                                    Ok m ->
+                                        "message: " ++ m
+
+                                    Err e ->
+                                        "error: " ++ e
+                           )
+                   )
+                ++ "\nmode: "
+                ++ mode
+
+        TProjectViewData mode urd ->
+            "TProjectViewData: "
+                ++ (Result.map TI.showServerResponse urd
                         |> Result.mapError Util.httpErrorString
                         |> (\r ->
                                 case r of
@@ -1029,6 +1053,28 @@ actualupdate msg model =
                 Ok uiresponse ->
                     case uiresponse of
                         PI.ProjectTime x ->
+                            ( { model
+                                | state =
+                                    ProjectView
+                                        (ProjectView.init model.timezone x model.pageincrement mode)
+                                        (stateLogin state)
+                              }
+                            , Cmd.none
+                            )
+
+                        _ ->
+                            ( unexpectedMsg model msg
+                            , Cmd.none
+                            )
+
+        ( TProjectViewData mode urd, state ) ->
+            case urd of
+                Err e ->
+                    ( displayMessageDialog model <| Util.httpErrorString e, Cmd.none )
+
+                Ok uiresponse ->
+                    case uiresponse of
+                        TI.ProjectTime x ->
                             ( { model
                                 | state =
                                     ProjectView
