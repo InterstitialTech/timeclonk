@@ -171,7 +171,6 @@ type alias Model =
     , viewmode : ViewMode
     , saveonclonk : Bool
     , clonkOutDisplay : Maybe Time.Posix
-    , readonly : Bool
     }
 
 
@@ -574,7 +573,6 @@ init zone ld pt saveonclonk pageincrement mode =
     , paymentuser = Nothing
     , saveonclonk = saveonclonk
     , clonkOutDisplay = Nothing
-    , readonly = False
     }
 
 

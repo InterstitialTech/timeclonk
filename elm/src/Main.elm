@@ -33,6 +33,7 @@ import Orgauth.UserInterface as UI
 import ProjectEdit
 import ProjectListing
 import ProjectTime
+import ProjectView
 import Random exposing (Seed, initialSeed)
 import Route exposing (Route(..), parseUrl, routeTitle, routeUrl)
 import SelectString as SS
