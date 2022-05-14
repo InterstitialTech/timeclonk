@@ -10,6 +10,7 @@ import Element.Border as EBd
 import Element.Font as EF
 import Element.Input as EI
 import Element.Region
+import Route
 import SelectString
 import TDict exposing (TDict)
 import TangoColors as TC
@@ -330,12 +331,27 @@ view ld size model =
                             []
                             (E.text "currency")
                     }
-                , EI.checkbox []
-                    { onChange = TogglePublic
-                    , icon = EI.defaultCheckbox
-                    , checked = model.public
-                    , label = EI.labelLeft [] (E.text "public")
-                    }
+                , E.row [ E.spacing 8 ]
+                    [ EI.checkbox []
+                        { onChange = TogglePublic
+                        , icon = EI.defaultCheckbox
+                        , checked = model.public
+                        , label = EI.labelLeft [] (E.text "public")
+                        }
+                    , case ( model.public, model.id ) of
+                        ( True, Just id ) ->
+                            let
+                                u =
+                                    Route.routeUrl <| Route.ProjectViewR (Data.getProjectIdVal id) "team"
+                            in
+                            E.link Common.linkStyle
+                                { url = u
+                                , label = E.text u
+                                }
+
+                        _ ->
+                            E.none
+                    ]
                 ]
             , E.column
                 [ E.padding 8
