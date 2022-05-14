@@ -317,8 +317,8 @@ setPageIncrement pageincrement model =
     }
 
 
-onProjectTime : Time.Zone -> Data.LoginData -> Data.ProjectTime -> Model -> Model
-onProjectTime zone ld pt model =
+onProjectTime : Time.Zone -> Data.ProjectTime -> Model -> Model
+onProjectTime zone pt model =
     let
         nm =
             init zone pt model.teampaginator.pageincrement (showViewMode model.viewmode)

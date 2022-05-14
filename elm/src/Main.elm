@@ -34,6 +34,7 @@ import ProjectEdit
 import ProjectListing
 import ProjectTime
 import ProjectView
+import PublicInterface as PI
 import Random exposing (Seed, initialSeed)
 import Route exposing (Route(..), parseUrl, routeTitle, routeUrl)
 import SelectString as SS
@@ -60,8 +61,9 @@ type Msg
     | ShowMessageMsg ShowMessage.Msg
     | UserReplyData (Result Http.Error UI.ServerResponse)
     | TimeclonkReplyData (Result Http.Error TI.ServerResponse)
+    | PublicReplyData (Result Http.Error PI.ServerResponse)
     | ProjectTimeData String (Result Http.Error TI.ServerResponse)
-    | ProjectViewData String (Result Http.Error TI.ServerResponse)
+    | ProjectViewData String (Result Http.Error PI.ServerResponse)
     | LoadUrl String
     | InternalUrl Url
     | SelectedText JD.Value
@@ -202,7 +204,7 @@ routeState model route =
 
         ProjectViewR id mode ->
             ( (displayMessageDialog model "loading project").state
-            , sendTIMsgExp model.location (TI.GetProjectTime id) (ProjectViewData mode)
+            , sendPIMsgExp model.location (PI.GetProjectTime id) (ProjectViewData mode)
             )
 
 
@@ -289,6 +291,20 @@ showMessage msg =
                            )
                    )
 
+        PublicReplyData urd ->
+            "PublicReplyData: "
+                ++ (Result.map PI.showServerResponse urd
+                        |> Result.mapError Util.httpErrorString
+                        |> (\r ->
+                                case r of
+                                    Ok m ->
+                                        "message: " ++ m
+
+                                    Err e ->
+                                        "error: " ++ e
+                           )
+                   )
+
         ProjectTimeData mode urd ->
             "ProjectTimeData: "
                 ++ (Result.map TI.showServerResponse urd
@@ -307,7 +323,7 @@ showMessage msg =
 
         ProjectViewData mode urd ->
             "ProjectViewData: "
-                ++ (Result.map TI.showServerResponse urd
+                ++ (Result.map PI.showServerResponse urd
                         |> Result.mapError Util.httpErrorString
                         |> (\r ->
                                 case r of
@@ -553,6 +569,20 @@ sendTIMsgExp location msg tomsg =
         { url = location ++ "/private"
         , body = Http.jsonBody (TI.encodeSendMsg msg)
         , expect = Http.expectJson tomsg TI.serverResponseDecoder
+        }
+
+
+sendPIMsg : String -> PI.SendMsg -> Cmd Msg
+sendPIMsg location msg =
+    sendPIMsgExp location msg PublicReplyData
+
+
+sendPIMsgExp : String -> PI.SendMsg -> (Result Http.Error PI.ServerResponse -> Msg) -> Cmd Msg
+sendPIMsgExp location msg tomsg =
+    Http.post
+        { url = location ++ "/public"
+        , body = Http.jsonBody (PI.encodeSendMsg msg)
+        , expect = Http.expectJson tomsg PI.serverResponseDecoder
         }
 
 
@@ -986,12 +1016,6 @@ actualupdate msg model =
                                 Nothing ->
                                     ( model, Cmd.none )
 
-                        -- TI.NotLoggedIn ->
-                        --     case state of
-                        --         Login lmod ->
-                        --             ( { model | state = Login lmod }, Cmd.none )
-                        --         _ ->
-                        --             ( { model | state = Login <| Login.initialModel Nothing model.appname model.seed }, Cmd.none )
                         _ ->
                             ( unexpectedMsg model msg
                             , Cmd.none
@@ -1004,20 +1028,16 @@ actualupdate msg model =
 
                 Ok uiresponse ->
                     case uiresponse of
-                        TI.ProjectTime x ->
-                            case stateLogin state of
-                                Just login ->
-                                    ( { model | state = ProjectView (ProjectView.init model.timezone x model.pageincrement mode) (Just login) }, Cmd.none )
+                        PI.ProjectTime x ->
+                            ( { model
+                                | state =
+                                    ProjectView
+                                        (ProjectView.init model.timezone x model.pageincrement mode)
+                                        (stateLogin state)
+                              }
+                            , Cmd.none
+                            )
 
-                                Nothing ->
-                                    ( model, Cmd.none )
-
-                        -- TI.NotLoggedIn ->
-                        --     case state of
-                        --         Login lmod ->
-                        --             ( { model | state = Login lmod }, Cmd.none )
-                        --         _ ->
-                        --             ( { model | state = Login <| Login.initialModel Nothing model.appname model.seed }, Cmd.none )
                         _ ->
                             ( unexpectedMsg model msg
                             , Cmd.none
@@ -1237,6 +1257,24 @@ actualupdate msg model =
 
                                 _ ->
                                     ( model, Cmd.none )
+
+        ( PublicReplyData urd, state ) ->
+            case urd of
+                Err e ->
+                    ( displayMessageDialog model <| Util.httpErrorString e, Cmd.none )
+
+                Ok uiresponse ->
+                    case uiresponse of
+                        PI.ServerError e ->
+                            ( displayMessageDialog model <| e, Cmd.none )
+
+                        PI.ProjectTime x ->
+                            case state of
+                                ProjectView st mblogin ->
+                                    ( { model | state = ProjectView (ProjectView.onProjectTime model.timezone x st) mblogin }, Cmd.none )
+
+                                _ ->
+                                    ( { model | state = ProjectView (ProjectView.init model.timezone x model.pageincrement "") (stateLogin state) }, Cmd.none )
 
         ( DisplayMessageMsg bm, DisplayMessage bs prevstate ) ->
             case GD.update bm bs of

@@ -170,10 +170,17 @@ pub fn public_interface(
       let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
       let project = sqldata::read_project_time(&conn, pid)?;
 
-      Ok(ServerResponse {
-        what: "projecttime".to_string(),
-        content: serde_json::to_value(project)?,
-      })
+      if project.project.public {
+        Ok(ServerResponse {
+          what: "projecttime".to_string(),
+          content: serde_json::to_value(project)?,
+        })
+      } else {
+        Ok(ServerResponse {
+          what: "projecttime-denied".to_string(),
+          content: serde_json::Value::Null,
+        })
+      }
     }
     wat => Err(Box::new(simple_error::SimpleError::new(format!(
       "invalid 'what' code:'{}'",
