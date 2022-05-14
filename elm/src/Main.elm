@@ -61,6 +61,7 @@ type Msg
     | UserReplyData (Result Http.Error UI.ServerResponse)
     | TimeclonkReplyData (Result Http.Error TI.ServerResponse)
     | ProjectTimeData String (Result Http.Error TI.ServerResponse)
+    | ProjectViewData String (Result Http.Error TI.ServerResponse)
     | LoadUrl String
     | InternalUrl Url
     | SelectedText JD.Value
@@ -199,6 +200,11 @@ routeState model route =
             , sendTIMsgExp model.location (TI.GetProjectTime id) (ProjectTimeData mode)
             )
 
+        ProjectViewR id mode ->
+            ( (displayMessageDialog model "loading project").state
+            , sendTIMsgExp model.location (TI.GetProjectTime id) (ProjectViewData mode)
+            )
+
 
 stateRoute : State -> SavedRoute
 stateRoute state =
@@ -285,6 +291,22 @@ showMessage msg =
 
         ProjectTimeData mode urd ->
             "ProjectTimeData: "
+                ++ (Result.map TI.showServerResponse urd
+                        |> Result.mapError Util.httpErrorString
+                        |> (\r ->
+                                case r of
+                                    Ok m ->
+                                        "message: " ++ m
+
+                                    Err e ->
+                                        "error: " ++ e
+                           )
+                   )
+                ++ "\nmode: "
+                ++ mode
+
+        ProjectViewData mode urd ->
+            "ProjectViewData: "
                 ++ (Result.map TI.showServerResponse urd
                         |> Result.mapError Util.httpErrorString
                         |> (\r ->
@@ -960,6 +982,32 @@ actualupdate msg model =
                             case stateLogin state of
                                 Just login ->
                                     ( { model | state = ProjectTime (ProjectTime.init model.timezone login x model.saveonclonk model.pageincrement mode) login }, Cmd.none )
+
+                                Nothing ->
+                                    ( model, Cmd.none )
+
+                        -- TI.NotLoggedIn ->
+                        --     case state of
+                        --         Login lmod ->
+                        --             ( { model | state = Login lmod }, Cmd.none )
+                        --         _ ->
+                        --             ( { model | state = Login <| Login.initialModel Nothing model.appname model.seed }, Cmd.none )
+                        _ ->
+                            ( unexpectedMsg model msg
+                            , Cmd.none
+                            )
+
+        ( ProjectViewData mode urd, state ) ->
+            case urd of
+                Err e ->
+                    ( displayMessageDialog model <| Util.httpErrorString e, Cmd.none )
+
+                Ok uiresponse ->
+                    case uiresponse of
+                        TI.ProjectTime x ->
+                            case stateLogin state of
+                                Just login ->
+                                    ( { model | state = ProjectView (ProjectView.init model.timezone x model.pageincrement mode) (Just login) }, Cmd.none )
 
                                 Nothing ->
                                     ( model, Cmd.none )

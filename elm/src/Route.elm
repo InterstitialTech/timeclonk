@@ -14,6 +14,7 @@ type Route
       -- | EditZkNoteNew
     | ProjectEditR Int
     | ProjectTimeR Int String
+    | ProjectViewR Int String
     | ResetPasswordR String UUID
     | SettingsR
     | Top
@@ -30,6 +31,9 @@ routeTitle appname route =
 
         ProjectTimeR id mode ->
             "project time " ++ String.fromInt id ++ " " ++ mode
+
+        ProjectViewR id mode ->
+            "project view " ++ String.fromInt id ++ " " ++ mode
 
         -- PublicZkNote id ->
         --     "zknote " ++ String.fromInt id
@@ -90,6 +94,11 @@ parseUrl url =
                     "projecttime"
                     </> UP.int
                     </> UP.string
+            , UP.map ProjectViewR <|
+                UP.s
+                    "projectview"
+                    </> UP.int
+                    </> UP.string
             , UP.map Top <| UP.top
             ]
         )
@@ -124,3 +133,6 @@ routeUrl route =
 
         ProjectTimeR id mode ->
             UB.absolute [ "projecttime", String.fromInt id, mode ] []
+
+        ProjectViewR id mode ->
+            UB.absolute [ "projectview", String.fromInt id, mode ] []
