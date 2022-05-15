@@ -75,24 +75,12 @@ type alias Model =
     { project : Data.Project
     , members : List Data.ProjectMember
     , membernames : Dict Int String
-
-    -- , description : String
-    -- , timeentries : TTotaler
-    -- , tepaginator : P.Model Msg
     , teamentries : TTotaler
     , teampaginator : P.Model Msg
     , payentries : Dict Int EditPayEntry
     , pepaginator : P.Model Msg
     , allocations : Dict Int EditAllocation
     , apaginator : P.Model Msg
-
-    -- , focusstart : String
-    -- , focusend : String
-    -- , focusduration : String
-    -- , focusdescription : String
-    -- , focus : Maybe ( Int, FocusColumn )
-    -- , focuspay : String
-    -- , focuspaydate : String
     , distributionhours : String
     , distributioncurrency : String
     , distribution : Maybe (TDict UserId Int String)
@@ -103,8 +91,6 @@ type alias Model =
 
 type Command
     = Done
-      -- | GetTime (Int -> Msg)
-      -- | GetCsv
     | SaveCsv String String
     | Settings
     | ShowError String
@@ -220,33 +206,6 @@ toEaDict a =
         |> Dict.fromList
 
 
-
-{-
-
-   onSavedProjectTime : List Data.TimeEntry -> Model -> Model
-   onSavedProjectTime te model =
-       let
-           ietes =
-               toEteDict te
-       in
-       { model
-           | timeentries = setTes model.timeentries ietes
-           , initialtimeentries = ietes
-       }
-
-
-   isDirty : Model -> Bool
-   isDirty model =
-       (getTes model.timeentries |> Dict.map (\_ te -> { te | checked = False }))
-           /= model.initialtimeentries
-           || (model.payentries |> Dict.map (\_ pe -> { pe | checked = False }))
-           /= model.initialpayentries
-           || (model.allocations |> Dict.map (\_ e -> { e | checked = False }))
-           /= model.initialallocations
-
--}
-
-
 init : Time.Zone -> Data.ProjectTime -> Int -> String -> Model
 init zone pt pageincrement mode =
     let
@@ -262,9 +221,6 @@ init zone pt pageincrement mode =
     { project = pt.project
     , members = pt.members
     , membernames = pt.members |> List.map (\m -> ( Data.getUserIdVal m.id, m.name )) |> Dict.fromList
-
-    -- , description = description
-    -- , timeentries = mkTToteler ietes (\te -> te.user == ld.userid) zone
     , teamentries = mkTToteler ietes (always True) zone
     , teampaginator = P.init TeamForward TeamBack TeamToStart TeamToEnd P.End pageincrement
     , payentries = iepes
@@ -272,25 +228,10 @@ init zone pt pageincrement mode =
     , allocations = ieas
     , apaginator = P.init AForward ABack AToStart AToEnd P.End pageincrement
     , viewmode = readViewMode mode |> Maybe.withDefault Team
-
-    -- , focusstart = ""
-    -- , focusend = ""
-    -- , focusduration = ""
-    -- , focusdescription = ""
-    -- , focus = Nothing
-    -- , focuspay = ""
-    -- , focuspaydate = ""
     , distributionhours = ""
     , distributioncurrency = ""
     , distribution = Nothing
     , dpaginator = P.init DForward DBack DToStart DToEnd P.End pageincrement
-
-    -- , allocdescription = ""
-    -- , allochours = ""
-    -- , alloccurrency = ""
-    -- , paymenthours = ""
-    -- , paymentcurrency = ""
-    -- , paymentuser = Nothing
     }
 
 
@@ -391,8 +332,6 @@ view loggedin size zone model =
 
                   else
                     E.none
-
-                -- , EI.button Common.buttonStyle { onPress = Just EditPress, label = E.text "edit project" }
                 , EI.button Common.buttonStyle { onPress = Just ExportAll, label = E.text "export" }
                 ]
             , viewModeBar model
@@ -790,30 +729,12 @@ distributionview size zone model =
             , ( "hours unpaid", unpaidtotes )
             ]
         , columns =
-            -- dummy checkboxes for alignment.  alpha 0 hides them.
-            { header =
-                EI.checkbox [ E.width E.shrink, E.alpha 0.0 ]
-                    { onChange = \_ -> Noop
-                    , icon = TC.checkboxIcon
-                    , checked = False
-                    , label = EI.labelHidden "alignment checkbox"
-                    }
-            , width = E.shrink
+            { header = E.el headerStyle <| E.text "totals"
+            , width = E.fill
             , view =
-                \_ ->
-                    EI.checkbox [ E.width E.shrink, E.alpha 0.0 ]
-                        { onChange = \_ -> Noop
-                        , icon = TC.checkboxIcon
-                        , checked = False
-                        , label = EI.labelHidden "alignment checkbox"
-                        }
+                \( title, _ ) ->
+                    E.el headerStyle <| E.text title
             }
-                :: { header = E.el headerStyle <| E.text "totals"
-                   , width = E.fill
-                   , view =
-                        \( title, _ ) ->
-                            E.el headerStyle <| E.text title
-                   }
                 :: (model.members
                         |> List.map
                             (\member ->
@@ -998,30 +919,12 @@ allocationview size zone model =
             , ( "hours allocated remaining", alloctote - timetote )
             ]
         , columns =
-            -- dummy checkboxes for alignment.  alpha 0 hides them.
-            { header =
-                EI.checkbox [ E.width E.shrink, E.alpha 0.0 ]
-                    { onChange = \_ -> Noop
-                    , icon = TC.checkboxIcon
-                    , checked = False
-                    , label = EI.labelHidden "alignment checkbox"
-                    }
-            , width = E.shrink
+            { header = E.el [ EF.bold ] <| E.el headerStyle <| E.text "totals"
+            , width = E.fill
             , view =
-                \_ ->
-                    EI.checkbox [ E.width E.shrink, E.alpha 0.0 ]
-                        { onChange = \_ -> Noop
-                        , icon = TC.checkboxIcon
-                        , checked = False
-                        , label = EI.labelHidden "alignment checkbox"
-                        }
+                \( title, _ ) ->
+                    E.el headerStyle <| E.text title
             }
-                :: { header = E.el [ EF.bold ] <| E.el headerStyle <| E.text "totals"
-                   , width = E.fill
-                   , view =
-                        \( title, _ ) ->
-                            E.el headerStyle <| E.text title
-                   }
                 :: { header = E.none
                    , width = E.fill
                    , view =
@@ -1109,30 +1012,12 @@ payview size zone model =
             , ( "hours allocated remaining", alloctote - timetote )
             ]
         , columns =
-            -- dummy checkboxes for alignment.  alpha 0 hides them.
-            { header =
-                EI.checkbox [ E.width E.shrink, E.alpha 0.0 ]
-                    { onChange = \_ -> Noop
-                    , icon = TC.checkboxIcon
-                    , checked = False
-                    , label = EI.labelHidden "alignment checkbox"
-                    }
-            , width = E.shrink
+            { header = E.el [ EF.bold ] <| E.el headerStyle <| E.text "totals"
+            , width = E.fill
             , view =
-                \_ ->
-                    EI.checkbox [ E.width E.shrink, E.alpha 0.0 ]
-                        { onChange = \_ -> Noop
-                        , icon = TC.checkboxIcon
-                        , checked = False
-                        , label = EI.labelHidden "alignment checkbox"
-                        }
+                \( title, _ ) ->
+                    E.el headerStyle <| E.text title
             }
-                :: { header = E.el [ EF.bold ] <| E.el headerStyle <| E.text "totals"
-                   , width = E.fill
-                   , view =
-                        \( title, _ ) ->
-                            E.el headerStyle <| E.text title
-                   }
                 :: { header = E.none
                    , width = E.fill
                    , view =
