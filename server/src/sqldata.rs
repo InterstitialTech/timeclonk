@@ -167,7 +167,6 @@ pub fn save_project_edit(
 ) -> Result<SavedProjectEdit, Box<dyn Error>> {
   let sp = save_project(conn, user, project_edit.project)?;
 
-  // TODO: user role
   for m in project_edit.members {
     if m.delete {
       conn.execute(
@@ -280,11 +279,9 @@ pub fn member_list(
           id: row.get(0)?,
           name: row.get(1)?,
           role: role,
-          // role: row.get(2)?,
         }),
-        // Err(_) => Err(rusqlite::Error::InvalidColumnName("meh".to_string())),
         Err(_) => {
-          println!("errorrrr {:?}", row.get::<usize, String>(2));
+          // TODO this is a misuse of the rusqlite error.
           Err(rusqlite::Error::InvalidColumnType(
             2,
             "role".to_string(),
