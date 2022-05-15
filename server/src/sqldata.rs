@@ -178,7 +178,8 @@ pub fn save_project_edit(
     } else {
       conn.execute(
         "insert into projectmember (project, user, role)
-         values (?1, ?2, ?3)",
+         values (?1, ?2, ?3)
+         on conflict (project, user) do update set role = ?3",
         params![sp.id, m.id, m.role.to_string().as_str()],
       )?;
     }

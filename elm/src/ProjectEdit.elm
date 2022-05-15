@@ -117,6 +117,22 @@ toSaveProjectEdit model =
                     |> TDict.values
                     |> List.map (\m -> { id = m.id, delete = True, role = m.role })
                )
+            ++ (model.initialMembers
+                    |> TDict.values
+                    |> List.filterMap
+                        (\member ->
+                            TDict.get member.id model.members
+                                |> Maybe.andThen
+                                    (\m ->
+                                        if m.role == member.role then
+                                            Nothing
+
+                                        else
+                                            Just m
+                                    )
+                        )
+                    |> List.map (\m -> { id = m.id, delete = False, role = m.role })
+               )
     }
 
 
