@@ -71,7 +71,8 @@ type Msg
     | UrlChanged Url
     | WindowSize Util.Size
     | DisplayMessageMsg (GD.Msg DisplayMessage.Msg)
-    | SelectDialogMsg (GD.Msg (SS.Msg Data.User))
+    | SelectUserDialogMsg (GD.Msg (SS.Msg Data.User))
+    | SelectRoleDialogMsg (GD.Msg (SS.Msg ( Data.UserId, Data.Role )))
     | ChangePasswordDialogMsg (GD.Msg CP.Msg)
     | ChangeEmailDialogMsg (GD.Msg CE.Msg)
     | ResetPasswordMsg ResetPassword.Msg
@@ -93,7 +94,8 @@ type State
     | ShowMessage ShowMessage.Model Data.LoginData (Maybe State)
     | PubShowMessage ShowMessage.Model (Maybe State)
     | LoginShowMessage ShowMessage.Model Data.LoginData Url
-    | SelectDialog (SS.GDModel Data.User) State
+    | SelectUserDialog (SS.GDModel Data.User) State
+    | SelectRoleDialog (SS.GDModel ( Data.UserId, Data.Role )) State
     | ChangePasswordDialog CP.GDModel State
     | ChangeEmailDialog CE.GDModel State
     | ResetPassword ResetPassword.Model
@@ -388,8 +390,11 @@ showMessage msg =
         ReceiveLocalVal _ ->
             "ReceiveLocalVal"
 
-        SelectDialogMsg _ ->
-            "SelectDialogMsg"
+        SelectUserDialogMsg _ ->
+            "SelectUserDialogMsg"
+
+        SelectRoleDialogMsg _ ->
+            "SelectRoleDialogMsg"
 
         ChangePasswordDialogMsg _ ->
             "ChangePasswordDialogMsg"
@@ -443,8 +448,11 @@ showState state =
         Wait _ _ ->
             "Wait"
 
-        SelectDialog _ _ ->
+        SelectUserDialog _ _ ->
             "SelectDialog"
+
+        SelectRoleDialog _ _ ->
+            "SelectRoleDialog"
 
         ChangePasswordDialog _ _ ->
             "ChangePasswordDialog"
@@ -505,7 +513,11 @@ viewState size state model =
         Wait innerState _ ->
             E.map (\_ -> Noop) (viewState size innerState model)
 
-        SelectDialog _ _ ->
+        SelectUserDialog _ _ ->
+            -- render is at the layout level, not here.
+            E.none
+
+        SelectRoleDialog _ _ ->
             -- render is at the layout level, not here.
             E.none
 
@@ -557,7 +569,10 @@ stateLogin state =
         Wait wstate _ ->
             stateLogin wstate
 
-        SelectDialog _ instate ->
+        SelectUserDialog _ instate ->
+            stateLogin instate
+
+        SelectRoleDialog _ instate ->
             stateLogin instate
 
         ChangePasswordDialog _ instate ->
@@ -648,8 +663,14 @@ view model =
                         (Just { width = min 600 model.size.width, height = min 500 model.size.height })
                         dm
 
-            SelectDialog sdm _ ->
-                Html.map SelectDialogMsg <|
+            SelectUserDialog sdm _ ->
+                Html.map SelectUserDialogMsg <|
+                    GD.layout
+                        (Just { width = min 600 model.size.width, height = min 500 model.size.height })
+                        sdm
+
+            SelectRoleDialog sdm _ ->
+                Html.map SelectRoleDialogMsg <|
                     GD.layout
                         (Just { width = min 600 model.size.width, height = min 500 model.size.height })
                         sdm
@@ -1287,7 +1308,7 @@ actualupdate msg model =
                                     in
                                     ( { model
                                         | state =
-                                            SelectDialog
+                                            SelectUserDialog
                                                 (SS.init
                                                     { choices = somems |> TDict.values |> List.map (\m -> ( m, m.name ))
                                                     , selected = Nothing
@@ -1350,15 +1371,15 @@ actualupdate msg model =
         ( ChangeEmailDialogMsg GD.Noop, _ ) ->
             ( model, Cmd.none )
 
-        ( SelectDialogMsg sdmsg, SelectDialog sdmod instate ) ->
+        ( SelectUserDialogMsg sdmsg, SelectUserDialog sdmod instate ) ->
             case GD.update sdmsg sdmod of
                 GD.Dialog nmod ->
-                    ( { model | state = SelectDialog nmod instate }, Cmd.none )
+                    ( { model | state = SelectUserDialog nmod instate }, Cmd.none )
 
                 GD.Ok return ->
                     case instate of
                         ProjectEdit pemod login ->
-                            ( { model | state = ProjectEdit (ProjectEdit.addMember return Data.Member pemod) login }
+                            ( { model | state = ProjectEdit (ProjectEdit.addMember return Data.Observer pemod) login }
                             , Cmd.none
                             )
 
@@ -1373,7 +1394,28 @@ actualupdate msg model =
                 GD.Cancel ->
                     ( { model | state = instate }, Cmd.none )
 
-        ( SelectDialogMsg GD.Noop, _ ) ->
+        ( SelectRoleDialogMsg sdmsg, SelectRoleDialog sdmod instate ) ->
+            case GD.update sdmsg sdmod of
+                GD.Dialog nmod ->
+                    ( { model | state = SelectRoleDialog nmod instate }, Cmd.none )
+
+                GD.Ok return ->
+                    case instate of
+                        ProjectEdit pemod login ->
+                            ( { model | state = ProjectEdit (ProjectEdit.setRole return pemod) login }
+                            , Cmd.none
+                            )
+
+                        _ ->
+                            ( { model | state = instate }, Cmd.none )
+
+                GD.Cancel ->
+                    ( { model | state = instate }, Cmd.none )
+
+        ( SelectUserDialogMsg GD.Noop, _ ) ->
+            ( model, Cmd.none )
+
+        ( SelectRoleDialogMsg GD.Noop, _ ) ->
             ( model, Cmd.none )
 
         ( DisplayMessageMsg GD.Noop, _ ) ->
@@ -1458,6 +1500,28 @@ handleProjectEdit model ( nm, cmd ) login =
             , sendTIMsg model.location <| TI.GetAllUsers
             )
 
+        ProjectEdit.SelectRole id ->
+            ( { model
+                | state =
+                    SelectRoleDialog
+                        (SS.init
+                            { choices =
+                                [ Data.Member
+                                , Data.Admin
+                                , Data.Observer
+                                ]
+                                    |> List.map (\r -> ( ( id, r ), Data.showRole r ))
+                            , selected = Nothing
+                            , search = ""
+                            }
+                            Common.buttonStyle
+                            (E.map (always ()) (ProjectEdit.view login model.size nm))
+                        )
+                        (ProjectEdit nm login)
+              }
+            , Cmd.none
+            )
+
         ProjectEdit.Done ->
             ( { model | state = ProjectEdit nm login }
             , sendTIMsg model.location <| TI.GetProjectList login.userid
@@ -1522,7 +1586,7 @@ handleProjectTime model ( nm, cmd ) login =
         ProjectTime.SelectMember members ->
             ( { model
                 | state =
-                    SelectDialog
+                    SelectUserDialog
                         (SS.init
                             { choices = members |> List.map (\m -> ( m, m.name ))
                             , selected = Nothing

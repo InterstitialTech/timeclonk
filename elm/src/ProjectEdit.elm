@@ -31,6 +31,7 @@ type Msg
     | SettingsPress
     | NewPress
     | AddMemberPress
+    | SelectRolePress UserId
     | TogglePublic Bool
     | Noop
 
@@ -54,6 +55,7 @@ type Command
     = Save Data.SaveProjectEdit
     | New
     | AddMember
+    | SelectRole UserId
     | Done
     | Settings
     | None
@@ -145,6 +147,18 @@ onSavedProjectEdit spe model =
 addMember : Data.User -> Data.Role -> Model -> Model
 addMember pm role model =
     { model | members = TDict.insert pm.id { id = pm.id, name = pm.name, role = role } model.members }
+
+
+setRole : ( Data.UserId, Data.Role ) -> Model -> Model
+setRole ( id, role ) model =
+    { model
+        | members =
+            TDict.update id
+                (Maybe.map
+                    (\user -> { user | role = role })
+                )
+                model.members
+    }
 
 
 isDirty : Model -> Bool
@@ -370,7 +384,15 @@ view ld size model =
                     { data = TDict.values model.members
                     , columns =
                         [ { header = E.el [ EF.underline ] <| E.text "member", width = E.shrink, view = \m -> E.text m.name }
-                        , { header = E.el [ EF.underline ] <| E.text "role", width = E.shrink, view = \m -> E.text (Data.showRole m.role) }
+                        , { header = E.el [ EF.underline ] <| E.text "role"
+                          , width = E.shrink
+                          , view =
+                                \m ->
+                                    EI.button Common.buttonStyle
+                                        { onPress = Just <| SelectRolePress m.id
+                                        , label = E.text (Data.showRole m.role)
+                                        }
+                          }
                         ]
                     }
                 ]
@@ -409,6 +431,9 @@ update msg model ld =
 
         AddMemberPress ->
             ( model, AddMember )
+
+        SelectRolePress id ->
+            ( model, SelectRole id )
 
         TogglePublic b ->
             ( { model | public = b }, None )
