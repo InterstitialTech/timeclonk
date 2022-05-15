@@ -231,18 +231,6 @@ fn main() {
 
 #[actix_web::main]
 async fn err_main() -> Result<(), Box<dyn Error>> {
-  println!("role: {:?}", serde_json::to_value(data::Role::Member)?);
-  println!(
-    "role2: {:?}",
-    serde_json::from_str::<serde_json::Value>("\"Member\"")
-  );
-  println!(
-    "role3: {:?}",
-    serde_json::from_value::<data::Role>(serde_json::from_str("\"Member\"")?)
-  );
-  println!("role4: {:?}", serde_json::to_string(&data::Role::Member));
-  println!("role5: {}", data::Role::Member);
-
   let matches = clap::App::new("timeclonk server")
     .version("1.0")
     .author("Ben Burdette")
