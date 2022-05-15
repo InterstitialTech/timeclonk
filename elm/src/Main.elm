@@ -509,7 +509,6 @@ viewState size state model =
             -- render is at the layout level, not here.
             E.none
 
-        -- E.map DisplayMessageMsg <| DisplayMessage.view em
         Wait innerState _ ->
             E.map (\_ -> Noop) (viewState size innerState model)
 
@@ -877,6 +876,48 @@ displayMessageDialog model message =
     }
 
 
+openProjectTime : Model -> String -> Data.ProjectTime -> ( Model, Cmd Msg )
+openProjectTime model mode pt =
+    case stateLogin model.state of
+        Just login ->
+            let
+                mbrole =
+                    List.foldl
+                        (\m mbr ->
+                            if m.id == login.userid then
+                                Just m.role
+
+                            else
+                                mbr
+                        )
+                        Nothing
+                        pt.members
+            in
+            let
+                obs =
+                    case mbrole of
+                        Just Data.Observer ->
+                            True
+
+                        Just Data.Member ->
+                            False
+
+                        Just Data.Admin ->
+                            False
+
+                        Nothing ->
+                            True
+            in
+            if obs then
+                ( { model | state = ProjectView (ProjectView.init model.timezone pt model.pageincrement mode) (Just login) }, Cmd.none )
+
+            else
+                ( { model | state = ProjectTime (ProjectTime.init model.timezone login pt model.saveonclonk model.pageincrement mode) login }, Cmd.none )
+
+        Nothing ->
+            ( model, Cmd.none )
+
+
 actualupdate : Msg -> Model -> ( Model, Cmd Msg )
 actualupdate msg model =
     case ( msg, model.state ) of
@@ -1054,12 +1095,7 @@ actualupdate msg model =
                 Ok uiresponse ->
                     case uiresponse of
                         TI.ProjectTime x ->
-                            case stateLogin state of
-                                Just login ->
-                                    ( { model | state = ProjectTime (ProjectTime.init model.timezone login x model.saveonclonk model.pageincrement mode) login }, Cmd.none )
-
-                                Nothing ->
-                                    ( model, Cmd.none )
+                            openProjectTime model mode x
 
                         _ ->
                             ( unexpectedMsg model msg
@@ -1276,12 +1312,7 @@ actualupdate msg model =
                                     ( { model | state = ProjectTime (ProjectTime.onProjectTime model.timezone login x st) login }, Cmd.none )
 
                                 _ ->
-                                    case stateLogin state of
-                                        Just login ->
-                                            ( { model | state = ProjectTime (ProjectTime.init model.timezone login x model.saveonclonk model.pageincrement "") login }, Cmd.none )
-
-                                        Nothing ->
-                                            ( model, Cmd.none )
+                                    openProjectTime model "" x
 
                         TI.SavedProjectEdit x ->
                             case state of
