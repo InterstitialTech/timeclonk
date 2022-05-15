@@ -252,6 +252,11 @@ stateRoute state =
             , save = True
             }
 
+        ProjectView mod _ ->
+            { route = ProjectViewR (Data.getProjectIdVal mod.project.id) (ProjectView.showViewMode mod.viewmode)
+            , save = True
+            }
+
         _ ->
             { route = Top
             , save = False
@@ -541,7 +546,7 @@ viewState size state model =
             E.map ProjectTimeMsg <| ProjectTime.view ld size model.timezone em
 
         ProjectView em ld ->
-            E.map ProjectViewMsg <| ProjectView.view size model.timezone em
+            E.map ProjectViewMsg <| ProjectView.view (Util.isJust ld) size model.timezone em
 
 
 stateLogin : State -> Maybe Data.LoginData
@@ -1638,25 +1643,29 @@ handleProjectTime model ( nm, cmd ) login =
 handleProjectView : Model -> ( ProjectView.Model, ProjectView.Command ) -> Maybe Data.LoginData -> ( Model, Cmd Msg )
 handleProjectView model ( nm, cmd ) mblogin =
     case cmd of
-        -- ProjectView.GetTime tomsg ->
-        --     ( { model | state = ProjectView nm mblogin }
-        --     , Task.perform (Time.posixToMillis >> tomsg >> ProjectView) Time.now
-        --     )
         ProjectView.Done ->
-            -- ( { model | state = ProjectView nm mblogin }
-            -- , sendTIMsg model.location <| TI.GetProjectList mblogin.userid
-            -- )
-            ( model, Cmd.none )
+            case mblogin of
+                Just login ->
+                    ( { model | state = ProjectView nm mblogin }
+                    , sendTIMsg model.location <| TI.GetProjectList login.userid
+                    )
+
+                Nothing ->
+                    ( model, Cmd.none )
 
         ProjectView.Settings ->
-            ( model, Cmd.none )
+            case mblogin of
+                Just login ->
+                    ( { model
+                        | state =
+                            UserSettings (UserSettings.init login model.fontsize model.saveonclonk model.pageincrement) login model.state
+                      }
+                    , Cmd.none
+                    )
 
-        -- ( { model
-        --     | state =
-        --         UserSettings (UserSettings.init mblogin model.fontsize model.saveonclonk model.pageincrement) mblogin model.state
-        --   }
-        -- , Cmd.none
-        -- )
+                Nothing ->
+                    ( model, Cmd.none )
+
         ProjectView.SaveCsv filename csvstring ->
             ( { model | state = ProjectView nm mblogin }
             , FD.string filename "text/csv" csvstring

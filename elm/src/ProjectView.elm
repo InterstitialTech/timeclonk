@@ -353,8 +353,8 @@ viewModeBar model =
         ]
 
 
-view : Util.Size -> Time.Zone -> Model -> Element Msg
-view size zone model =
+view : Bool -> Util.Size -> Time.Zone -> Model -> Element Msg
+view loggedin size zone model =
     let
         maxwidth =
             700
@@ -375,14 +375,22 @@ view size zone model =
             , EBk.color TC.lightGrey
             ]
         <|
-            [ E.row [ E.spacing TC.defaultSpacing, E.width E.fill ]
-                [ EI.button
-                    (E.alignRight :: Common.buttonStyle)
-                    { onPress = Just SettingsPress, label = E.text "settings" }
-                ]
+            [ if loggedin then
+                E.row [ E.spacing TC.defaultSpacing, E.width E.fill ]
+                    [ EI.button
+                        (E.alignRight :: Common.buttonStyle)
+                        { onPress = Just SettingsPress, label = E.text "settings" }
+                    ]
+
+              else
+                E.none
             , E.row [ E.spacing TC.defaultSpacing ] [ E.text "project:", E.el [ EF.bold ] <| E.text model.project.name ]
             , E.row [ E.spacing TC.defaultSpacing ] <|
-                [ EI.button Common.buttonStyle { onPress = Just DonePress, label = E.text "<-" }
+                [ if loggedin then
+                    EI.button Common.buttonStyle { onPress = Just DonePress, label = E.text "<-" }
+
+                  else
+                    E.none
 
                 -- , EI.button Common.buttonStyle { onPress = Just EditPress, label = E.text "edit project" }
                 , EI.button Common.buttonStyle { onPress = Just ExportAll, label = E.text "export" }
