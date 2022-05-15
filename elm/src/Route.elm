@@ -8,10 +8,6 @@ import Url.Parser as UP exposing ((</>))
 
 type Route
     = LoginR
-      -- | PublicZkNote Int
-      -- | PublicZkPubId String
-      -- | EditZkNoteR Int
-      -- | EditZkNoteNew
     | ProjectEditR Int
     | ProjectTimeR Int String
     | ProjectViewR Int String
@@ -35,14 +31,6 @@ routeTitle appname route =
         ProjectViewR id mode ->
             "project view " ++ String.fromInt id ++ " " ++ mode
 
-        -- PublicZkNote id ->
-        --     "zknote " ++ String.fromInt id
-        -- PublicZkPubId id ->
-        --     id ++ " - zknotes"
-        -- EditZkNoteR id ->
-        --     "zknote " ++ String.fromInt id
-        -- EditZkNoteNew ->
-        --     "new zknote"
         ResetPasswordR _ _ ->
             "password reset"
 
@@ -60,23 +48,6 @@ parseUrl url =
             [ UP.map LoginR <|
                 UP.s
                     "login"
-
-            -- , UP.map PublicZkNote <|
-            --     UP.s
-            --         "note"
-            --         </> UP.int
-            -- , UP.map (\i -> PublicZkPubId (Maybe.withDefault "" (Url.percentDecode i))) <|
-            --     UP.s
-            --         "page"
-            --         </> UP.string
-            -- , UP.map EditZkNoteR <|
-            --     UP.s
-            --         "editnote"
-            --         </> UP.int
-            -- , UP.map EditZkNoteNew <|
-            --     UP.s
-            --         "editnote"
-            --         </> UP.s "new"
             , UP.map ResetPasswordR <|
                 UP.s
                     "reset"
@@ -111,14 +82,6 @@ routeUrl route =
         LoginR ->
             UB.absolute [ "login" ] []
 
-        -- PublicZkNote id ->
-        --     UB.absolute [ "note", String.fromInt id ] []
-        -- PublicZkPubId pubid ->
-        --     UB.absolute [ "page", pubid ] []
-        -- EditZkNoteR id ->
-        --     UB.absolute [ "editnote", String.fromInt id ] []
-        -- EditZkNoteNew ->
-        --     UB.absolute [ "editnote", "new" ] []
         ResetPasswordR user key ->
             UB.absolute [ "reset", user, UUID.toString key ] []
 
