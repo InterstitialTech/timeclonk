@@ -201,15 +201,6 @@ fn defcon() -> Config {
   Config {
     ip: "127.0.0.1".to_string(),
     port: 8000,
-    // createdirs: false,
-    // db: PathBuf::from("./myapp.db"),
-    // mainsite: "http://localhost:8001".to_string(),
-    // appname: "myappname".to_string(),
-    // domain: "localhost:8001".to_string(),
-    // admin_email: "admin@admin.admin".to_string(),
-    // login_token_expiration_ms: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
-    // email_token_expiration_ms: 1 * 24 * 60 * 60 * 1000, // 1 day in milliseconds
-    // reset_token_expiration_ms: 1 * 24 * 60 * 60 * 1000, // 1 day in milliseconds
     static_path: None,
     orgauth_config: oc,
   }

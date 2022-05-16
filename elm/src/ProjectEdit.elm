@@ -10,6 +10,7 @@ import Element.Border as EBd
 import Element.Font as EF
 import Element.Input as EI
 import Element.Region
+import Route
 import SelectString
 import TDict exposing (TDict)
 import TangoColors as TC
@@ -30,6 +31,7 @@ type Msg
     | SettingsPress
     | NewPress
     | AddMemberPress
+    | SelectRolePress UserId
     | TogglePublic Bool
     | Noop
 
@@ -53,6 +55,7 @@ type Command
     = Save Data.SaveProjectEdit
     | New
     | AddMember
+    | SelectRole UserId
     | Done
     | Settings
     | None
@@ -108,11 +111,27 @@ toSaveProjectEdit model =
     , members =
         (TDict.diff model.members model.initialMembers
             |> TDict.values
-            |> List.map (\m -> { id = m.id, delete = False })
+            |> List.map (\m -> { id = m.id, delete = False, role = m.role })
         )
             ++ (TDict.diff model.initialMembers model.members
                     |> TDict.values
-                    |> List.map (\m -> { id = m.id, delete = True })
+                    |> List.map (\m -> { id = m.id, delete = True, role = m.role })
+               )
+            ++ (model.initialMembers
+                    |> TDict.values
+                    |> List.filterMap
+                        (\member ->
+                            TDict.get member.id model.members
+                                |> Maybe.andThen
+                                    (\m ->
+                                        if m.role == member.role then
+                                            Nothing
+
+                                        else
+                                            Just m
+                                    )
+                        )
+                    |> List.map (\m -> { id = m.id, delete = False, role = m.role })
                )
     }
 
@@ -141,9 +160,21 @@ onSavedProjectEdit spe model =
     }
 
 
-addMember : Data.ProjectMember -> Model -> Model
-addMember pm model =
-    { model | members = TDict.insert pm.id pm model.members }
+addMember : Data.User -> Data.Role -> Model -> Model
+addMember pm role model =
+    { model | members = TDict.insert pm.id { id = pm.id, name = pm.name, role = role } model.members }
+
+
+setRole : ( Data.UserId, Data.Role ) -> Model -> Model
+setRole ( id, role ) model =
+    { model
+        | members =
+            TDict.update id
+                (Maybe.map
+                    (\user -> { user | role = role })
+                )
+                model.members
+    }
 
 
 isDirty : Model -> Bool
@@ -330,12 +361,27 @@ view ld size model =
                             []
                             (E.text "currency")
                     }
-                , EI.checkbox []
-                    { onChange = TogglePublic
-                    , icon = EI.defaultCheckbox
-                    , checked = model.public
-                    , label = EI.labelLeft [] (E.text "public")
-                    }
+                , E.row [ E.spacing 8 ]
+                    [ EI.checkbox []
+                        { onChange = TogglePublic
+                        , icon = EI.defaultCheckbox
+                        , checked = model.public
+                        , label = EI.labelLeft [] (E.text "public")
+                        }
+                    , case ( model.public, model.id ) of
+                        ( True, Just id ) ->
+                            let
+                                u =
+                                    Route.routeUrl <| Route.ProjectViewR (Data.getProjectIdVal id) "team"
+                            in
+                            E.link Common.linkStyle
+                                { url = u
+                                , label = E.text u
+                                }
+
+                        _ ->
+                            E.none
+                    ]
                 ]
             , E.column
                 [ E.padding 8
@@ -345,12 +391,27 @@ view ld size model =
                 , EBk.color TC.white
                 , E.spacing TC.defaultSpacing
                 ]
-                (E.row [ E.spacing 10 ]
+                -- table listing member roles.
+                [ E.row [ E.spacing 10 ]
                     [ E.el [ EF.bold ] <| E.text "members"
                     , EI.button Common.buttonStyle { onPress = Just AddMemberPress, label = E.text "add" }
                     ]
-                    :: (model.members |> TDict.values |> List.map (\m -> E.text m.name))
-                )
+                , E.table [ E.spacing 10 ]
+                    { data = TDict.values model.members
+                    , columns =
+                        [ { header = E.el [ EF.underline ] <| E.text "member", width = E.shrink, view = \m -> E.text m.name }
+                        , { header = E.el [ EF.underline ] <| E.text "role"
+                          , width = E.shrink
+                          , view =
+                                \m ->
+                                    EI.button Common.buttonStyle
+                                        { onPress = Just <| SelectRolePress m.id
+                                        , label = E.text (Data.showRole m.role)
+                                        }
+                          }
+                        ]
+                    }
+                ]
             ]
 
 
@@ -386,6 +447,9 @@ update msg model ld =
 
         AddMemberPress ->
             ( model, AddMember )
+
+        SelectRolePress id ->
+            ( model, SelectRole id )
 
         TogglePublic b ->
             ( { model | public = b }, None )

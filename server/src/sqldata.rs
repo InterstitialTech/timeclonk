@@ -1,7 +1,7 @@
 use crate::data::{
-  Allocation, ListProject, PayEntry, Project, ProjectEdit, ProjectMember, ProjectTime,
+  Allocation, ListProject, PayEntry, Project, ProjectEdit, ProjectMember, ProjectTime, Role,
   SaveAllocation, SavePayEntry, SaveProject, SaveProjectEdit, SaveProjectTime, SaveTimeEntry,
-  SavedProject, SavedProjectEdit, TimeEntry,
+  SavedProject, SavedProjectEdit, TimeEntry, User,
 };
 use crate::migrations as tm;
 use barrel::backend::Sqlite;
@@ -10,6 +10,7 @@ use orgauth::util::now;
 use rusqlite::{params, Connection};
 use std::error::Error;
 use std::path::Path;
+use std::str::FromStr;
 use std::time::Duration;
 
 pub fn on_new_user(
@@ -109,6 +110,11 @@ pub fn dbinit(dbfile: &Path, token_expiration_ms: i64) -> Result<(), Box<dyn Err
     tm::udpate5(&dbfile)?;
     set_single_value(&conn, "migration_level", "5")?;
   }
+  if nlevel < 6 {
+    info!("udpate6");
+    tm::udpate6(&dbfile)?;
+    set_single_value(&conn, "migration_level", "6")?;
+  }
 
   info!("db up to date.");
 
@@ -118,6 +124,21 @@ pub fn dbinit(dbfile: &Path, token_expiration_ms: i64) -> Result<(), Box<dyn Err
 }
 
 // --------------------------------------------------------
+
+pub fn member_role(conn: &Connection, uid: i64, pid: i64) -> Result<Option<Role>, Box<dyn Error>> {
+  match conn.query_row(
+    "select role from projectmember where project = ?1 and user = ?2",
+    params![pid, uid],
+    |row| Ok(row.get::<usize, String>(0)?),
+  ) {
+    Ok(v) => match Role::from_str(v.as_str()) {
+      Ok(r) => Ok(Some(r)),
+      Err(_) => Ok(None),
+    },
+    Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+    Err(x) => Err(Box::new(x)),
+  }
+}
 
 pub fn project_list(conn: &Connection, uid: i64) -> Result<Vec<ListProject>, Box<dyn Error>> {
   let mut pstmt = conn.prepare(
@@ -139,7 +160,6 @@ pub fn project_list(conn: &Connection, uid: i64) -> Result<Vec<ListProject>, Box
   r
 }
 
-// password reset request.
 pub fn save_project_edit(
   conn: &Connection,
   user: i64,
@@ -150,21 +170,22 @@ pub fn save_project_edit(
   for m in project_edit.members {
     if m.delete {
       conn.execute(
-        "insert into projectmember (project, user)
-         values (?1, ?2)",
+        "delete from projectmember
+         where user = ?1 and project = ?2",
         params![sp.id, m.id],
       )?;
     } else {
       conn.execute(
-        "insert into projectmember (project, user)
-         values (?1, ?2)",
-        params![sp.id, m.id],
+        "insert into projectmember (project, user, role)
+         values (?1, ?2, ?3)
+         on conflict (project, user) do update set role = ?3",
+        params![sp.id, m.id, m.role.to_string().as_str()],
       )?;
     }
   }
 
-  let proj = read_project(conn, user, sp.id)?;
-  let mems = member_list(conn, user, Some(sp.id))?;
+  let proj = read_project(conn, sp.id)?;
+  let mems = member_list(conn, sp.id)?;
 
   Ok(SavedProjectEdit {
     project: proj,
@@ -221,19 +242,13 @@ pub fn save_project(
   Ok(proj)
 }
 
-pub fn read_project(
-  conn: &Connection,
-  uid: i64,
-  projectid: i64,
-) -> Result<Project, Box<dyn Error>> {
+pub fn read_project(conn: &Connection, projectid: i64) -> Result<Project, Box<dyn Error>> {
   let mut pstmt = conn.prepare(
     "select project.id, project.name, project.description, project.public, project.rate, project.currency, project.createdate, project.changeddate
       from project, projectmember where
-      project.id = projectmember.project and
-      projectmember.user = ?1 and
-      project.id = ?2",
+      project.id = ?1",
   )?;
-  let r = Ok(pstmt.query_row(params![uid, projectid], |row| {
+  let r = Ok(pstmt.query_row(params![projectid], |row| {
     Ok(Project {
       id: row.get(0)?,
       name: row.get(1)?,
@@ -250,73 +265,74 @@ pub fn read_project(
 
 pub fn member_list(
   conn: &Connection,
-  _uid: i64,
-  projectid: Option<i64>,
+  projectid: i64,
 ) -> Result<Vec<ProjectMember>, Box<dyn Error>> {
-  let r = match projectid {
-    Some(projectid) => {
-      let mut pstmt = conn.prepare(
-        "select orgauth_user.id, orgauth_user.name from orgauth_user, projectmember where
+  let mut pstmt = conn.prepare(
+        "select orgauth_user.id, orgauth_user.name, projectmember.role from orgauth_user, projectmember where
           orgauth_user.id = projectmember.user and
           projectmember.project = ?1",
       )?;
-      let r = pstmt
-        .query_map(params![projectid], |row| {
-          Ok(ProjectMember {
-            id: row.get(0)?,
-            name: row.get(1)?,
-          })
-        })?
-        .filter_map(|x| x.ok())
-        .collect();
-      Ok(r)
-    }
-    None => {
-      let mut pstmt =
-        conn.prepare("select orgauth_user.id, orgauth_user.name from orgauth_user")?;
-      let r = pstmt
-        .query_map(params![], |row| {
-          Ok(ProjectMember {
-            id: row.get(0)?,
-            name: row.get(1)?,
-          })
-        })?
-        .filter_map(|x| x.ok())
-        .collect();
-      Ok(r)
-    }
-  };
-  r
+  let r = pstmt
+    .query_map(params![projectid], |row| {
+      match Role::from_str(row.get::<usize, String>(2)?.as_str()) {
+        Ok(role) => Ok(ProjectMember {
+          id: row.get(0)?,
+          name: row.get(1)?,
+          role: role,
+        }),
+        Err(_) => {
+          // TODO this is a misuse of the rusqlite error.
+          Err(rusqlite::Error::InvalidColumnType(
+            2,
+            "role".to_string(),
+            rusqlite::types::Type::Text,
+          ))
+        }
+      }
+    })?
+    .filter_map(|x| x.ok())
+    .collect();
+
+  // TODO: return error in case of error, instead of just leaving records out.
+
+  Ok(r)
 }
 
-pub fn read_project_edit(
-  conn: &Connection,
-  uid: i64,
-  projectid: i64,
-) -> Result<ProjectEdit, Box<dyn Error>> {
-  let proj = read_project(conn, uid, projectid)?;
-  let members = member_list(conn, uid, Some(projectid))?;
+pub fn user_list(conn: &Connection) -> Result<Vec<User>, Box<dyn Error>> {
+  let mut pstmt = conn.prepare("select orgauth_user.id, orgauth_user.name from orgauth_user")?;
+  let r = pstmt
+    .query_map(params![], |row| {
+      Ok(User {
+        id: row.get(0)?,
+        name: row.get(1)?,
+      })
+    })?
+    .filter_map(|x| x.ok())
+    .collect();
+
+  // TODO: return error in case of error, instead of just leaving records out.
+
+  Ok(r)
+}
+
+pub fn read_project_edit(conn: &Connection, projectid: i64) -> Result<ProjectEdit, Box<dyn Error>> {
+  let proj = read_project(conn, projectid)?;
+  let members = member_list(conn, projectid)?;
   Ok(ProjectEdit {
     project: proj,
     members: members,
   })
 }
 
-pub fn time_entries(
-  conn: &Connection,
-  uid: i64,
-  projectid: i64,
-) -> Result<Vec<TimeEntry>, Box<dyn Error>> {
+pub fn time_entries(conn: &Connection, projectid: i64) -> Result<Vec<TimeEntry>, Box<dyn Error>> {
   let mut pstmt = conn.prepare(
     "select te.id, te.project, te.user, te.description, te.startdate, te.enddate, te.ignore, te.createdate, te.changeddate, te.creator
-          from timeentry te, projectmember pm where
-    te.project = ?1 and
-    te.project = pm.project and
-    pm.user = ?2",
+          from timeentry te where
+    te.project = ?1",
   )?;
   let r = Ok(
     pstmt
-      .query_map(params![projectid, uid], |row| {
+      .query_map(params![projectid], |row| {
         Ok(TimeEntry {
           id: row.get(0)?,
           project: row.get(1)?,
@@ -336,21 +352,15 @@ pub fn time_entries(
   r
 }
 
-pub fn pay_entries(
-  conn: &Connection,
-  uid: i64,
-  projectid: i64,
-) -> Result<Vec<PayEntry>, Box<dyn Error>> {
+pub fn pay_entries(conn: &Connection, projectid: i64) -> Result<Vec<PayEntry>, Box<dyn Error>> {
   let mut pstmt = conn.prepare(
     "select  pe.id, pe.project, pe.user, pe.duration, pe.paymentdate, pe.description, pe.createdate, pe.changeddate, pe.creator
-          from payentry pe, projectmember pm where
-          pe.project = ?1 and
-          pe.project = pm.project and
-          pm.user = ?2",
+          from payentry pe where
+          pe.project = ?1",
   )?;
   let r = Ok(
     pstmt
-      .query_map(params![projectid, uid], |row| {
+      .query_map(params![projectid], |row| {
         Ok(PayEntry {
           id: row.get(0)?,
           project: row.get(1)?,
@@ -405,21 +415,15 @@ pub fn delete_pay_entry(conn: &Connection, _uid: i64, peid: i64) -> Result<(), B
   Ok(())
 }
 
-pub fn allocations(
-  conn: &Connection,
-  uid: i64,
-  projectid: i64,
-) -> Result<Vec<Allocation>, Box<dyn Error>> {
+pub fn allocations(conn: &Connection, projectid: i64) -> Result<Vec<Allocation>, Box<dyn Error>> {
   let mut pstmt = conn.prepare(
     "select  a.id, a.project, a.duration, a.allocationdate, a.description, a.createdate, a.changeddate, a.creator
           from allocation a, projectmember pm where
-          a.project = ?1 and
-          a.project = pm.project and
-          pm.user = ?2",
+          a.project = ?1",
   )?;
   let r = Ok(
     pstmt
-      .query_map(params![projectid, uid], |row| {
+      .query_map(params![projectid], |row| {
         Ok(Allocation {
           id: row.get(0)?,
           project: row.get(1)?,
@@ -488,16 +492,12 @@ pub fn is_project_member(
   }
 }
 
-pub fn read_project_time(
-  conn: &Connection,
-  uid: i64,
-  projectid: i64,
-) -> Result<ProjectTime, Box<dyn Error>> {
-  let proj = read_project(conn, uid, projectid)?;
-  let members = member_list(conn, uid, Some(projectid))?;
-  let timeentries = time_entries(conn, uid, projectid)?;
-  let payentries = pay_entries(conn, uid, projectid)?;
-  let allocations = allocations(conn, uid, projectid)?;
+pub fn read_project_time(conn: &Connection, projectid: i64) -> Result<ProjectTime, Box<dyn Error>> {
+  let proj = read_project(conn, projectid)?;
+  let members = member_list(conn, projectid)?;
+  let timeentries = time_entries(conn, projectid)?;
+  let payentries = pay_entries(conn, projectid)?;
+  let allocations = allocations(conn, projectid)?;
   Ok(ProjectTime {
     project: proj,
     members: members,
@@ -571,5 +571,5 @@ pub fn save_project_time(
     }
   }
 
-  read_project_time(conn, uid, spt.project)
+  read_project_time(conn, spt.project)
 }

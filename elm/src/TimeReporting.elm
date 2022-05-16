@@ -296,7 +296,7 @@ weekTotes zone timeentries =
             Dict.empty
 
 
-emptyUmDict : TDict UserId Int Data.ProjectMember
+emptyUmDict : TDict UserId Int Data.User
 emptyUmDict =
     TDict.empty Data.getUserIdVal Data.makeUserId
 

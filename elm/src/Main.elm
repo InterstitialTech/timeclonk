@@ -33,6 +33,8 @@ import Orgauth.UserInterface as UI
 import ProjectEdit
 import ProjectListing
 import ProjectTime
+import ProjectView
+import PublicInterface as PI
 import Random exposing (Seed, initialSeed)
 import Route exposing (Route(..), parseUrl, routeTitle, routeUrl)
 import SelectString as SS
@@ -59,14 +61,18 @@ type Msg
     | ShowMessageMsg ShowMessage.Msg
     | UserReplyData (Result Http.Error UI.ServerResponse)
     | TimeclonkReplyData (Result Http.Error TI.ServerResponse)
+    | PublicReplyData (Result Http.Error PI.ServerResponse)
     | ProjectTimeData String (Result Http.Error TI.ServerResponse)
+    | ProjectViewData String (Result Http.Error PI.ServerResponse)
+    | TProjectViewData String (Result Http.Error TI.ServerResponse)
     | LoadUrl String
     | InternalUrl Url
     | SelectedText JD.Value
     | UrlChanged Url
     | WindowSize Util.Size
     | DisplayMessageMsg (GD.Msg DisplayMessage.Msg)
-    | SelectDialogMsg (GD.Msg (SS.Msg Data.ProjectMember))
+    | SelectUserDialogMsg (GD.Msg (SS.Msg Data.User))
+    | SelectRoleDialogMsg (GD.Msg (SS.Msg ( Data.UserId, Data.Role )))
     | ChangePasswordDialogMsg (GD.Msg CP.Msg)
     | ChangeEmailDialogMsg (GD.Msg CE.Msg)
     | ResetPasswordMsg ResetPassword.Msg
@@ -75,6 +81,7 @@ type Msg
     | ReceiveLocalVal { for : String, name : String, value : Maybe String }
     | ClockTick Time.Posix
     | ProjectListingMsg ProjectListing.Msg
+    | ProjectViewMsg ProjectView.Msg
     | ProjectEditMsg ProjectEdit.Msg
     | ProjectTimeMsg ProjectTime.Msg
     | FileLoaded (String -> Msg) F.File
@@ -87,7 +94,8 @@ type State
     | ShowMessage ShowMessage.Model Data.LoginData (Maybe State)
     | PubShowMessage ShowMessage.Model (Maybe State)
     | LoginShowMessage ShowMessage.Model Data.LoginData Url
-    | SelectDialog (SS.GDModel Data.ProjectMember) State
+    | SelectUserDialog (SS.GDModel Data.User) State
+    | SelectRoleDialog (SS.GDModel ( Data.UserId, Data.Role )) State
     | ChangePasswordDialog CP.GDModel State
     | ChangeEmailDialog CE.GDModel State
     | ResetPassword ResetPassword.Model
@@ -95,6 +103,7 @@ type State
     | Wait State (Model -> Msg -> ( Model, Cmd Msg ))
     | ProjectListing ProjectListing.Model Data.LoginData
     | ProjectEdit ProjectEdit.Model Data.LoginData
+    | ProjectView ProjectView.Model (Maybe Data.LoginData)
     | ProjectTime ProjectTime.Model Data.LoginData
 
 
@@ -196,6 +205,18 @@ routeState model route =
             , sendTIMsgExp model.location (TI.GetProjectTime id) (ProjectTimeData mode)
             )
 
+        ProjectViewR id mode ->
+            case stateLogin model.state of
+                Just login ->
+                    ( (displayMessageDialog model "loading project").state
+                    , sendTIMsgExp model.location (TI.GetProjectTime id) (TProjectViewData mode)
+                    )
+
+                Nothing ->
+                    ( (displayMessageDialog model "loading project").state
+                    , sendPIMsgExp model.location (PI.GetProjectTime id) (ProjectViewData mode)
+                    )
+
 
 stateRoute : State -> SavedRoute
 stateRoute state =
@@ -228,6 +249,11 @@ stateRoute state =
 
         ProjectTime mod _ ->
             { route = ProjectTimeR (Data.getProjectIdVal mod.project.id) (ProjectTime.showViewMode mod.viewmode)
+            , save = True
+            }
+
+        ProjectView mod _ ->
+            { route = ProjectViewR (Data.getProjectIdVal mod.project.id) (ProjectView.showViewMode mod.viewmode)
             , save = True
             }
 
@@ -280,8 +306,54 @@ showMessage msg =
                            )
                    )
 
+        PublicReplyData urd ->
+            "PublicReplyData: "
+                ++ (Result.map PI.showServerResponse urd
+                        |> Result.mapError Util.httpErrorString
+                        |> (\r ->
+                                case r of
+                                    Ok m ->
+                                        "message: " ++ m
+
+                                    Err e ->
+                                        "error: " ++ e
+                           )
+                   )
+
         ProjectTimeData mode urd ->
             "ProjectTimeData: "
+                ++ (Result.map TI.showServerResponse urd
+                        |> Result.mapError Util.httpErrorString
+                        |> (\r ->
+                                case r of
+                                    Ok m ->
+                                        "message: " ++ m
+
+                                    Err e ->
+                                        "error: " ++ e
+                           )
+                   )
+                ++ "\nmode: "
+                ++ mode
+
+        ProjectViewData mode urd ->
+            "ProjectViewData: "
+                ++ (Result.map PI.showServerResponse urd
+                        |> Result.mapError Util.httpErrorString
+                        |> (\r ->
+                                case r of
+                                    Ok m ->
+                                        "message: " ++ m
+
+                                    Err e ->
+                                        "error: " ++ e
+                           )
+                   )
+                ++ "\nmode: "
+                ++ mode
+
+        TProjectViewData mode urd ->
+            "TProjectViewData: "
                 ++ (Result.map TI.showServerResponse urd
                         |> Result.mapError Util.httpErrorString
                         |> (\r ->
@@ -323,8 +395,11 @@ showMessage msg =
         ReceiveLocalVal _ ->
             "ReceiveLocalVal"
 
-        SelectDialogMsg _ ->
-            "SelectDialogMsg"
+        SelectUserDialogMsg _ ->
+            "SelectUserDialogMsg"
+
+        SelectRoleDialogMsg _ ->
+            "SelectRoleDialogMsg"
 
         ChangePasswordDialogMsg _ ->
             "ChangePasswordDialogMsg"
@@ -340,6 +415,9 @@ showMessage msg =
 
         ProjectListingMsg _ ->
             "ProjectListingMsg"
+
+        ProjectViewMsg _ ->
+            "ProjectViewMsg"
 
         ProjectEditMsg _ ->
             "ProjectEditMsg"
@@ -375,8 +453,11 @@ showState state =
         Wait _ _ ->
             "Wait"
 
-        SelectDialog _ _ ->
+        SelectUserDialog _ _ ->
             "SelectDialog"
+
+        SelectRoleDialog _ _ ->
+            "SelectRoleDialog"
 
         ChangePasswordDialog _ _ ->
             "ChangePasswordDialog"
@@ -395,6 +476,9 @@ showState state =
 
         ProjectTime _ _ ->
             "ProjectTime"
+
+        ProjectView _ _ ->
+            "ProjectView"
 
 
 unexpectedMsg : Model -> Msg -> Model
@@ -430,11 +514,14 @@ viewState size state model =
             -- render is at the layout level, not here.
             E.none
 
-        -- E.map DisplayMessageMsg <| DisplayMessage.view em
         Wait innerState _ ->
             E.map (\_ -> Noop) (viewState size innerState model)
 
-        SelectDialog _ _ ->
+        SelectUserDialog _ _ ->
+            -- render is at the layout level, not here.
+            E.none
+
+        SelectRoleDialog _ _ ->
             -- render is at the layout level, not here.
             E.none
 
@@ -457,6 +544,9 @@ viewState size state model =
 
         ProjectTime em ld ->
             E.map ProjectTimeMsg <| ProjectTime.view ld size model.timezone em
+
+        ProjectView em ld ->
+            E.map ProjectViewMsg <| ProjectView.view (Util.isJust ld) size model.timezone em
 
 
 stateLogin : State -> Maybe Data.LoginData
@@ -483,7 +573,10 @@ stateLogin state =
         Wait wstate _ ->
             stateLogin wstate
 
-        SelectDialog _ instate ->
+        SelectUserDialog _ instate ->
+            stateLogin instate
+
+        SelectRoleDialog _ instate ->
             stateLogin instate
 
         ChangePasswordDialog _ instate ->
@@ -504,6 +597,9 @@ stateLogin state =
         ProjectTime _ login ->
             Just login
 
+        ProjectView _ mblogin ->
+            mblogin
+
 
 sendTIMsg : String -> TI.SendMsg -> Cmd Msg
 sendTIMsg location msg =
@@ -516,6 +612,20 @@ sendTIMsgExp location msg tomsg =
         { url = location ++ "/private"
         , body = Http.jsonBody (TI.encodeSendMsg msg)
         , expect = Http.expectJson tomsg TI.serverResponseDecoder
+        }
+
+
+sendPIMsg : String -> PI.SendMsg -> Cmd Msg
+sendPIMsg location msg =
+    sendPIMsgExp location msg PublicReplyData
+
+
+sendPIMsgExp : String -> PI.SendMsg -> (Result Http.Error PI.ServerResponse -> Msg) -> Cmd Msg
+sendPIMsgExp location msg tomsg =
+    Http.post
+        { url = location ++ "/public"
+        , body = Http.jsonBody (PI.encodeSendMsg msg)
+        , expect = Http.expectJson tomsg PI.serverResponseDecoder
         }
 
 
@@ -557,8 +667,14 @@ view model =
                         (Just { width = min 600 model.size.width, height = min 500 model.size.height })
                         dm
 
-            SelectDialog sdm _ ->
-                Html.map SelectDialogMsg <|
+            SelectUserDialog sdm _ ->
+                Html.map SelectUserDialogMsg <|
+                    GD.layout
+                        (Just { width = min 600 model.size.width, height = min 500 model.size.height })
+                        sdm
+
+            SelectRoleDialog sdm _ ->
+                Html.map SelectRoleDialogMsg <|
                     GD.layout
                         (Just { width = min 600 model.size.width, height = min 500 model.size.height })
                         sdm
@@ -765,6 +881,48 @@ displayMessageDialog model message =
     }
 
 
+openProjectTime : Model -> String -> Data.ProjectTime -> ( Model, Cmd Msg )
+openProjectTime model mode pt =
+    case stateLogin model.state of
+        Just login ->
+            let
+                mbrole =
+                    List.foldl
+                        (\m mbr ->
+                            if m.id == login.userid then
+                                Just m.role
+
+                            else
+                                mbr
+                        )
+                        Nothing
+                        pt.members
+            in
+            let
+                obs =
+                    case mbrole of
+                        Just Data.Observer ->
+                            True
+
+                        Just Data.Member ->
+                            False
+
+                        Just Data.Admin ->
+                            False
+
+                        Nothing ->
+                            True
+            in
+            if obs then
+                ( { model | state = ProjectView (ProjectView.init model.timezone pt model.pageincrement mode) (Just login) }, Cmd.none )
+
+            else
+                ( { model | state = ProjectTime (ProjectTime.init model.timezone login pt model.saveonclonk model.pageincrement mode) login }, Cmd.none )
+
+        Nothing ->
+            ( model, Cmd.none )
+
+
 actualupdate : Msg -> Model -> ( Model, Cmd Msg )
 actualupdate msg model =
     case ( msg, model.state ) of
@@ -942,19 +1100,52 @@ actualupdate msg model =
                 Ok uiresponse ->
                     case uiresponse of
                         TI.ProjectTime x ->
-                            case stateLogin state of
-                                Just login ->
-                                    ( { model | state = ProjectTime (ProjectTime.init model.timezone login x model.saveonclonk model.pageincrement mode) login }, Cmd.none )
+                            openProjectTime model mode x
 
-                                Nothing ->
-                                    ( model, Cmd.none )
+                        _ ->
+                            ( unexpectedMsg model msg
+                            , Cmd.none
+                            )
 
-                        -- TI.NotLoggedIn ->
-                        --     case state of
-                        --         Login lmod ->
-                        --             ( { model | state = Login lmod }, Cmd.none )
-                        --         _ ->
-                        --             ( { model | state = Login <| Login.initialModel Nothing model.appname model.seed }, Cmd.none )
+        ( ProjectViewData mode urd, state ) ->
+            case urd of
+                Err e ->
+                    ( displayMessageDialog model <| Util.httpErrorString e, Cmd.none )
+
+                Ok uiresponse ->
+                    case uiresponse of
+                        PI.ProjectTime x ->
+                            ( { model
+                                | state =
+                                    ProjectView
+                                        (ProjectView.init model.timezone x model.pageincrement mode)
+                                        (stateLogin state)
+                              }
+                            , Cmd.none
+                            )
+
+                        _ ->
+                            ( unexpectedMsg model msg
+                            , Cmd.none
+                            )
+
+        ( TProjectViewData mode urd, state ) ->
+            case urd of
+                Err e ->
+                    ( displayMessageDialog model <| Util.httpErrorString e, Cmd.none )
+
+                Ok uiresponse ->
+                    case uiresponse of
+                        TI.ProjectTime x ->
+                            ( { model
+                                | state =
+                                    ProjectView
+                                        (ProjectView.init model.timezone x model.pageincrement mode)
+                                        (stateLogin state)
+                              }
+                            , Cmd.none
+                            )
+
                         _ ->
                             ( unexpectedMsg model msg
                             , Cmd.none
@@ -1126,12 +1317,7 @@ actualupdate msg model =
                                     ( { model | state = ProjectTime (ProjectTime.onProjectTime model.timezone login x st) login }, Cmd.none )
 
                                 _ ->
-                                    case stateLogin state of
-                                        Just login ->
-                                            ( { model | state = ProjectTime (ProjectTime.init model.timezone login x model.saveonclonk model.pageincrement "") login }, Cmd.none )
-
-                                        Nothing ->
-                                            ( model, Cmd.none )
+                                    openProjectTime model "" x
 
                         TI.SavedProjectEdit x ->
                             case state of
@@ -1141,7 +1327,7 @@ actualupdate msg model =
                                 _ ->
                                     ( model, Cmd.none )
 
-                        TI.AllMembers x ->
+                        TI.AllUsers x ->
                             case state of
                                 ProjectEdit s l ->
                                     let
@@ -1149,11 +1335,16 @@ actualupdate msg model =
                                             x |> List.map (\m -> ( m.id, m )) |> TDict.insertList TR.emptyUmDict
 
                                         somems =
-                                            TDict.diff alms s.members
+                                            -- should be TDict.diff, but ...
+                                            --    https://github.com/bburdette/typed-collections/issues/3
+                                            TDict.foldl
+                                                (\k v t -> TDict.remove k t)
+                                                alms
+                                                s.members
                                     in
                                     ( { model
                                         | state =
-                                            SelectDialog
+                                            SelectUserDialog
                                                 (SS.init
                                                     { choices = somems |> TDict.values |> List.map (\m -> ( m, m.name ))
                                                     , selected = Nothing
@@ -1169,6 +1360,24 @@ actualupdate msg model =
 
                                 _ ->
                                     ( model, Cmd.none )
+
+        ( PublicReplyData urd, state ) ->
+            case urd of
+                Err e ->
+                    ( displayMessageDialog model <| Util.httpErrorString e, Cmd.none )
+
+                Ok uiresponse ->
+                    case uiresponse of
+                        PI.ServerError e ->
+                            ( displayMessageDialog model <| e, Cmd.none )
+
+                        PI.ProjectTime x ->
+                            case state of
+                                ProjectView st mblogin ->
+                                    ( { model | state = ProjectView (ProjectView.onProjectTime model.timezone x st) mblogin }, Cmd.none )
+
+                                _ ->
+                                    ( { model | state = ProjectView (ProjectView.init model.timezone x model.pageincrement "") (stateLogin state) }, Cmd.none )
 
         ( DisplayMessageMsg bm, DisplayMessage bs prevstate ) ->
             case GD.update bm bs of
@@ -1198,15 +1407,15 @@ actualupdate msg model =
         ( ChangeEmailDialogMsg GD.Noop, _ ) ->
             ( model, Cmd.none )
 
-        ( SelectDialogMsg sdmsg, SelectDialog sdmod instate ) ->
+        ( SelectUserDialogMsg sdmsg, SelectUserDialog sdmod instate ) ->
             case GD.update sdmsg sdmod of
                 GD.Dialog nmod ->
-                    ( { model | state = SelectDialog nmod instate }, Cmd.none )
+                    ( { model | state = SelectUserDialog nmod instate }, Cmd.none )
 
                 GD.Ok return ->
                     case instate of
                         ProjectEdit pemod login ->
-                            ( { model | state = ProjectEdit (ProjectEdit.addMember return pemod) login }
+                            ( { model | state = ProjectEdit (ProjectEdit.addMember return Data.Observer pemod) login }
                             , Cmd.none
                             )
 
@@ -1221,7 +1430,28 @@ actualupdate msg model =
                 GD.Cancel ->
                     ( { model | state = instate }, Cmd.none )
 
-        ( SelectDialogMsg GD.Noop, _ ) ->
+        ( SelectRoleDialogMsg sdmsg, SelectRoleDialog sdmod instate ) ->
+            case GD.update sdmsg sdmod of
+                GD.Dialog nmod ->
+                    ( { model | state = SelectRoleDialog nmod instate }, Cmd.none )
+
+                GD.Ok return ->
+                    case instate of
+                        ProjectEdit pemod login ->
+                            ( { model | state = ProjectEdit (ProjectEdit.setRole return pemod) login }
+                            , Cmd.none
+                            )
+
+                        _ ->
+                            ( { model | state = instate }, Cmd.none )
+
+                GD.Cancel ->
+                    ( { model | state = instate }, Cmd.none )
+
+        ( SelectUserDialogMsg GD.Noop, _ ) ->
+            ( model, Cmd.none )
+
+        ( SelectRoleDialogMsg GD.Noop, _ ) ->
             ( model, Cmd.none )
 
         ( DisplayMessageMsg GD.Noop, _ ) ->
@@ -1279,6 +1509,9 @@ actualupdate msg model =
         ( ProjectTimeMsg ms, ProjectTime st login ) ->
             handleProjectTime model (ProjectTime.update ms st login model.timezone) login
 
+        ( ProjectViewMsg ms, ProjectView st mblogin ) ->
+            handleProjectView model (ProjectView.update ms st model.timezone) mblogin
+
         ( x, y ) ->
             ( unexpectedMsg model x
             , Cmd.none
@@ -1300,7 +1533,29 @@ handleProjectEdit model ( nm, cmd ) login =
 
         ProjectEdit.AddMember ->
             ( { model | state = ProjectEdit nm login }
-            , sendTIMsg model.location <| TI.GetAllMembers
+            , sendTIMsg model.location <| TI.GetAllUsers
+            )
+
+        ProjectEdit.SelectRole id ->
+            ( { model
+                | state =
+                    SelectRoleDialog
+                        (SS.init
+                            { choices =
+                                [ Data.Member
+                                , Data.Admin
+                                , Data.Observer
+                                ]
+                                    |> List.map (\r -> ( ( id, r ), Data.showRole r ))
+                            , selected = Nothing
+                            , search = ""
+                            }
+                            Common.buttonStyle
+                            (E.map (always ()) (ProjectEdit.view login model.size nm))
+                        )
+                        (ProjectEdit nm login)
+              }
+            , Cmd.none
             )
 
         ProjectEdit.Done ->
@@ -1367,7 +1622,7 @@ handleProjectTime model ( nm, cmd ) login =
         ProjectTime.SelectMember members ->
             ( { model
                 | state =
-                    SelectDialog
+                    SelectUserDialog
                         (SS.init
                             { choices = members |> List.map (\m -> ( m, m.name ))
                             , selected = Nothing
@@ -1383,6 +1638,44 @@ handleProjectTime model ( nm, cmd ) login =
 
         ProjectTime.None ->
             ( { model | state = ProjectTime nm login }, Cmd.none )
+
+
+handleProjectView : Model -> ( ProjectView.Model, ProjectView.Command ) -> Maybe Data.LoginData -> ( Model, Cmd Msg )
+handleProjectView model ( nm, cmd ) mblogin =
+    case cmd of
+        ProjectView.Done ->
+            case mblogin of
+                Just login ->
+                    ( { model | state = ProjectView nm mblogin }
+                    , sendTIMsg model.location <| TI.GetProjectList login.userid
+                    )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
+        ProjectView.Settings ->
+            case mblogin of
+                Just login ->
+                    ( { model
+                        | state =
+                            UserSettings (UserSettings.init login model.fontsize model.saveonclonk model.pageincrement) login model.state
+                      }
+                    , Cmd.none
+                    )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
+        ProjectView.SaveCsv filename csvstring ->
+            ( { model | state = ProjectView nm mblogin }
+            , FD.string filename "text/csv" csvstring
+            )
+
+        ProjectView.ShowError e ->
+            ( displayMessageDialog { model | state = ProjectView nm mblogin } e, Cmd.none )
+
+        ProjectView.None ->
+            ( { model | state = ProjectView nm mblogin }, Cmd.none )
 
 
 handleLogin : Model -> ( Login.Model, Login.Cmd ) -> ( Model, Cmd Msg )

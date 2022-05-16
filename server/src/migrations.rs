@@ -4,8 +4,6 @@ use orgauth::migrations;
 use rusqlite::{params, Connection};
 use std::error::Error;
 use std::path::Path;
-use std::time::Duration;
-use uuid::Uuid;
 
 pub fn initialdb() -> Migration {
   let mut m = Migration::new();
@@ -555,5 +553,62 @@ pub fn udpate5(dbfile: &Path) -> Result<(), Box<dyn Error>> {
   conn.execute("drop table temptimeentry;", params![])?;
   conn.execute("drop table tempallocation;", params![])?;
   conn.execute("drop table tempproject;", params![])?;
+  Ok(())
+}
+
+pub fn udpate6(dbfile: &Path) -> Result<(), Box<dyn Error>> {
+  // db connection without foreign key checking.
+  let conn = Connection::open(dbfile)?;
+  let mut m1 = Migration::new();
+
+  // back up the projctmember table.
+
+  // temp table to hold data while we make a new table.
+  m1.create_table("pmtemp", |t| {
+    t.add_column("project", types::integer());
+    t.add_column("user", types::integer());
+  });
+
+  conn.execute_batch(m1.make::<Sqlite>().as_str())?;
+
+  // copy everything from current table..
+  conn.execute(
+    "insert into pmtemp (
+      project, user)
+     select project, user from projectmember",
+    params![],
+  )?;
+
+  let mut m2 = Migration::new();
+  // drop zknote.
+  m2.drop_table("projectmember");
+
+  m2.create_table("projectmember", |t| {
+    t.add_column("project", types::foreign("project", "id").nullable(false));
+    t.add_column("user", types::foreign("orgauth_user", "id").nullable(false));
+    t.add_column("role", types::text().nullable(false));
+    t.add_index("unq", types::index(vec!["project", "user"]).unique(true));
+  });
+
+  // add 'rate' to timeentry.
+  conn.execute_batch(m2.make::<Sqlite>().as_str())?;
+
+  // copy everything from the temp table.
+  conn.execute(
+    "insert into projectmember (
+      project,
+      user,
+      role)
+     select
+      project, user, 'Admin' from pmtemp",
+    params![],
+  )?;
+
+  let mut m3 = Migration::new();
+  // drop timeentrytemp.
+  m3.drop_table("pmtemp");
+
+  conn.execute_batch(m3.make::<Sqlite>().as_str())?;
+
   Ok(())
 }
