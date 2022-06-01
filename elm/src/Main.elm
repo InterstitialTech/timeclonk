@@ -1102,6 +1102,9 @@ actualupdate msg model =
                         TI.ProjectTime x ->
                             openProjectTime model mode x
 
+                        TI.NotLoggedIn ->
+                            ( { model | state = initLogin model.appname model.seed }, Cmd.none )
+
                         _ ->
                             ( unexpectedMsg model msg
                             , Cmd.none
@@ -1145,6 +1148,9 @@ actualupdate msg model =
                               }
                             , Cmd.none
                             )
+
+                        TI.NotLoggedIn ->
+                            ( { model | state = initLogin model.appname model.seed }, Cmd.none )
 
                         _ ->
                             ( unexpectedMsg model msg
@@ -1294,6 +1300,9 @@ actualupdate msg model =
                     case uiresponse of
                         TI.ServerError e ->
                             ( displayMessageDialog model <| e, Cmd.none )
+
+                        TI.NotLoggedIn ->
+                            ( { model | state = initLogin model.appname model.seed }, Cmd.none )
 
                         TI.ProjectList x ->
                             case stateLogin state of

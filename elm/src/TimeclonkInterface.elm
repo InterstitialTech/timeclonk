@@ -21,6 +21,7 @@ type ServerResponse
     | SavedProjectEdit Data.SavedProjectEdit
     | AllUsers (List Data.User)
     | ProjectTime Data.ProjectTime
+    | NotLoggedIn
 
 
 showServerResponse : ServerResponse -> String
@@ -43,6 +44,9 @@ showServerResponse sr =
 
         AllUsers _ ->
             "AllMembers"
+
+        NotLoggedIn ->
+            "NotLoggedIn"
 
 
 encodeSendMsg : SendMsg -> JE.Value
@@ -115,6 +119,9 @@ serverResponseDecoder =
 
                     "allusers" ->
                         JD.map AllUsers (JD.at [ "content" ] (JD.list Data.decodeUser))
+
+                    "not logged in" ->
+                        JD.succeed NotLoggedIn
 
                     wat ->
                         JD.succeed
