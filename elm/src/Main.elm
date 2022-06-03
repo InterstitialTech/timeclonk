@@ -1424,7 +1424,7 @@ actualupdate msg model =
                 GD.Ok return ->
                     case instate of
                         ProjectEdit pemod login ->
-                            ( { model | state = ProjectEdit (ProjectEdit.addMember return Data.Observer pemod) login }
+                            ( { model | state = ProjectEdit (ProjectEdit.addMember return Data.Member pemod) login }
                             , Cmd.none
                             )
 
@@ -1478,7 +1478,7 @@ actualupdate msg model =
                     )
 
                 ProjectListing.New ->
-                    ( { model | state = ProjectEdit ProjectEdit.initNew login }
+                    ( { model | state = ProjectEdit (ProjectEdit.initNew login) login }
                     , Cmd.none
                     )
 
@@ -1536,7 +1536,7 @@ handleProjectEdit model ( nm, cmd ) login =
             )
 
         ProjectEdit.New ->
-            ( { model | state = ProjectEdit ProjectEdit.initNew login }
+            ( { model | state = ProjectEdit (ProjectEdit.initNew login) login }
             , Cmd.none
             )
 
