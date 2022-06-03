@@ -193,7 +193,6 @@ pub fn save_project_edit(
   })
 }
 
-// password reset request.
 pub fn save_project(
   conn: &Connection,
   user: i64,
@@ -229,8 +228,8 @@ pub fn save_project(
       )?;
       let id = conn.last_insert_rowid();
       conn.execute(
-        "insert into projectmember (project, user)
-         values (?1, ?2)",
+        "insert into projectmember (project, user, role)
+         values (?1, ?2, 'Admin')",
         params![id, user],
       )?;
       SavedProject {
