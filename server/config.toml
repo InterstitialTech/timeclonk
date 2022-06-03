@@ -5,7 +5,6 @@ createdirs = false
 [orgauth_config]
 db = "./timeclonk.db"
 mainsite = "http://localhost:8000"
-altmainsite = []
 appname = "TIMECLONK"
 domain = "timeclonk.com"
 admin_email = "admin@admin.admin"
