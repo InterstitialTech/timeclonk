@@ -207,8 +207,8 @@ isDirty model =
     projdirty || membersdirty
 
 
-initNew : Model
-initNew =
+initNew : Data.LoginData -> Model
+initNew ld =
     { id = Nothing
     , name = ""
     , description = ""
@@ -217,7 +217,7 @@ initNew =
     , currency = ""
     , createdate = Nothing
     , changeddate = Nothing
-    , members = emptyUmDict
+    , members = TDict.insert ld.userid { id = ld.userid, name = ld.name, role = Data.Admin } emptyUmDict
     , initialProject = Nothing
     , initialMembers = emptyUmDict
     }
