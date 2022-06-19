@@ -1105,6 +1105,9 @@ actualupdate msg model =
                         TI.NotLoggedIn ->
                             ( { model | state = initLogin model.appname model.seed }, Cmd.none )
 
+                        TI.InvalidUserOrPwd ->
+                            ( { model | state = initLogin model.appname model.seed }, Cmd.none )
+
                         _ ->
                             ( unexpectedMsg model msg
                             , Cmd.none
@@ -1302,6 +1305,9 @@ actualupdate msg model =
                             ( displayMessageDialog model <| e, Cmd.none )
 
                         TI.NotLoggedIn ->
+                            ( { model | state = initLogin model.appname model.seed }, Cmd.none )
+
+                        TI.InvalidUserOrPwd ->
                             ( { model | state = initLogin model.appname model.seed }, Cmd.none )
 
                         TI.ProjectList x ->

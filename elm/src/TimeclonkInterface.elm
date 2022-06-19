@@ -22,6 +22,7 @@ type ServerResponse
     | AllUsers (List Data.User)
     | ProjectTime Data.ProjectTime
     | NotLoggedIn
+    | InvalidUserOrPwd
 
 
 showServerResponse : ServerResponse -> String
@@ -47,6 +48,9 @@ showServerResponse sr =
 
         NotLoggedIn ->
             "NotLoggedIn"
+
+        InvalidUserOrPwd ->
+            "InvalidUserOrPwd"
 
 
 encodeSendMsg : SendMsg -> JE.Value
@@ -122,6 +126,9 @@ serverResponseDecoder =
 
                     "not logged in" ->
                         JD.succeed NotLoggedIn
+
+                    "invalid user or pwd" ->
+                        JD.succeed InvalidUserOrPwd
 
                     wat ->
                         JD.succeed
