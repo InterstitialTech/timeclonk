@@ -27,8 +27,8 @@ type ServerResponse
 showServerResponse : ServerResponse -> String
 showServerResponse sr =
     case sr of
-        ServerError _ ->
-            "ServerError"
+        ServerError e ->
+            "ServerError: '" ++ e ++ "'"
 
         ProjectList _ ->
             "ProjectList"

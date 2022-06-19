@@ -438,8 +438,8 @@ showState state =
         UserSettings _ _ _ ->
             "UserSettings"
 
-        DisplayMessage _ _ ->
-            "DisplayMessage"
+        DisplayMessage gdm _ ->
+            "DisplayMessage: " ++ gdm.model.message
 
         ShowMessage _ _ _ ->
             "ShowMessage"
