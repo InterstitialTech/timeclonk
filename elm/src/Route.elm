@@ -13,6 +13,7 @@ type Route
     | ProjectViewR Int String
     | ResetPasswordR String UUID
     | SettingsR
+    | Invite String
     | Top
 
 
@@ -36,6 +37,9 @@ routeTitle appname route =
 
         SettingsR ->
             "user settings"
+
+        Invite _ ->
+            "user invite"
 
         Top ->
             appname
@@ -70,6 +74,10 @@ parseUrl url =
                     "projectview"
                     </> UP.int
                     </> UP.string
+            , UP.map Invite <|
+                UP.s
+                    "invite"
+                    </> UP.string
             , UP.map Top <| UP.top
             ]
         )
@@ -99,3 +107,6 @@ routeUrl route =
 
         ProjectViewR id mode ->
             UB.absolute [ "projectview", String.fromInt id, mode ] []
+
+        Invite s ->
+            UB.absolute [ "invite", s ] []

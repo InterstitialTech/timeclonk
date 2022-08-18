@@ -241,6 +241,11 @@ routeState model route =
                     , sendPIMsgExp model.location (PI.GetProjectTime id) (ProjectViewData mode)
                     )
 
+        Invite token ->
+            ( PubShowMessage { message = "retrieving invite" } Nothing
+            , sendUIMsg model.location (UI.ReadInvite token)
+            )
+
 
 stateRoute : State -> SavedRoute
 stateRoute state =
@@ -1315,7 +1320,7 @@ actualupdate msg model =
 
                                 _ ->
                                     ( displayMessageDialog model "logged in"
-                                    , Cmd.none
+                                    , sendTIMsg model.location <| TI.GetProjectList login.userid
                                     )
 
                         UI.LoggedOut ->
