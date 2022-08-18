@@ -25,13 +25,16 @@ import Http
 import Json.Decode as JD
 import Json.Encode as JE
 import LocalStorage as LS
+import Orgauth.AdminInterface as AI
 import Orgauth.ChangeEmail as CE
 import Orgauth.ChangePassword as CP
 import Orgauth.Data as OD exposing (AdminSettings, UserId, getUserIdVal, makeUserId)
 import Orgauth.Invited as Invited
 import Orgauth.Login as Login
 import Orgauth.ResetPassword as ResetPassword
+import Orgauth.UserEdit as UserEdit
 import Orgauth.UserInterface as UI
+import Orgauth.UserListing as UserListing
 import ProjectEdit
 import ProjectListing
 import ProjectTime
@@ -62,8 +65,11 @@ type Msg
     = LoginMsg Login.Msg
     | InvitedMsg Invited.Msg
     | UserSettingsMsg UserSettings.Msg
+    | UserEditMsg UserEdit.Msg
+    | UserListingMsg UserListing.Msg
     | ShowMessageMsg ShowMessage.Msg
     | UserReplyData (Result Http.Error UI.ServerResponse)
+    | AdminReplyData (Result Http.Error AI.ServerResponse)
     | TimeclonkReplyData (Result Http.Error TI.ServerResponse)
     | PublicReplyData (Result Http.Error PI.ServerResponse)
     | ProjectTimeData String (Result Http.Error TI.ServerResponse)
@@ -96,6 +102,8 @@ type State
     = Login Login.Model
     | Invited Invited.Model
     | UserSettings UserSettings.Model Data.LoginData State
+    | UserListing UserListing.Model Data.LoginData
+    | UserEdit UserEdit.Model Data.LoginData
     | ShowMessage ShowMessage.Model Data.LoginData (Maybe State)
     | PubShowMessage ShowMessage.Model (Maybe State)
     | LoginShowMessage ShowMessage.Model Data.LoginData Url
@@ -292,6 +300,20 @@ showMessage msg =
         UserReplyData urd ->
             "UserReplyData: "
                 ++ (Result.map UI.showServerResponse urd
+                        |> Result.mapError Util.httpErrorString
+                        |> (\r ->
+                                case r of
+                                    Ok m ->
+                                        "message: " ++ m
+
+                                    Err e ->
+                                        "error: " ++ e
+                           )
+                   )
+
+        AdminReplyData urd ->
+            "AdminReplyData: "
+                ++ (Result.map AI.showServerResponse urd
                         |> Result.mapError Util.httpErrorString
                         |> (\r ->
                                 case r of
@@ -660,6 +682,20 @@ sendUIMsgExp location msg tomsg =
         { url = location ++ "/user"
         , body = Http.jsonBody (UI.encodeSendMsg msg)
         , expect = Http.expectJson tomsg UI.serverResponseDecoder
+        }
+
+
+sendAIMsg : String -> AI.SendMsg -> Cmd Msg
+sendAIMsg location msg =
+    sendAIMsgExp location msg AdminReplyData
+
+
+sendAIMsgExp : String -> AI.SendMsg -> (Result Http.Error AI.ServerResponse -> Msg) -> Cmd Msg
+sendAIMsgExp location msg tomsg =
+    Http.post
+        { url = location ++ "/admin"
+        , body = Http.jsonBody (AI.encodeSendMsg msg)
+        , expect = Http.expectJson tomsg AI.serverResponseDecoder
         }
 
 
@@ -1322,6 +1358,61 @@ actualupdate msg model =
                             , Cmd.none
                             )
 
+        ( AdminReplyData ard, state ) ->
+            case ard of
+                Err e ->
+                    ( displayMessageDialog model <| Util.httpErrorString e, Cmd.none )
+
+                Ok airesponse ->
+                    case airesponse of
+                        AI.NotLoggedIn ->
+                            case state of
+                                Login lmod ->
+                                    ( { model | state = Login lmod }, Cmd.none )
+
+                                _ ->
+                                    ( { model | state = initLoginState model }, Cmd.none )
+
+                        AI.Users users ->
+                            case stateLogin model.state of
+                                Just login ->
+                                    ( { model | state = UserListing (UserListing.init users) login }, Cmd.none )
+
+                                Nothing ->
+                                    ( displayMessageDialog model "not logged in", Cmd.none )
+
+                        AI.UserDeleted id ->
+                            ( displayMessageDialog model "user deleted!"
+                            , sendAIMsg model.location AI.GetUsers
+                            )
+
+                        AI.UserUpdated ld ->
+                            case model.state of
+                                UserEdit ue login ->
+                                    ( displayMessageDialog { model | state = UserEdit (UserEdit.onUserUpdated ue ld) login } "user updated"
+                                    , Cmd.none
+                                    )
+
+                                _ ->
+                                    ( model, Cmd.none )
+
+                        AI.UserInvite ui ->
+                            -- case stateLogin model.state of
+                            --     Just login ->
+                            --         ( { model | state = UserInvite (UserInvite.init ui) login }
+                            --         , Cmd.none
+                            --         )
+                            --     Nothing ->
+                            --         ( displayMessageDialog model "not logged in!"
+                            --         , Cmd.none
+                            --         )
+                            ( displayMessageDialog model "unimplemented"
+                            , Cmd.none
+                            )
+
+                        AI.ServerError e ->
+                            ( displayMessageDialog model <| e, Cmd.none )
+
         ( TimeclonkReplyData urd, state ) ->
             case urd of
                 Err e ->
@@ -1525,6 +1616,11 @@ actualupdate msg model =
                             UserSettings (UserSettings.init (Data.ldToOdLd login) model.fontsize model.saveonclonk model.pageincrement) login model.state
                       }
                     , Cmd.none
+                    )
+
+                ProjectListing.Admin ->
+                    ( model
+                    , sendAIMsg model.location AI.GetUsers
                     )
 
                 ProjectListing.None ->

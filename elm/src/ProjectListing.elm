@@ -24,6 +24,7 @@ type Msg
     | NewPress
     | DonePress
     | SettingsPress
+    | AdminPress
 
 
 type alias Model =
@@ -36,6 +37,7 @@ type Command
     | New
     | Done
     | Settings
+    | Admin
     | None
 
 
@@ -67,6 +69,13 @@ view ld size model =
             ]
             [ E.row [ E.spacing TC.defaultSpacing, E.width E.fill ]
                 [ E.row [ EF.bold ] [ E.text ld.name ]
+                , if ld.admin then
+                    EI.button
+                        (E.alignRight :: Common.buttonStyle)
+                        { onPress = Just AdminPress, label = E.text "admin" }
+
+                  else
+                    E.none
                 , EI.button
                     (E.alignRight :: Common.buttonStyle)
                     { onPress = Just SettingsPress, label = E.text "settings" }
@@ -131,3 +140,6 @@ update msg model ld =
 
         SettingsPress ->
             ( model, Settings )
+
+        AdminPress ->
+            ( model, Admin )
