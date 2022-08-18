@@ -34,6 +34,7 @@ import Orgauth.Login as Login
 import Orgauth.ResetPassword as ResetPassword
 import Orgauth.UserEdit as UserEdit
 import Orgauth.UserInterface as UI
+import Orgauth.UserInvite as UserInvite
 import Orgauth.UserListing as UserListing
 import ProjectEdit
 import ProjectListing
@@ -67,6 +68,7 @@ type Msg
     | UserSettingsMsg UserSettings.Msg
     | UserEditMsg UserEdit.Msg
     | UserListingMsg UserListing.Msg
+    | UserInviteMsg UserInvite.Msg
     | ShowMessageMsg ShowMessage.Msg
     | UserReplyData (Result Http.Error UI.ServerResponse)
     | AdminReplyData (Result Http.Error AI.ServerResponse)
@@ -104,6 +106,7 @@ type State
     | UserSettings UserSettings.Model Data.LoginData State
     | UserListing UserListing.Model Data.LoginData
     | UserEdit UserEdit.Model Data.LoginData
+    | UserInvite UserInvite.Model Data.LoginData
     | ShowMessage ShowMessage.Model Data.LoginData (Maybe State)
     | PubShowMessage ShowMessage.Model (Maybe State)
     | LoginShowMessage ShowMessage.Model Data.LoginData Url
@@ -172,6 +175,11 @@ type PiModel
     | PreInit PreInitModel
 
 
+initLoginState : Model -> State
+initLoginState model =
+    initLoginState model
+
+
 urlRequest : Browser.UrlRequest -> Msg
 urlRequest ur =
     case ur of
@@ -186,7 +194,7 @@ routeState : Model -> Route -> ( State, Cmd Msg )
 routeState model route =
     case route of
         LoginR ->
-            ( Login (Login.initialModel Nothing model.adminSettings model.appname model.seed), Cmd.none )
+            ( initLoginState model, Cmd.none )
 
         ResetPasswordR username key ->
             ( ResetPassword <| ResetPassword.initialModel username key model.appname, Cmd.none )
@@ -197,7 +205,7 @@ routeState model route =
                     ( UserSettings (UserSettings.init (Data.ldToOdLd login) model.fontsize model.saveonclonk model.pageincrement) login model.state, Cmd.none )
 
                 Nothing ->
-                    ( (displayMessageDialog { model | state = initLogin model.adminSettings model.appname model.seed } "can't view user settings; you're not logged in!").state, Cmd.none )
+                    ( (displayMessageDialog { model | state = initLoginState model } "can't view user settings; you're not logged in!").state, Cmd.none )
 
         Top ->
             if (stateRoute model.state).route == Top then
@@ -287,6 +295,15 @@ showMessage msg =
 
         InvitedMsg _ ->
             "InvitedMsg"
+
+        UserEditMsg _ ->
+            "UserEditMsg"
+
+        UserListingMsg _ ->
+            "UserListingMsg"
+
+        UserInviteMsg _ ->
+            "UserInviteMsg"
 
         DisplayMessageMsg _ ->
             "DisplayMessage"
@@ -471,6 +488,15 @@ showState state =
         Invited _ ->
             "Invited"
 
+        UserEdit _ _ ->
+            "UserEdit"
+
+        UserListing _ _ ->
+            "UserListing"
+
+        UserInvite _ _ ->
+            "UserInvite"
+
         UserSettings _ _ _ ->
             "UserSettings"
 
@@ -537,6 +563,15 @@ viewState size state model =
         Invited em ->
             E.map InvitedMsg <| Invited.view model.stylePalette size em
 
+        UserEdit em login ->
+            E.map UserEditMsg <| UserEdit.view [] em
+
+        UserListing em login ->
+            E.map UserListingMsg <| UserListing.view [] em
+
+        UserInvite em login ->
+            E.map UserInviteMsg <| UserInvite.view [] em
+
         ShowMessage em _ _ ->
             E.map ShowMessageMsg <| ShowMessage.view em
 
@@ -595,6 +630,15 @@ stateLogin state =
             Nothing
 
         UserSettings _ login _ ->
+            Just login
+
+        UserEdit _ login ->
+            Just login
+
+        UserListing _ login ->
+            Just login
+
+        UserInvite _ login ->
             Just login
 
         DisplayMessage _ bestate ->
@@ -1073,7 +1117,7 @@ actualupdate msg model =
                             ( { model | state = prevstate }, Cmd.none )
 
                 UserSettings.LogOut ->
-                    ( { model | state = Login (Login.initialModel Nothing model.adminSettings model.appname model.seed) }
+                    ( { model | state = initLoginState model }
                     , sendUIMsg model.location UI.Logout
                     )
 
@@ -1162,10 +1206,10 @@ actualupdate msg model =
                             openProjectTime model mode x
 
                         TI.NotLoggedIn ->
-                            ( { model | state = initLogin model.adminSettings model.appname model.seed }, Cmd.none )
+                            ( { model | state = initLoginState model }, Cmd.none )
 
                         TI.InvalidUserOrPwd ->
-                            ( { model | state = initLogin model.adminSettings model.appname model.seed }, Cmd.none )
+                            ( { model | state = initLoginState model }, Cmd.none )
 
                         _ ->
                             ( unexpectedMsg model msg
@@ -1212,7 +1256,7 @@ actualupdate msg model =
                             )
 
                         TI.NotLoggedIn ->
-                            ( { model | state = initLogin model.adminSettings model.appname model.seed }, Cmd.none )
+                            ( { model | state = initLoginState model }, Cmd.none )
 
                         _ ->
                             ( unexpectedMsg model msg
@@ -1282,7 +1326,7 @@ actualupdate msg model =
                                 nmod =
                                     { model
                                         | state =
-                                            Login <| Login.initialModel Nothing model.adminSettings model.appname model.seed
+                                            initLoginState model
                                     }
                             in
                             ( displayMessageDialog nmod "password reset attempted!  if you're a valid user, check your inbox for a reset email."
@@ -1294,7 +1338,7 @@ actualupdate msg model =
                                 nmod =
                                     { model
                                         | state =
-                                            Login <| Login.initialModel Nothing model.adminSettings model.appname model.seed
+                                            initLoginState model
                                     }
                             in
                             ( displayMessageDialog nmod "password reset complete!"
@@ -1340,7 +1384,7 @@ actualupdate msg model =
                                     ( { model | state = Login lmod }, Cmd.none )
 
                                 _ ->
-                                    ( { model | state = Login <| Login.initialModel Nothing model.adminSettings model.appname model.seed }, Cmd.none )
+                                    ( { model | state = initLoginState model }, Cmd.none )
 
                         UI.InvalidUserOrPwd ->
                             case state of
@@ -1348,7 +1392,7 @@ actualupdate msg model =
                                     ( { model | state = Login <| Login.invalidUserOrPwd lmod }, Cmd.none )
 
                                 _ ->
-                                    ( unexpectedMessage { model | state = Login (Login.initialModel Nothing model.adminSettings model.appname model.seed) }
+                                    ( unexpectedMessage { model | state = initLoginState model }
                                         (UI.showServerResponse uiresponse)
                                     , Cmd.none
                                     )
@@ -1397,21 +1441,99 @@ actualupdate msg model =
                                     ( model, Cmd.none )
 
                         AI.UserInvite ui ->
-                            -- case stateLogin model.state of
-                            --     Just login ->
-                            --         ( { model | state = UserInvite (UserInvite.init ui) login }
-                            --         , Cmd.none
-                            --         )
-                            --     Nothing ->
-                            --         ( displayMessageDialog model "not logged in!"
-                            --         , Cmd.none
-                            --         )
-                            ( displayMessageDialog model "unimplemented"
-                            , Cmd.none
-                            )
+                            case stateLogin model.state of
+                                Just login ->
+                                    ( { model | state = UserInvite (UserInvite.init ui) login }
+                                    , Cmd.none
+                                    )
+
+                                Nothing ->
+                                    ( displayMessageDialog model "not logged in!"
+                                    , Cmd.none
+                                    )
 
                         AI.ServerError e ->
                             ( displayMessageDialog model <| e, Cmd.none )
+
+        ( UserListingMsg umsg, UserListing umod login ) ->
+            let
+                ( numod, c ) =
+                    UserListing.update umsg umod
+            in
+            case c of
+                UserListing.Done ->
+                    initialPage model
+
+                UserListing.NewUser ->
+                    -- let
+                    --     ( sp, sr ) =
+                    --         s
+                    --             |> Maybe.withDefault
+                    --                 ( SP.initModel
+                    --                 , { notes = []
+                    --                   , offset = 0
+                    --                   , what = ""
+                    --                   }
+                    --                 )
+                    -- in
+                    -- ( { model
+                    --     | state =
+                    --         InviteUser
+                    --             (InviteUser.init sp sr model.recentNotes [] login)
+                    --             login
+                    --   }
+                    -- , Cmd.none
+                    -- )
+                    ( model, Cmd.none )
+
+                UserListing.InviteUser ->
+                    ( { model | state = UserListing numod login }
+                    , sendAIMsg model.location (AI.GetInvite { email = Nothing, data = Nothing })
+                    )
+
+                UserListing.EditUser ld ->
+                    ( { model | state = UserEdit (UserEdit.init ld) login }, Cmd.none )
+
+                UserListing.None ->
+                    ( { model | state = UserListing numod login }, Cmd.none )
+
+        ( UserEditMsg umsg, UserEdit umod login ) ->
+            let
+                ( numod, c ) =
+                    UserEdit.update umsg umod
+            in
+            case c of
+                UserEdit.Done ->
+                    ( model
+                    , sendAIMsg model.location AI.GetUsers
+                    )
+
+                UserEdit.Delete id ->
+                    ( model
+                    , sendAIMsg model.location <| AI.DeleteUser (getUserIdVal id)
+                    )
+
+                UserEdit.Save ld ->
+                    ( model
+                    , sendAIMsg model.location <| AI.UpdateUser ld
+                    )
+
+                UserEdit.None ->
+                    ( { model | state = UserEdit numod login }, Cmd.none )
+
+        ( UserInviteMsg umsg, UserInvite umod login ) ->
+            let
+                ( numod, c ) =
+                    UserInvite.update umsg umod
+            in
+            case c of
+                UserInvite.Done ->
+                    ( model
+                    , sendAIMsg model.location AI.GetUsers
+                    )
+
+                UserInvite.None ->
+                    ( { model | state = UserInvite numod login }, Cmd.none )
 
         ( TimeclonkReplyData urd, state ) ->
             case urd of
@@ -1424,10 +1546,10 @@ actualupdate msg model =
                             ( displayMessageDialog model <| e, Cmd.none )
 
                         TI.NotLoggedIn ->
-                            ( { model | state = initLogin model.adminSettings model.appname model.seed }, Cmd.none )
+                            ( { model | state = initLoginState model }, Cmd.none )
 
                         TI.InvalidUserOrPwd ->
-                            ( { model | state = initLogin model.adminSettings model.appname model.seed }, Cmd.none )
+                            ( { model | state = initLoginState model }, Cmd.none )
 
                         TI.ProjectList x ->
                             case stateLogin state of
@@ -1902,7 +2024,7 @@ initialPage curmodel =
             )
 
         Nothing ->
-            ( { curmodel | state = initLogin curmodel.adminSettings curmodel.appname curmodel.seed }, Cmd.none )
+            ( { curmodel | state = initLoginState curmodel }, Cmd.none )
     )
         |> (\( m, c ) ->
                 ( m
@@ -2005,11 +2127,6 @@ init flags url key zone fontsize saveonclonk pageincrement =
                 ]
              )
             )
-
-
-initLogin : AdminSettings -> String -> Seed -> State
-initLogin adminSettings appname seed =
-    Login <| Login.initialModel Nothing adminSettings appname seed
 
 
 main : Platform.Program Flags PiModel Msg
