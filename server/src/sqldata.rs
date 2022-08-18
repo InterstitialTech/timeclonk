@@ -6,6 +6,7 @@ use crate::data::{
 use crate::migrations as tm;
 use barrel::backend::Sqlite;
 use log::info;
+use orgauth::data::RegistrationData;
 use orgauth::util::now;
 use rusqlite::{params, Connection};
 use std::error::Error;
@@ -15,10 +16,16 @@ use std::time::Duration;
 
 pub fn on_new_user(
   _conn: &Connection,
-  _rd: &orgauth::data::RegistrationData,
+  _rd: &RegistrationData,
+  _data: Option<String>,
+  _creator: Option<i64>,
   _uid: i64,
 ) -> Result<(), Box<dyn Error>> {
   Ok(())
+}
+
+pub fn on_delete_user(_conn: &Connection, _uid: i64) -> Result<bool, Box<dyn Error>> {
+  Ok(true)
 }
 
 // callback to pass to orgauth

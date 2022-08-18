@@ -3,9 +3,10 @@ module TimeReporting exposing (..)
 import Calendar
 import Clock
 import Csv
-import Data exposing (AllocationId, PayEntryId, TimeEntryId, UserId)
+import Data exposing (AllocationId, PayEntryId, TimeEntryId)
 import DateTime exposing (DateTime)
 import Dict exposing (Dict)
+import Orgauth.Data as OD exposing (UserId, getUserIdVal, makeUserId)
 import Round as R
 import TDict exposing (TDict)
 import Time exposing (Zone)
@@ -298,12 +299,12 @@ weekTotes zone timeentries =
 
 emptyUmDict : TDict UserId Int Data.User
 emptyUmDict =
-    TDict.empty Data.getUserIdVal Data.makeUserId
+    TDict.empty getUserIdVal makeUserId
 
 
 emptyUserTimeDict : TDict UserId Int Int
 emptyUserTimeDict =
-    TDict.empty Data.getUserIdVal Data.makeUserId
+    TDict.empty getUserIdVal makeUserId
 
 
 timeTotes : List EditTimeEntry -> TDict UserId Int Int
@@ -392,7 +393,7 @@ eteToCsv zone projectname membernames timeentries =
                     (\te ->
                         projectname
                             ++ ","
-                            ++ (Dict.get (Data.getUserIdVal te.user) membernames
+                            ++ (Dict.get (getUserIdVal te.user) membernames
                                     |> Maybe.withDefault ""
                                )
                             ++ ","

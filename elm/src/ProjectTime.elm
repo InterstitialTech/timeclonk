@@ -3,7 +3,7 @@ module ProjectTime exposing (..)
 import Calendar
 import Common
 import Csv
-import Data exposing (UserId)
+import Data
 import Dict exposing (Dict)
 import Element as E exposing (Element)
 import Element.Background as EBk
@@ -11,6 +11,7 @@ import Element.Border as EBd
 import Element.Events as EE
 import Element.Font as EF
 import Element.Input as EI
+import Orgauth.Data as OD exposing (UserId, getUserIdVal, makeUserId)
 import Paginator as P
 import Round as R
 import Set
@@ -538,7 +539,7 @@ init zone ld pt saveonclonk pageincrement mode =
     in
     { project = pt.project
     , members = pt.members
-    , membernames = pt.members |> List.map (\m -> ( Data.getUserIdVal m.id, m.name )) |> Dict.fromList
+    , membernames = pt.members |> List.map (\m -> ( getUserIdVal m.id, m.name )) |> Dict.fromList
     , description = description
     , timeentries = mkTToteler ietes (\te -> te.user == ld.userid) zone
     , initialtimeentries = ietes
@@ -1308,7 +1309,7 @@ teamview ld size zone isdirty model =
                             ]
                             [ E.text
                                 (te.user
-                                    |> Data.getUserIdVal
+                                    |> getUserIdVal
                                     |> (\i -> Dict.get i model.membernames)
                                     |> Maybe.withDefault ""
                                 )
@@ -2335,7 +2336,7 @@ payview ld size zone model =
                             if model.focus == Just ( date, PaymentUser ) then
                                 E.column cellEditStyle
                                     [ E.row [ EE.onClick <| OnRowItemClick date PaymentUser ]
-                                        [ E.text (a.user |> Data.getUserIdVal |> (\i -> Dict.get i model.membernames |> Maybe.withDefault ""))
+                                        [ E.text (a.user |> getUserIdVal |> (\i -> Dict.get i model.membernames |> Maybe.withDefault ""))
                                         ]
                                     , EI.button Common.buttonStyle
                                         { onPress = Just SelectPaymentUser
@@ -2345,7 +2346,7 @@ payview ld size zone model =
 
                             else
                                 E.row [ EE.onClick <| OnRowItemClick date PaymentUser ]
-                                    [ E.text (a.user |> Data.getUserIdVal |> (\i -> Dict.get i model.membernames |> Maybe.withDefault ""))
+                                    [ E.text (a.user |> getUserIdVal |> (\i -> Dict.get i model.membernames |> Maybe.withDefault ""))
                                     ]
                    }
                 :: { header = E.el headerStyle <| E.text "payment"
@@ -2408,7 +2409,7 @@ payview ld size zone model =
                 [ model.paymentuser
                     |> Maybe.andThen
                         (\uid ->
-                            Dict.get (Data.getUserIdVal uid) model.membernames
+                            Dict.get (getUserIdVal uid) model.membernames
                         )
                     |> Maybe.map (\name -> E.text name)
                     |> Maybe.withDefault (E.el [ EF.italic ] <| E.text "no member selected")

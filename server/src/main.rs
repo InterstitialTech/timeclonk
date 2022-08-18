@@ -105,6 +105,7 @@ fn user(
   );
   let mut cb = Callbacks {
     on_new_user: Box::new(sqldata::on_new_user),
+    on_delete_user: Box::new(sqldata::on_delete_user),
     extra_login_data: Box::new(sqldata::extra_login_data_callback),
   };
 
@@ -192,11 +193,13 @@ fn defcon() -> Config {
     db: PathBuf::from("./timeclonk.db"),
     mainsite: "http://localhost:8001".to_string(),
     appname: "timeclonk".to_string(),
-    domain: "localhost:8001".to_string(),
+    emaildomain: "localhost:8001".to_string(),
     admin_email: "admin@admin.admin".to_string(),
     login_token_expiration_ms: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
     email_token_expiration_ms: 1 * 24 * 60 * 60 * 1000, // 1 day in milliseconds
     reset_token_expiration_ms: 1 * 24 * 60 * 60 * 1000, // 1 day in milliseconds
+    invite_token_expiration_ms: 1 * 24 * 60 * 60 * 1000, // 1 day in milliseconds
+    open_registration: false,
   };
   Config {
     ip: "127.0.0.1".to_string(),

@@ -27,6 +27,7 @@ import Json.Encode as JE
 import LocalStorage as LS
 import Orgauth.ChangeEmail as CE
 import Orgauth.ChangePassword as CP
+import Orgauth.Data as OD exposing (AdminSettings, UserId, getUserIdVal, makeUserId)
 import Orgauth.Login as Login
 import Orgauth.ResetPassword as ResetPassword
 import Orgauth.UserInterface as UI
@@ -42,6 +43,7 @@ import ShowMessage
 import TDict exposing (TDict)
 import TangoColors as TC
 import Task exposing (Task)
+import TcCommon
 import Time
 import TimeReporting as TR
 import TimeclonkInterface as TI
@@ -72,7 +74,7 @@ type Msg
     | WindowSize Util.Size
     | DisplayMessageMsg (GD.Msg DisplayMessage.Msg)
     | SelectUserDialogMsg (GD.Msg (SS.Msg Data.User))
-    | SelectRoleDialogMsg (GD.Msg (SS.Msg ( Data.UserId, Data.Role )))
+    | SelectRoleDialogMsg (GD.Msg (SS.Msg ( UserId, Data.Role )))
     | ChangePasswordDialogMsg (GD.Msg CP.Msg)
     | ChangeEmailDialogMsg (GD.Msg CE.Msg)
     | ResetPasswordMsg ResetPassword.Msg
@@ -95,7 +97,7 @@ type State
     | PubShowMessage ShowMessage.Model (Maybe State)
     | LoginShowMessage ShowMessage.Model Data.LoginData Url
     | SelectUserDialog (SS.GDModel Data.User) State
-    | SelectRoleDialog (SS.GDModel ( Data.UserId, Data.Role )) State
+    | SelectRoleDialog (SS.GDModel ( UserId, Data.Role )) State
     | ChangePasswordDialog CP.GDModel State
     | ChangeEmailDialog CE.GDModel State
     | ResetPassword ResetPassword.Model
@@ -115,7 +117,8 @@ type alias Flags =
     , debugstring : String
     , width : Int
     , height : Int
-    , login : Maybe { userid : Int, name : String }
+    , login : Maybe JD.Value
+    , adminsettings : Maybe JD.Value
     }
 
 
@@ -137,6 +140,8 @@ type alias Model =
     , fontsize : Int
     , saveonclonk : Bool
     , pageincrement : Int
+    , stylePalette : TcCommon.StylePalette
+    , adminSettings : AdminSettings
     }
 
 
@@ -170,7 +175,7 @@ routeState : Model -> Route -> ( State, Cmd Msg )
 routeState model route =
     case route of
         LoginR ->
-            ( Login (Login.initialModel Nothing model.appname model.seed), Cmd.none )
+            ( Login (Login.initialModel Nothing model.adminSettings model.appname model.seed), Cmd.none )
 
         ResetPasswordR username key ->
             ( ResetPassword <| ResetPassword.initialModel username key model.appname, Cmd.none )
@@ -178,10 +183,10 @@ routeState model route =
         SettingsR ->
             case stateLogin model.state of
                 Just login ->
-                    ( UserSettings (UserSettings.init login model.fontsize model.saveonclonk model.pageincrement) login model.state, Cmd.none )
+                    ( UserSettings (UserSettings.init (Data.ldToOdLd login) model.fontsize model.saveonclonk model.pageincrement) login model.state, Cmd.none )
 
                 Nothing ->
-                    ( (displayMessageDialog { model | state = initLogin model.appname model.seed } "can't view user settings; you're not logged in!").state, Cmd.none )
+                    ( (displayMessageDialog { model | state = initLogin model.adminSettings model.appname model.seed } "can't view user settings; you're not logged in!").state, Cmd.none )
 
         Top ->
             if (stateRoute model.state).route == Top then
@@ -496,7 +501,7 @@ viewState : Util.Size -> State -> Model -> Element Msg
 viewState size state model =
     case state of
         Login lem ->
-            E.map LoginMsg <| Login.view size lem
+            E.map LoginMsg <| Login.view model.stylePalette size lem
 
         ShowMessage em _ _ ->
             E.map ShowMessageMsg <| ShowMessage.view em
@@ -1017,7 +1022,7 @@ actualupdate msg model =
                             ( { model | state = prevstate }, Cmd.none )
 
                 UserSettings.LogOut ->
-                    ( { model | state = Login (Login.initialModel Nothing model.appname model.seed) }
+                    ( { model | state = Login (Login.initialModel Nothing model.adminSettings model.appname model.seed) }
                     , sendUIMsg model.location UI.Logout
                     )
 
@@ -1103,10 +1108,10 @@ actualupdate msg model =
                             openProjectTime model mode x
 
                         TI.NotLoggedIn ->
-                            ( { model | state = initLogin model.appname model.seed }, Cmd.none )
+                            ( { model | state = initLogin model.adminSettings model.appname model.seed }, Cmd.none )
 
                         TI.InvalidUserOrPwd ->
-                            ( { model | state = initLogin model.appname model.seed }, Cmd.none )
+                            ( { model | state = initLogin model.adminSettings model.appname model.seed }, Cmd.none )
 
                         _ ->
                             ( unexpectedMsg model msg
@@ -1153,7 +1158,7 @@ actualupdate msg model =
                             )
 
                         TI.NotLoggedIn ->
-                            ( { model | state = initLogin model.appname model.seed }, Cmd.none )
+                            ( { model | state = initLogin model.adminSettings model.appname model.seed }, Cmd.none )
 
                         _ ->
                             ( unexpectedMsg model msg
@@ -1223,7 +1228,7 @@ actualupdate msg model =
                                 nmod =
                                     { model
                                         | state =
-                                            Login <| Login.initialModel Nothing model.appname model.seed
+                                            Login <| Login.initialModel Nothing model.adminSettings model.appname model.seed
                                     }
                             in
                             ( displayMessageDialog nmod "password reset attempted!  if you're a valid user, check your inbox for a reset email."
@@ -1235,7 +1240,7 @@ actualupdate msg model =
                                 nmod =
                                     { model
                                         | state =
-                                            Login <| Login.initialModel Nothing model.appname model.seed
+                                            Login <| Login.initialModel Nothing model.adminSettings model.appname model.seed
                                     }
                             in
                             ( displayMessageDialog nmod "password reset complete!"
@@ -1281,7 +1286,7 @@ actualupdate msg model =
                                     ( { model | state = Login lmod }, Cmd.none )
 
                                 _ ->
-                                    ( { model | state = Login <| Login.initialModel Nothing model.appname model.seed }, Cmd.none )
+                                    ( { model | state = Login <| Login.initialModel Nothing model.adminSettings model.appname model.seed }, Cmd.none )
 
                         UI.InvalidUserOrPwd ->
                             case state of
@@ -1289,10 +1294,13 @@ actualupdate msg model =
                                     ( { model | state = Login <| Login.invalidUserOrPwd lmod }, Cmd.none )
 
                                 _ ->
-                                    ( unexpectedMessage { model | state = Login (Login.initialModel Nothing model.appname model.seed) }
+                                    ( unexpectedMessage { model | state = Login (Login.initialModel Nothing model.adminSettings model.appname model.seed) }
                                         (UI.showServerResponse uiresponse)
                                     , Cmd.none
                                     )
+
+                        UI.Invite _ ->
+                            ( model, Cmd.none )
 
         ( TimeclonkReplyData urd, state ) ->
             case urd of
@@ -1305,10 +1313,10 @@ actualupdate msg model =
                             ( displayMessageDialog model <| e, Cmd.none )
 
                         TI.NotLoggedIn ->
-                            ( { model | state = initLogin model.appname model.seed }, Cmd.none )
+                            ( { model | state = initLogin model.adminSettings model.appname model.seed }, Cmd.none )
 
                         TI.InvalidUserOrPwd ->
-                            ( { model | state = initLogin model.appname model.seed }, Cmd.none )
+                            ( { model | state = initLogin model.adminSettings model.appname model.seed }, Cmd.none )
 
                         TI.ProjectList x ->
                             case stateLogin state of
@@ -1494,7 +1502,7 @@ actualupdate msg model =
                 ProjectListing.Settings ->
                     ( { model
                         | state =
-                            UserSettings (UserSettings.init login model.fontsize model.saveonclonk model.pageincrement) login model.state
+                            UserSettings (UserSettings.init (Data.ldToOdLd login) model.fontsize model.saveonclonk model.pageincrement) login model.state
                       }
                     , Cmd.none
                     )
@@ -1581,7 +1589,7 @@ handleProjectEdit model ( nm, cmd ) login =
         ProjectEdit.Settings ->
             ( { model
                 | state =
-                    UserSettings (UserSettings.init login model.fontsize model.saveonclonk model.pageincrement) login model.state
+                    UserSettings (UserSettings.init (Data.ldToOdLd login) model.fontsize model.saveonclonk model.pageincrement) login model.state
               }
             , Cmd.none
             )
@@ -1616,7 +1624,7 @@ handleProjectTime model ( nm, cmd ) login =
         ProjectTime.Settings ->
             ( { model
                 | state =
-                    UserSettings (UserSettings.init login model.fontsize model.saveonclonk model.pageincrement) login model.state
+                    UserSettings (UserSettings.init (Data.ldToOdLd login) model.fontsize model.saveonclonk model.pageincrement) login model.state
               }
             , Cmd.none
             )
@@ -1673,7 +1681,7 @@ handleProjectView model ( nm, cmd ) mblogin =
                 Just login ->
                     ( { model
                         | state =
-                            UserSettings (UserSettings.init login model.fontsize model.saveonclonk model.pageincrement) login model.state
+                            UserSettings (UserSettings.init (Data.ldToOdLd login) model.fontsize model.saveonclonk model.pageincrement) login model.state
                       }
                     , Cmd.none
                     )
@@ -1759,7 +1767,7 @@ initialPage curmodel =
             )
 
         Nothing ->
-            ( { curmodel | state = initLogin curmodel.appname curmodel.seed }, Cmd.none )
+            ( { curmodel | state = initLogin curmodel.adminSettings curmodel.appname curmodel.seed }, Cmd.none )
     )
         |> (\( m, c ) ->
                 ( m
@@ -1778,14 +1786,30 @@ init flags url key zone fontsize saveonclonk pageincrement =
         seed =
             initialSeed (flags.seed + 7)
 
+        adminSettings =
+            flags.adminsettings
+                |> Maybe.andThen
+                    (\v ->
+                        JD.decodeValue OD.decodeAdminSettings v
+                            |> Result.toMaybe
+                    )
+                |> Maybe.withDefault { openRegistration = False }
+
         imodel =
             { state =
                 case flags.login of
                     Nothing ->
                         PubShowMessage { message = "loading..." } Nothing
 
-                    Just l ->
-                        ShowMessage { message = "loading..." } { userid = Data.makeUserId l.userid, name = l.name } Nothing
+                    Just v ->
+                        case
+                            JD.decodeValue OD.decodeLoginData v
+                        of
+                            Ok l ->
+                                ShowMessage { message = "loading..." } (Data.odLdToLd l) Nothing
+
+                            Err e ->
+                                PubShowMessage { message = JD.errorToString e } Nothing
             , size = { width = flags.width, height = flags.height }
             , location = flags.location
             , appname = flags.appname
@@ -1796,6 +1820,8 @@ init flags url key zone fontsize saveonclonk pageincrement =
             , fontsize = fontsize
             , saveonclonk = saveonclonk
             , pageincrement = pageincrement
+            , stylePalette = { defaultSpacing = 10 }
+            , adminSettings = adminSettings
             }
 
         setkeys =
@@ -1846,9 +1872,9 @@ init flags url key zone fontsize saveonclonk pageincrement =
             )
 
 
-initLogin : String -> Seed -> State
-initLogin appname seed =
-    Login <| Login.initialModel Nothing appname seed
+initLogin : AdminSettings -> String -> Seed -> State
+initLogin adminSettings appname seed =
+    Login <| Login.initialModel Nothing adminSettings appname seed
 
 
 main : Platform.Program Flags PiModel Msg

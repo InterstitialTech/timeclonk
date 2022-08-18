@@ -1,66 +1,8 @@
-module Data exposing
-    ( Allocation
-    , AllocationId(..)
-    , ListProject
-    , LoginData
-    , PayEntry
-    , PayEntryId(..)
-    , Project
-    , ProjectEdit
-    , ProjectId(..)
-    , ProjectMember
-    , ProjectTime
-    , Role(..)
-    , SaveAllocation
-    , SavePayEntry
-    , SaveProject
-    , SaveProjectEdit
-    , SaveProjectMember
-    , SaveProjectTime
-    , SaveTimeEntry
-    , SavedProject
-    , SavedProjectEdit
-    , TimeEntry
-    , TimeEntryId(..)
-    , User
-    , UserId(..)
-    , decodeAllocation
-    , decodeListProject
-    , decodePayEntry
-    , decodeProject
-    , decodeProjectEdit
-    , decodeProjectMember
-    , decodeProjectTime
-    , decodeSavedProject
-    , decodeSavedProjectEdit
-    , decodeTimeEntry
-    , decodeUser
-    , encodeSaveAllocation
-    , encodeSavePayEntry
-    , encodeSaveProject
-    , encodeSaveProjectEdit
-    , encodeSaveProjectMember
-    , encodeSaveProjectTime
-    , encodeSaveTimeEntry
-    , getAllocationIdVal
-    , getPayEntryIdVal
-    , getProjectIdVal
-    , getTimeEntryIdVal
-    , getUserIdVal
-    , ldToOdLd
-    , makeAllocationId
-    , makePayEntryId
-    , makeProjectId
-    , makeTimeEntryId
-    , makeUserId
-    , odLdToLd
-    , projectMemberToUser
-    , showRole
-    )
+module Data exposing (Allocation, AllocationId(..), ListProject, LoginData, PayEntry, PayEntryId(..), Project, ProjectEdit, ProjectId(..), ProjectMember, ProjectTime, Role(..), SaveAllocation, SavePayEntry, SaveProject, SaveProjectEdit, SaveProjectMember, SaveProjectTime, SaveTimeEntry, SavedProject, SavedProjectEdit, TimeEntry, TimeEntryId(..), User, decodeAllocation, decodeListProject, decodePayEntry, decodeProject, decodeProjectEdit, decodeProjectMember, decodeProjectTime, decodeRole, decodeSavedProject, decodeSavedProjectEdit, decodeTimeEntry, decodeUser, encodeRole, encodeSaveAllocation, encodeSavePayEntry, encodeSaveProject, encodeSaveProjectEdit, encodeSaveProjectMember, encodeSaveProjectTime, encodeSaveTimeEntry, getAllocationIdVal, getPayEntryIdVal, getProjectIdVal, getTimeEntryIdVal, ldToOdLd, makeAllocationId, makePayEntryId, makeProjectId, makeTimeEntryId, odLdToLd, projectMemberToUser, roleToString, showRole, stringToRole)
 
 import Json.Decode as JD
 import Json.Encode as JE
-import Orgauth.Data as OD
+import Orgauth.Data as OD exposing (UserId, getUserIdVal, makeUserId)
 import UUID exposing (UUID)
 import Url.Builder as UB
 import Util exposing (andMap)
@@ -69,21 +11,30 @@ import Util exposing (andMap)
 type alias LoginData =
     { userid : UserId
     , name : String
+    , email : String
+    , admin : Bool
+    , active : Bool
     }
 
 
 ldToOdLd : LoginData -> OD.LoginData
 ldToOdLd ld =
-    { userid = getUserIdVal ld.userid
+    { userid = ld.userid
     , name = ld.name
+    , email = ld.email
+    , admin = ld.admin
+    , active = ld.active
     , data = JE.null
     }
 
 
 odLdToLd : OD.LoginData -> LoginData
 odLdToLd ld =
-    { userid = makeUserId ld.userid
+    { userid = ld.userid
     , name = ld.name
+    , email = ld.email
+    , admin = ld.admin
+    , active = ld.active
     }
 
 
@@ -284,22 +235,6 @@ type alias ProjectTime =
 -------------------------------------------
 -- Id types.  They're all ints underneath.
 -------------------------------------------
-
-
-type UserId
-    = UserId Int
-
-
-makeUserId : Int -> UserId
-makeUserId i =
-    UserId i
-
-
-getUserIdVal : UserId -> Int
-getUserIdVal uid =
-    case uid of
-        UserId i ->
-            i
 
 
 type ProjectId

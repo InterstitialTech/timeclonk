@@ -8,6 +8,7 @@ import Element.Border as EBd
 import Element.Events as EE
 import Element.Font as EF
 import Element.Input as EI
+import Orgauth.Data exposing (LoginData)
 import TangoColors as TC
 import TcCommon as TC
 
@@ -35,7 +36,7 @@ type Command
 
 
 type alias Model =
-    { login : Data.LoginData
+    { login : LoginData
     , fontsize : Int
     , saveonclonk : Bool
     , pageincrement : Int
@@ -43,7 +44,7 @@ type alias Model =
     }
 
 
-init : Data.LoginData -> Int -> Bool -> Int -> Model
+init : LoginData -> Int -> Bool -> Int -> Model
 init login fontsize saveonclonk pageincrement =
     { login = login
     , fontsize = fontsize

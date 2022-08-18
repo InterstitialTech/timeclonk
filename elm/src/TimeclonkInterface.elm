@@ -1,8 +1,9 @@
 module TimeclonkInterface exposing (SendMsg(..), ServerResponse(..), encodeEmail, encodeSendMsg, serverResponseDecoder, showServerResponse)
 
-import Data exposing (UserId)
+import Data
 import Json.Decode as JD
 import Json.Encode as JE
+import Orgauth.Data as OD exposing (UserId, getUserIdVal, makeUserId)
 
 
 type SendMsg
@@ -59,7 +60,7 @@ encodeSendMsg sm =
         GetProjectList uid ->
             JE.object
                 [ ( "what", JE.string "GetProjectList" )
-                , ( "data", JE.int (Data.getUserIdVal uid) )
+                , ( "data", JE.int (getUserIdVal uid) )
                 ]
 
         GetProjectEdit pid ->

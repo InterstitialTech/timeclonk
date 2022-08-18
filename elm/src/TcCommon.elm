@@ -12,6 +12,11 @@ import Url.Builder as UB
 import Util as U
 
 
+type alias StylePalette =
+    { defaultSpacing : Int
+    }
+
+
 myLinkStylePlain =
     [ EF.color TC.darkBlue ]
 
