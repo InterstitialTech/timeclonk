@@ -28,6 +28,7 @@ import LocalStorage as LS
 import Orgauth.ChangeEmail as CE
 import Orgauth.ChangePassword as CP
 import Orgauth.Data as OD exposing (AdminSettings, UserId, getUserIdVal, makeUserId)
+import Orgauth.Invited as Invited
 import Orgauth.Login as Login
 import Orgauth.ResetPassword as ResetPassword
 import Orgauth.UserInterface as UI
@@ -59,6 +60,7 @@ import WindowKeys
 
 type Msg
     = LoginMsg Login.Msg
+    | InvitedMsg Invited.Msg
     | UserSettingsMsg UserSettings.Msg
     | ShowMessageMsg ShowMessage.Msg
     | UserReplyData (Result Http.Error UI.ServerResponse)
@@ -92,6 +94,7 @@ type Msg
 
 type State
     = Login Login.Model
+    | Invited Invited.Model
     | UserSettings UserSettings.Model Data.LoginData State
     | ShowMessage ShowMessage.Model Data.LoginData (Maybe State)
     | PubShowMessage ShowMessage.Model (Maybe State)
@@ -274,6 +277,9 @@ showMessage msg =
         LoginMsg _ ->
             "LoginMsg"
 
+        InvitedMsg _ ->
+            "InvitedMsg"
+
         DisplayMessageMsg _ ->
             "DisplayMessage"
 
@@ -440,6 +446,9 @@ showState state =
         Login _ ->
             "Login"
 
+        Invited _ ->
+            "Invited"
+
         UserSettings _ _ _ ->
             "UserSettings"
 
@@ -502,6 +511,9 @@ viewState size state model =
     case state of
         Login lem ->
             E.map LoginMsg <| Login.view model.stylePalette size lem
+
+        Invited em ->
+            E.map InvitedMsg <| Invited.view model.stylePalette size em
 
         ShowMessage em _ _ ->
             E.map ShowMessageMsg <| ShowMessage.view em
@@ -604,6 +616,9 @@ stateLogin state =
 
         ProjectView _ mblogin ->
             mblogin
+
+        Invited _ ->
+            Nothing
 
 
 sendTIMsg : String -> TI.SendMsg -> Cmd Msg
@@ -1092,6 +1107,9 @@ actualupdate msg model =
         ( LoginMsg lm, Login ls ) ->
             handleLogin model (Login.update lm ls)
 
+        ( InvitedMsg lm, Invited ls ) ->
+            handleInvited model (Invited.update lm ls)
+
         ( FileLoaded toMsg file, _ ) ->
             ( model
             , Task.perform toMsg (F.toString file)
@@ -1299,8 +1317,10 @@ actualupdate msg model =
                                     , Cmd.none
                                     )
 
-                        UI.Invite _ ->
-                            ( model, Cmd.none )
+                        UI.Invite invite ->
+                            ( { model | state = Invited (Invited.initialModel invite model.adminSettings "zknotes") }
+                            , Cmd.none
+                            )
 
         ( TimeclonkReplyData urd, state ) ->
             case urd of
@@ -1733,6 +1753,25 @@ handleLogin model ( lmod, lcmd ) =
                 UI.ResetPassword
                     { uid = lmod.userId
                     }
+            )
+
+
+handleInvited : Model -> ( Invited.Model, Invited.Cmd ) -> ( Model, Cmd Msg )
+handleInvited model ( lmod, lcmd ) =
+    case lcmd of
+        Invited.None ->
+            ( { model | state = Invited lmod }, Cmd.none )
+
+        Invited.RSVP ->
+            ( { model | state = Invited lmod }
+            , sendUIMsg model.location
+                (UI.RSVP
+                    { uid = lmod.userId
+                    , pwd = lmod.password
+                    , email = lmod.email
+                    , invite = lmod.invite
+                    }
+                )
             )
 
 
