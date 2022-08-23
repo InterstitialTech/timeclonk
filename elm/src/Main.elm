@@ -177,7 +177,7 @@ type PiModel
 
 initLoginState : Model -> State
 initLoginState model =
-    initLoginState model
+    Login <| Login.initialModel Nothing model.adminSettings model.appname model.seed
 
 
 urlRequest : Browser.UrlRequest -> Msg
