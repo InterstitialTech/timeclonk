@@ -6,6 +6,7 @@ use crate::data::{
 use crate::migrations as tm;
 use barrel::backend::Sqlite;
 use log::info;
+use orgauth::data::RegistrationData;
 use orgauth::util::now;
 use rusqlite::{params, Connection};
 use std::error::Error;
@@ -15,10 +16,16 @@ use std::time::Duration;
 
 pub fn on_new_user(
   _conn: &Connection,
-  _rd: &orgauth::data::RegistrationData,
+  _rd: &RegistrationData,
+  _data: Option<String>,
+  _creator: Option<i64>,
   _uid: i64,
 ) -> Result<(), Box<dyn Error>> {
   Ok(())
+}
+
+pub fn on_delete_user(_conn: &Connection, _uid: i64) -> Result<bool, Box<dyn Error>> {
+  Ok(true)
 }
 
 // callback to pass to orgauth
@@ -114,6 +121,11 @@ pub fn dbinit(dbfile: &Path, token_expiration_ms: i64) -> Result<(), Box<dyn Err
     info!("udpate6");
     tm::udpate6(&dbfile)?;
     set_single_value(&conn, "migration_level", "6")?;
+  }
+  if nlevel < 7 {
+    info!("udpate7");
+    tm::udpate7(&dbfile)?;
+    set_single_value(&conn, "migration_level", "7")?;
   }
 
   info!("db up to date.");

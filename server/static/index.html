@@ -59,6 +59,7 @@
 
       login = {{logindata}};
       appname = "{{appname}}";
+      adminsettings = {{adminsettings}};
 
       app = Elm.Main.init({
         node: document.getElementById('elm'),
@@ -69,7 +70,8 @@
                  appname : appname,
                  width : window.innerWidth, 
                  height : window.innerHeight,
-                 login : login}});
+                 login : login,
+                 adminsettings : adminsettings}});
       // local storage
       app.ports.storeLocalVal.subscribe(storeVal);
       app.ports.getLocalVal.subscribe(getVal);

@@ -1,7 +1,8 @@
 module TimeTotaler exposing (TTotaler, getTes, getTotes, mapTimeentry, mkTToteler, setTes)
 
-import Data exposing (UserId)
+import Data
 import Dict exposing (Dict(..))
+import Orgauth.Data as OD exposing (UserId, getUserIdVal, makeUserId)
 import Set
 import Time
 import TimeReporting as TR exposing (EditAllocation, EditPayEntry, EditTimeEntry, csvToEditAllocations, csvToEditTimeEntries, eteToCsv)

@@ -45,6 +45,9 @@ fn mainpage(session: Session, data: web::Data<Config>, req: HttpRequest) -> Http
     _ => serde_json::Value::Null,
   };
 
+  let adminsettings = serde_json::to_value(orgauth::data::admin_settings(&data.orgauth_config))
+    .unwrap_or(serde_json::Value::Null);
+
   let mut staticpath = data.static_path.clone().unwrap_or(PathBuf::from("static/"));
   staticpath.push("index.html");
   match staticpath.to_str() {
@@ -58,7 +61,8 @@ fn mainpage(session: Session, data: web::Data<Config>, req: HttpRequest) -> Http
               .replace(
                 "{{appname}}",
                 data.orgauth_config.appname.to_string().as_str(),
-              ),
+              )
+              .replace("{{adminsettings}}", adminsettings.to_string().as_str()),
           )
       }
       Err(e) => HttpResponse::from_error(actix_web::error::ErrorImATeapot(e)),
@@ -105,10 +109,46 @@ fn user(
   );
   let mut cb = Callbacks {
     on_new_user: Box::new(sqldata::on_new_user),
+    on_delete_user: Box::new(sqldata::on_delete_user),
     extra_login_data: Box::new(sqldata::extra_login_data_callback),
   };
 
   match orgauth::endpoints::user_interface(
+    &session,
+    &data.orgauth_config,
+    &mut cb,
+    item.into_inner(),
+  ) {
+    Ok(sr) => HttpResponse::Ok().json(sr),
+    Err(e) => {
+      error!("'user' err: {:?}", e);
+      let se = orgauth::data::WhatMessage {
+        what: "server error".to_string(),
+        data: Some(serde_json::Value::String(e.to_string())),
+      };
+      HttpResponse::Ok().json(se)
+    }
+  }
+}
+
+fn admin(
+  session: Session,
+  data: web::Data<Config>,
+  item: web::Json<orgauth::data::WhatMessage>,
+  req: HttpRequest,
+) -> HttpResponse {
+  info!(
+    "admin msg: {}, {:?}  \n connection_info: {:?}",
+    &item.what,
+    &item.data,
+    req.connection_info()
+  );
+  let mut cb = Callbacks {
+    on_new_user: Box::new(sqldata::on_new_user),
+    extra_login_data: Box::new(sqldata::extra_login_data_callback),
+    on_delete_user: Box::new(sqldata::on_delete_user),
+  };
+  match orgauth::endpoints::admin_interface_check(
     &session,
     &data.orgauth_config,
     &mut cb,
@@ -192,11 +232,13 @@ fn defcon() -> Config {
     db: PathBuf::from("./timeclonk.db"),
     mainsite: "http://localhost:8001".to_string(),
     appname: "timeclonk".to_string(),
-    domain: "localhost:8001".to_string(),
+    emaildomain: "localhost:8001".to_string(),
     admin_email: "admin@admin.admin".to_string(),
     login_token_expiration_ms: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
     email_token_expiration_ms: 1 * 24 * 60 * 60 * 1000, // 1 day in milliseconds
     reset_token_expiration_ms: 1 * 24 * 60 * 60 * 1000, // 1 day in milliseconds
+    invite_token_expiration_ms: 1 * 24 * 60 * 60 * 1000, // 1 day in milliseconds
+    open_registration: false,
   };
   Config {
     ip: "127.0.0.1".to_string(),
@@ -313,6 +355,7 @@ async fn err_main() -> Result<(), Box<dyn Error>> {
           .service(web::resource("/public").route(web::post().to(public)))
           .service(web::resource("/private").route(web::post().to(private)))
           .service(web::resource("/user").route(web::post().to(user)))
+          .service(web::resource("/admin").route(web::post().to(admin)))
           .service(web::resource(r"/register/{uid}/{key}").route(web::get().to(register)))
           .service(web::resource(r"/newemail/{uid}/{token}").route(web::get().to(new_email)))
           .service(actix_files::Files::new("/static/", staticpath))

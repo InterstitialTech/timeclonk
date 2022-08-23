@@ -1,7 +1,7 @@
 module ProjectEdit exposing (..)
 
 import Common
-import Data exposing (UserId)
+import Data
 import Dialog as D
 import Dict exposing (Dict)
 import Element as E exposing (Element)
@@ -10,6 +10,7 @@ import Element.Border as EBd
 import Element.Font as EF
 import Element.Input as EI
 import Element.Region
+import Orgauth.Data as OD exposing (UserId, getUserIdVal, makeUserId)
 import Route
 import SelectString
 import TDict exposing (TDict)
@@ -138,7 +139,7 @@ toSaveProjectEdit model =
 
 emptyUmDict : TDict UserId Int Data.ProjectMember
 emptyUmDict =
-    TDict.empty Data.getUserIdVal Data.makeUserId
+    TDict.empty getUserIdVal makeUserId
 
 
 onSavedProjectEdit : Data.SavedProjectEdit -> Model -> Model
@@ -165,7 +166,7 @@ addMember pm role model =
     { model | members = TDict.insert pm.id { id = pm.id, name = pm.name, role = role } model.members }
 
 
-setRole : ( Data.UserId, Data.Role ) -> Model -> Model
+setRole : ( UserId, Data.Role ) -> Model -> Model
 setRole ( id, role ) model =
     { model
         | members =

@@ -3,7 +3,7 @@ module ProjectView exposing (..)
 import Calendar
 import Common
 import Csv
-import Data exposing (UserId)
+import Data
 import Dict exposing (Dict)
 import Element as E exposing (Element)
 import Element.Background as EBk
@@ -11,6 +11,7 @@ import Element.Border as EBd
 import Element.Events as EE
 import Element.Font as EF
 import Element.Input as EI
+import Orgauth.Data as OD exposing (UserId, getUserIdVal, makeUserId)
 import Paginator as P
 import Round as R
 import Set
@@ -220,7 +221,7 @@ init zone pt pageincrement mode =
     in
     { project = pt.project
     , members = pt.members
-    , membernames = pt.members |> List.map (\m -> ( Data.getUserIdVal m.id, m.name )) |> Dict.fromList
+    , membernames = pt.members |> List.map (\m -> ( getUserIdVal m.id, m.name )) |> Dict.fromList
     , teamentries = mkTToteler ietes (always True) zone
     , teampaginator = P.init TeamForward TeamBack TeamToStart TeamToEnd P.End pageincrement
     , payentries = iepes
@@ -413,7 +414,7 @@ teamview size zone model =
                             ]
                             [ E.text
                                 (te.user
-                                    |> Data.getUserIdVal
+                                    |> getUserIdVal
                                     |> (\i -> Dict.get i model.membernames)
                                     |> Maybe.withDefault ""
                                 )
@@ -983,7 +984,7 @@ payview size zone model =
                    , view =
                         \( date, a ) ->
                             E.row []
-                                [ E.text (a.user |> Data.getUserIdVal |> (\i -> Dict.get i model.membernames |> Maybe.withDefault ""))
+                                [ E.text (a.user |> getUserIdVal |> (\i -> Dict.get i model.membernames |> Maybe.withDefault ""))
                                 ]
                    }
                 :: { header = E.el headerStyle <| E.text "payment"

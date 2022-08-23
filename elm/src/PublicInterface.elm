@@ -6,9 +6,10 @@ module PublicInterface exposing
     , showServerResponse
     )
 
-import Data exposing (UserId)
+import Data
 import Json.Decode as JD
 import Json.Encode as JE
+import Orgauth.Data as OD exposing (UserId, getUserIdVal, makeUserId)
 
 
 type SendMsg
