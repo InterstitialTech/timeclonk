@@ -32,9 +32,9 @@ import Orgauth.Data as OD exposing (AdminSettings, UserId, getUserIdVal, makeUse
 import Orgauth.Invited as Invited
 import Orgauth.Login as Login
 import Orgauth.ResetPassword as ResetPassword
+import Orgauth.ShowUrl as ShowUrl
 import Orgauth.UserEdit as UserEdit
 import Orgauth.UserInterface as UI
-import Orgauth.UserInvite as UserInvite
 import Orgauth.UserListing as UserListing
 import ProjectEdit
 import ProjectListing
@@ -68,7 +68,7 @@ type Msg
     | UserSettingsMsg UserSettings.Msg
     | UserEditMsg UserEdit.Msg
     | UserListingMsg UserListing.Msg
-    | UserInviteMsg UserInvite.Msg
+    | ShowUrlMsg ShowUrl.Msg
     | ShowMessageMsg ShowMessage.Msg
     | UserReplyData (Result Http.Error UI.ServerResponse)
     | AdminReplyData (Result Http.Error AI.ServerResponse)
@@ -106,7 +106,7 @@ type State
     | UserSettings UserSettings.Model Data.LoginData State
     | UserListing UserListing.Model Data.LoginData
     | UserEdit UserEdit.Model Data.LoginData
-    | UserInvite UserInvite.Model Data.LoginData
+    | ShowUrl ShowUrl.Model Data.LoginData
     | ShowMessage ShowMessage.Model Data.LoginData (Maybe State)
     | PubShowMessage ShowMessage.Model (Maybe State)
     | LoginShowMessage ShowMessage.Model Data.LoginData Url
@@ -307,8 +307,8 @@ showMessage msg =
         UserListingMsg _ ->
             "UserListingMsg"
 
-        UserInviteMsg _ ->
-            "UserInviteMsg"
+        ShowUrlMsg _ ->
+            "ShowUrlMsg"
 
         DisplayMessageMsg _ ->
             "DisplayMessage"
@@ -499,8 +499,8 @@ showState state =
         UserListing _ _ ->
             "UserListing"
 
-        UserInvite _ _ ->
-            "UserInvite"
+        ShowUrl _ _ ->
+            "ShowUrl"
 
         UserSettings _ _ _ ->
             "UserSettings"
@@ -574,8 +574,8 @@ viewState size state model =
         UserListing em login ->
             E.map UserListingMsg <| UserListing.view [] em
 
-        UserInvite em login ->
-            E.map UserInviteMsg <| UserInvite.view [] em
+        ShowUrl em login ->
+            E.map ShowUrlMsg <| ShowUrl.view [] em
 
         ShowMessage em _ _ ->
             E.map ShowMessageMsg <| ShowMessage.view em
@@ -643,7 +643,7 @@ stateLogin state =
         UserListing _ login ->
             Just login
 
-        UserInvite _ login ->
+        ShowUrl _ login ->
             Just login
 
         DisplayMessage _ bestate ->
@@ -1448,7 +1448,12 @@ actualupdate msg model =
                         AI.UserInvite ui ->
                             case stateLogin model.state of
                                 Just login ->
-                                    ( { model | state = UserInvite (UserInvite.init ui) login }
+                                    ( { model
+                                        | state =
+                                            ShowUrl
+                                                (ShowUrl.init ui.url "Send this url to the invited user!" "invite url")
+                                                login
+                                      }
                                     , Cmd.none
                                     )
 
@@ -1456,6 +1461,21 @@ actualupdate msg model =
                                     ( displayMessageDialog model "not logged in!"
                                     , Cmd.none
                                     )
+
+                        AI.PwdReset pr ->
+                            case state of
+                                UserEdit uem login ->
+                                    ( { model
+                                        | state =
+                                            ShowUrl
+                                                (ShowUrl.init pr.url "Send this url to the user for password reset!" "reset url")
+                                                login
+                                      }
+                                    , Cmd.none
+                                    )
+
+                                _ ->
+                                    ( model, Cmd.none )
 
                         AI.ServerError e ->
                             ( displayMessageDialog model <| e, Cmd.none )
@@ -1515,7 +1535,12 @@ actualupdate msg model =
 
                 UserEdit.Delete id ->
                     ( model
-                    , sendAIMsg model.location <| AI.DeleteUser (getUserIdVal id)
+                    , sendAIMsg model.location <| AI.DeleteUser id
+                    )
+
+                UserEdit.ResetPwd id ->
+                    ( model
+                    , sendAIMsg model.location <| AI.GetPwdReset id
                     )
 
                 UserEdit.Save ld ->
@@ -1526,19 +1551,19 @@ actualupdate msg model =
                 UserEdit.None ->
                     ( { model | state = UserEdit numod login }, Cmd.none )
 
-        ( UserInviteMsg umsg, UserInvite umod login ) ->
+        ( ShowUrlMsg umsg, ShowUrl umod login ) ->
             let
                 ( numod, c ) =
-                    UserInvite.update umsg umod
+                    ShowUrl.update umsg umod
             in
             case c of
-                UserInvite.Done ->
+                ShowUrl.Done ->
                     ( model
                     , sendAIMsg model.location AI.GetUsers
                     )
 
-                UserInvite.None ->
-                    ( { model | state = UserInvite numod login }, Cmd.none )
+                ShowUrl.None ->
+                    ( { model | state = ShowUrl numod login }, Cmd.none )
 
         ( TimeclonkReplyData urd, state ) ->
             case urd of
