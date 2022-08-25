@@ -190,10 +190,6 @@ update msg model =
                         }
                         |> JE.encode 0
                         |> Just
-
-                -- Data.encodeZkInviteData (List.map Data.elToSzl (Dict.values model.zklDict))
-                --     |> JE.encode 2
-                --     |> Just
                 }
             )
 
