@@ -1,7 +1,7 @@
 use crate::data::{
   Allocation, ListProject, PayEntry, Project, ProjectEdit, ProjectMember, ProjectTime, Role,
   SaveAllocation, SavePayEntry, SaveProject, SaveProjectEdit, SaveProjectTime, SaveTimeEntry,
-  SavedProject, SavedProjectEdit, TimeEntry, User,
+  SavedProject, SavedProjectEdit, TimeEntry, User, UserInviteData,
 };
 use crate::migrations as tm;
 use barrel::backend::Sqlite;
@@ -15,13 +15,39 @@ use std::str::FromStr;
 use std::time::Duration;
 
 pub fn on_new_user(
-  _conn: &Connection,
+  conn: &Connection,
   _rd: &RegistrationData,
-  _data: Option<String>,
-  _creator: Option<i64>,
-  _uid: i64,
+  data: Option<String>,
+  creator: Option<i64>,
+  uid: i64,
 ) -> Result<(), Box<dyn Error>> {
-  Ok(())
+  match data {
+    Some(d) => {
+      let invitedata: UserInviteData = serde_json::from_str(d.as_str())?;
+      match creator {
+        Some(cuid) => {
+          for p in invitedata.projects {
+            match member_role(conn, cuid, p.id)? {
+              Some(Role::Admin) => {
+                conn.execute(
+                  "insert into projectmember (project, user, role)
+                   values (?1, ?2, ?3)
+                   on conflict (project, user) do update set role = ?3",
+                  params![p.id, uid, p.role.to_string().as_str()],
+                )?;
+              }
+              Some(_) => (),
+              None => (),
+            }
+          }
+        }
+        None => (),
+      }
+
+      Ok(())
+    }
+    None => Ok(()),
+  }
 }
 
 pub fn on_delete_user(_conn: &Connection, _uid: i64) -> Result<bool, Box<dyn Error>> {
@@ -154,16 +180,21 @@ pub fn member_role(conn: &Connection, uid: i64, pid: i64) -> Result<Option<Role>
 
 pub fn project_list(conn: &Connection, uid: i64) -> Result<Vec<ListProject>, Box<dyn Error>> {
   let mut pstmt = conn.prepare(
-    "select project.id, project.name from project, projectmember where
+    "select project.id, project.name, projectmember.role from project, projectmember where
     project.id = projectmember.project and
     projectmember.user = ?1",
   )?;
   let r = Ok(
     pstmt
       .query_map(params![uid], |row| {
+        let role: String = row.get(2)?;
         Ok(ListProject {
           id: row.get(0)?,
           name: row.get(1)?,
+          role: match Role::from_str(role.as_str()) {
+            Ok(r) => r,
+            Err(_) => Role::Observer, // default to observer on decode failure.  lame
+          },
         })
       })?
       .filter_map(|x| x.ok())

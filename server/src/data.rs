@@ -5,9 +5,21 @@ use std::str::FromStr;
 // -------------------------------------------------
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UserInviteProject {
+  pub id: i64,
+  pub role: Role,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UserInviteData {
+  pub projects: Vec<UserInviteProject>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ListProject {
   pub id: i64,
   pub name: String,
+  pub role: Role,
 }
 
 #[derive(Deserialize, Debug, Clone)]

@@ -1,7 +1,7 @@
-module InviteUser exposing (Command(..), Model, Msg(..), NavChoice(..), SearchOrRecent(..), disabledLinkButtonStyle, emptyProjectDict, emptyProjectSet, init, linkButtonStyle, update, view)
+module InviteUser exposing (Command(..), Model, Msg(..), disabledLinkButtonStyle, emptyProjectDict, emptyProjectRoleDict, init, linkButtonStyle, update, view)
 
 import Common
-import Data exposing (ProjectId, getProjectIdVal, makeProjectId)
+import Data exposing (ProjectId, Role(..), getProjectIdVal, makeProjectId)
 import Dict exposing (Dict(..))
 import Element as E exposing (Element)
 import Element.Background as EBk
@@ -13,7 +13,7 @@ import Element.Region
 import Json.Encode as JE
 import Orgauth.Data as OD
 import TDict exposing (TDict(..))
-import TSet exposing (TSet(..))
+import TangoColors
 import TcCommon as TC
 import Time exposing (Zone)
 import Util
@@ -27,26 +27,18 @@ disabledLinkButtonStyle =
     Common.disabledButtonStyle
 
 
-type NavChoice
-    = NcSearch
-    | NcRecent
-
-
-type SearchOrRecent
-    = SearchView
-    | RecentView
-
-
 type alias Model =
     { ld : Data.LoginData
-    , projects : TDict ProjectId Int String
-    , assignedProjects : TSet ProjectId Int
+    , projects : TDict ProjectId Int Data.ListProject
+    , assignedProjects : TDict ProjectId Int Role
     , email : String
     }
 
 
 type Msg
     = EmailChanged String
+    | Add ProjectId Data.Role
+    | Remove ProjectId
     | OkClick
     | CancelClick
     | Noop
@@ -58,12 +50,12 @@ type Command
     | Cancel
 
 
-emptyProjectSet : TSet ProjectId Int
-emptyProjectSet =
-    TSet.empty getProjectIdVal makeProjectId
+emptyProjectRoleDict : TDict ProjectId Int Role
+emptyProjectRoleDict =
+    TDict.empty getProjectIdVal makeProjectId
 
 
-emptyProjectDict : TDict ProjectId Int String
+emptyProjectDict : TDict ProjectId Int Data.ListProject
 emptyProjectDict =
     TDict.empty getProjectIdVal makeProjectId
 
@@ -74,9 +66,9 @@ init projects loginData =
     , email = ""
     , projects =
         projects
-            |> List.map (\p -> ( p.id, p.name ))
+            |> List.map (\p -> ( p.id, p ))
             |> TDict.insertList emptyProjectDict
-    , assignedProjects = emptyProjectSet
+    , assignedProjects = emptyProjectRoleDict
     }
 
 
@@ -92,49 +84,76 @@ view stylePalette mbsize model =
 
         showAssigned =
             model.assignedProjects
-                |> TSet.toList
+                |> TDict.toList
                 |> List.map
-                    (\pid ->
-                        E.text
-                            (TDict.get pid model.projects
-                                |> Maybe.withDefault ""
-                            )
+                    (\( pid, role ) ->
+                        E.row [ E.width E.fill, E.spacing 8 ]
+                            [ E.text
+                                (TDict.get pid model.projects
+                                    |> Maybe.map (\p -> p.name)
+                                    |> Maybe.withDefault ""
+                                )
+                            , E.el [ E.alignRight ] <| E.text (Data.roleToString role)
+                            , EI.button (E.alignRight :: Common.buttonStyle)
+                                { onPress = Just <| Remove pid
+                                , label = E.text "x"
+                                }
+                            ]
                     )
 
         showProjects =
-            E.column []
+            E.column [ E.spacing 8 ]
                 (model.projects
                     |> TDict.toList
                     |> List.map
-                        (\( pid, name ) ->
-                            E.text name
+                        (\( pid, p ) ->
+                            E.row [ E.width E.fill, E.spacing 8 ] <|
+                                if p.role == Admin then
+                                    [ E.text p.name
+                                    , EI.button (E.alignRight :: Common.buttonStyle)
+                                        { onPress = Just (Add pid Observer)
+                                        , label = E.text "observer"
+                                        }
+                                    , EI.button (E.alignRight :: Common.buttonStyle)
+                                        { onPress = Just (Add pid Member)
+                                        , label = E.text "member"
+                                        }
+                                    , EI.button (E.alignRight :: Common.buttonStyle)
+                                        { onPress = Just (Add pid Admin)
+                                        , label = E.text "admin"
+                                        }
+                                    ]
+
+                                else
+                                    [ E.el [ EF.color TangoColors.grey ] <| E.text p.name
+                                    ]
                         )
                 )
     in
-    E.row
-        [ -- E.width (mbsize |> Maybe.map .width |> Maybe.withDefault 500 |> E.px)
-          -- , E.height E.fill
-          -- , E.height E.shrink
-          E.spacing 10
-        ]
-        [ E.column [] <|
-            [ EI.text []
-                { onChange = EmailChanged
-                , text = model.email
-                , placeholder = Nothing
-                , label = EI.labelLeft [] (E.text "email")
-                }
-            , E.row [ E.width E.fill, E.spacing 10 ]
-                [ EI.button
-                    Common.buttonStyle
-                    { onPress = Just OkClick, label = E.text "Ok" }
-                , EI.button
-                    Common.buttonStyle
-                    { onPress = Just CancelClick, label = E.text "Cancel" }
-                ]
+    E.column [ E.spacing 10 ]
+        [ E.el [ EF.bold, E.centerX, EF.size 40 ] <| E.text "add new user"
+        , E.row
+            [ E.spacing 10
             ]
-                ++ showAssigned
-        , showProjects
+            [ E.column [ E.spacing 8, E.alignTop, E.width <| E.px 500 ] <|
+                [ EI.text []
+                    { onChange = EmailChanged
+                    , text = model.email
+                    , placeholder = Nothing
+                    , label = EI.labelLeft [] (E.text "optional email")
+                    }
+                , E.row [ E.width E.fill, E.spacing 10 ]
+                    [ EI.button
+                        Common.buttonStyle
+                        { onPress = Just OkClick, label = E.text "Ok" }
+                    , EI.button
+                        Common.buttonStyle
+                        { onPress = Just CancelClick, label = E.text "Cancel" }
+                    ]
+                ]
+                    ++ showAssigned
+            , showProjects
+            ]
         ]
 
 
@@ -143,6 +162,12 @@ update msg model =
     case msg of
         EmailChanged s ->
             ( { model | email = s }, None )
+
+        Add pid role ->
+            ( { model | assignedProjects = TDict.insert pid role model.assignedProjects }, None )
+
+        Remove pid ->
+            ( { model | assignedProjects = TDict.remove pid model.assignedProjects }, None )
 
         CancelClick ->
             ( model, Cancel )
