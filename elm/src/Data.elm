@@ -1,4 +1,4 @@
-module Data exposing (Allocation, AllocationId(..), ListProject, LoginData, PayEntry, PayEntryId(..), Project, ProjectEdit, ProjectId(..), ProjectMember, ProjectTime, Role(..), SaveAllocation, SavePayEntry, SaveProject, SaveProjectEdit, SaveProjectMember, SaveProjectTime, SaveTimeEntry, SavedProject, SavedProjectEdit, TimeEntry, TimeEntryId(..), User, decodeAllocation, decodeListProject, decodePayEntry, decodeProject, decodeProjectEdit, decodeProjectMember, decodeProjectTime, decodeRole, decodeSavedProject, decodeSavedProjectEdit, decodeTimeEntry, decodeUser, encodeRole, encodeSaveAllocation, encodeSavePayEntry, encodeSaveProject, encodeSaveProjectEdit, encodeSaveProjectMember, encodeSaveProjectTime, encodeSaveTimeEntry, getAllocationIdVal, getPayEntryIdVal, getProjectIdVal, getTimeEntryIdVal, ldToOdLd, makeAllocationId, makePayEntryId, makeProjectId, makeTimeEntryId, odLdToLd, projectMemberToUser, roleToString, showRole, stringToRole)
+module Data exposing (Allocation, AllocationId(..), ListProject, LoginData, PayEntry, PayEntryId(..), Project, ProjectEdit, ProjectId(..), ProjectMember, ProjectTime, Role(..), SaveAllocation, SavePayEntry, SaveProject, SaveProjectEdit, SaveProjectMember, SaveProjectTime, SaveTimeEntry, SavedProject, SavedProjectEdit, TimeEntry, TimeEntryId(..), User, UserInviteData, UserInviteProject, decodeAllocation, decodeListProject, decodePayEntry, decodeProject, decodeProjectEdit, decodeProjectMember, decodeProjectTime, decodeRole, decodeSavedProject, decodeSavedProjectEdit, decodeTimeEntry, decodeUser, encodeRole, encodeSaveAllocation, encodeSavePayEntry, encodeSaveProject, encodeSaveProjectEdit, encodeSaveProjectMember, encodeSaveProjectTime, encodeSaveTimeEntry, encodeUserInviteData, encodeUserInviteProject, getAllocationIdVal, getPayEntryIdVal, getProjectIdVal, getTimeEntryIdVal, ldToOdLd, makeAllocationId, makePayEntryId, makeProjectId, makeTimeEntryId, odLdToLd, projectMemberToUser, roleToString, showRole, stringToRole)
 
 import Json.Decode as JD
 import Json.Encode as JE
@@ -44,9 +44,33 @@ odLdToLd ld =
 ----------------------------------------
 
 
+type alias UserInviteProject =
+    { id : ProjectId, role : Role }
+
+
+encodeUserInviteProject : UserInviteProject -> JE.Value
+encodeUserInviteProject p =
+    JE.object
+        [ ( "id", JE.int <| getProjectIdVal p.id )
+        , ( "role", encodeRole p.role )
+        ]
+
+
+type alias UserInviteData =
+    { projects : List UserInviteProject }
+
+
+encodeUserInviteData : UserInviteData -> JE.Value
+encodeUserInviteData d =
+    JE.object
+        [ ( "projects", JE.list encodeUserInviteProject d.projects )
+        ]
+
+
 type alias ListProject =
     { id : ProjectId
     , name : String
+    , role : Role
     }
 
 
@@ -312,6 +336,7 @@ decodeListProject =
     JD.succeed ListProject
         |> andMap (JD.field "id" JD.int |> JD.map makeProjectId)
         |> andMap (JD.field "name" JD.string)
+        |> andMap (JD.field "role" decodeRole)
 
 
 encodeSaveProject : SaveProject -> JE.Value

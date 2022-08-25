@@ -22,6 +22,7 @@ import Html exposing (Attribute, Html)
 import Html.Attributes
 import Html.Events as HE
 import Http
+import InviteUser
 import Json.Decode as JD
 import Json.Encode as JE
 import LocalStorage as LS
@@ -65,6 +66,7 @@ import WindowKeys
 type Msg
     = LoginMsg Login.Msg
     | InvitedMsg Invited.Msg
+    | InviteUserMsg InviteUser.Msg
     | UserSettingsMsg UserSettings.Msg
     | UserEditMsg UserEdit.Msg
     | UserListingMsg UserListing.Msg
@@ -103,6 +105,7 @@ type Msg
 type State
     = Login Login.Model
     | Invited Invited.Model
+    | InviteUser InviteUser.Model Data.LoginData
     | UserSettings UserSettings.Model Data.LoginData State
     | UserListing UserListing.Model Data.LoginData
     | UserEdit UserEdit.Model Data.LoginData
@@ -301,6 +304,9 @@ showMessage msg =
         InvitedMsg _ ->
             "InvitedMsg"
 
+        InviteUserMsg _ ->
+            "InviteUserMsg"
+
         UserEditMsg _ ->
             "UserEditMsg"
 
@@ -493,6 +499,9 @@ showState state =
         Invited _ ->
             "Invited"
 
+        InviteUser _ _ ->
+            "InviteUser"
+
         UserEdit _ _ ->
             "UserEdit"
 
@@ -568,6 +577,9 @@ viewState size state model =
         Invited em ->
             E.map InvitedMsg <| Invited.view model.stylePalette size em
 
+        InviteUser em login ->
+            E.map InviteUserMsg <| InviteUser.view model.stylePalette (Just size) em
+
         UserEdit em login ->
             E.map UserEditMsg <| UserEdit.view [] em
 
@@ -633,6 +645,9 @@ stateLogin state =
     case state of
         Login _ ->
             Nothing
+
+        InviteUser _ login ->
+            Just login
 
         UserSettings _ login _ ->
             Just login
@@ -1195,6 +1210,9 @@ actualupdate msg model =
         ( InvitedMsg lm, Invited ls ) ->
             handleInvited model (Invited.update lm ls)
 
+        ( InviteUserMsg lm, InviteUser ls ld ) ->
+            handleInviteUser model (InviteUser.update lm ls) ld
+
         ( FileLoaded toMsg file, _ ) ->
             ( model
             , Task.perform toMsg (F.toString file)
@@ -1292,10 +1310,6 @@ actualupdate msg model =
                                     }
                             in
                             case state of
-                                Login lm ->
-                                    -- we're logged in!
-                                    initialPage lgmod
-
                                 LoginShowMessage _ li url ->
                                     let
                                         ( m, cmd ) =
@@ -1319,9 +1333,7 @@ actualupdate msg model =
                                     ( m, cmd )
 
                                 _ ->
-                                    ( displayMessageDialog model "logged in"
-                                    , sendTIMsg model.location <| TI.GetProjectList login.userid
-                                    )
+                                    initialPage lgmod
 
                         UI.LoggedOut ->
                             ( model, Cmd.none )
@@ -1490,26 +1502,10 @@ actualupdate msg model =
                     initialPage model
 
                 UserListing.NewUser ->
-                    -- let
-                    --     ( sp, sr ) =
-                    --         s
-                    --             |> Maybe.withDefault
-                    --                 ( SP.initModel
-                    --                 , { notes = []
-                    --                   , offset = 0
-                    --                   , what = ""
-                    --                   }
-                    --                 )
-                    -- in
-                    -- ( { model
-                    --     | state =
-                    --         InviteUser
-                    --             (InviteUser.init sp sr model.recentNotes [] login)
-                    --             login
-                    --   }
-                    -- , Cmd.none
-                    -- )
-                    ( model, Cmd.none )
+                    -- get project listing, so we can add users to a specific project.
+                    ( model
+                    , sendTIMsg model.location <| TI.GetProjectList login.userid
+                    )
 
                 UserListing.InviteUser ->
                     ( { model | state = UserListing numod login }
@@ -1582,12 +1578,17 @@ actualupdate msg model =
                             ( { model | state = initLoginState model }, Cmd.none )
 
                         TI.ProjectList x ->
-                            case stateLogin state of
-                                Just login ->
-                                    ( { model | state = ProjectListing (ProjectListing.init x) login }, Cmd.none )
+                            case state of
+                                UserListing ulst login ->
+                                    ( { model | state = InviteUser (InviteUser.init x login) login }, Cmd.none )
 
-                                Nothing ->
-                                    ( model, Cmd.none )
+                                _ ->
+                                    case stateLogin state of
+                                        Just login ->
+                                            ( { model | state = ProjectListing (ProjectListing.init x) login }, Cmd.none )
+
+                                        Nothing ->
+                                            ( model, Cmd.none )
 
                         TI.ProjectEdit x ->
                             case stateLogin state of
@@ -2020,6 +2021,25 @@ handleInvited model ( lmod, lcmd ) =
                     , invite = lmod.invite
                     }
                 )
+            )
+
+
+handleInviteUser : Model -> ( InviteUser.Model, InviteUser.Command ) -> Data.LoginData -> ( Model, Cmd Msg )
+handleInviteUser model ( lmod, lcmd ) ld =
+    case lcmd of
+        InviteUser.None ->
+            ( { model | state = InviteUser lmod ld }, Cmd.none )
+
+        InviteUser.GetInvite invite ->
+            ( { model | state = InviteUser lmod ld }
+            , sendAIMsg model.location
+                (AI.GetInvite invite)
+            )
+
+        InviteUser.Cancel ->
+            ( model
+            , sendAIMsg model.location
+                AI.GetUsers
             )
 
 
