@@ -181,7 +181,15 @@ update msg model =
 
                     else
                         Nothing
-                , data = Nothing
+                , data =
+                    Data.encodeUserInviteData
+                        { projects =
+                            model.assignedProjects
+                                |> TDict.toList
+                                |> List.map (\( pid, role ) -> { id = pid, role = role })
+                        }
+                        |> JE.encode 0
+                        |> Just
 
                 -- Data.encodeZkInviteData (List.map Data.elToSzl (Dict.values model.zklDict))
                 --     |> JE.encode 2

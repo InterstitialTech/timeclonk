@@ -1310,10 +1310,6 @@ actualupdate msg model =
                                     }
                             in
                             case state of
-                                Login lm ->
-                                    -- we're logged in!
-                                    initialPage lgmod
-
                                 LoginShowMessage _ li url ->
                                     let
                                         ( m, cmd ) =
@@ -1337,9 +1333,7 @@ actualupdate msg model =
                                     ( m, cmd )
 
                                 _ ->
-                                    ( displayMessageDialog model "logged in"
-                                    , sendTIMsg model.location <| TI.GetProjectList login.userid
-                                    )
+                                    initialPage lgmod
 
                         UI.LoggedOut ->
                             ( model, Cmd.none )
