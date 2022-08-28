@@ -628,7 +628,7 @@ viewState size state model =
             E.map ResetPasswordMsg (ResetPassword.view size st)
 
         ProjectListing em ld ->
-            E.map ProjectListingMsg <| ProjectListing.view ld size em
+            E.map ProjectListingMsg <| ProjectListing.view model.adminSettings ld size em
 
         ProjectEdit em ld ->
             E.map ProjectEditMsg <| ProjectEdit.view ld size em
@@ -1415,9 +1415,21 @@ actualupdate msg model =
                                     )
 
                         UI.Invite invite ->
-                            ( { model | state = Invited (Invited.initialModel invite model.adminSettings "zknotes") }
-                            , Cmd.none
-                            )
+                            case model.state of
+                                InviteUser mdl login ->
+                                    ( { model
+                                        | state =
+                                            ShowUrl
+                                                (ShowUrl.init invite.url "Send this url to the invited user!" "invite url")
+                                                login
+                                      }
+                                    , Cmd.none
+                                    )
+
+                                _ ->
+                                    ( { model | state = Invited (Invited.initialModel invite model.adminSettings model.appname) }
+                                    , Cmd.none
+                                    )
 
         ( AdminReplyData ard, state ) ->
             case ard of
@@ -1555,7 +1567,11 @@ actualupdate msg model =
             case c of
                 ShowUrl.Done ->
                     ( model
-                    , sendAIMsg model.location AI.GetUsers
+                    , if login.admin then
+                        sendAIMsg model.location AI.GetUsers
+
+                      else
+                        sendTIMsg model.location <| TI.GetProjectList login.userid
                     )
 
                 ShowUrl.None ->
@@ -1774,6 +1790,11 @@ actualupdate msg model =
                 ProjectListing.Admin ->
                     ( model
                     , sendAIMsg model.location AI.GetUsers
+                    )
+
+                ProjectListing.Invite ->
+                    ( { model | state = InviteUser (InviteUser.init st.projects login) login }
+                    , Cmd.none
                     )
 
                 ProjectListing.None ->
@@ -2032,8 +2053,13 @@ handleInviteUser model ( lmod, lcmd ) ld =
 
         InviteUser.GetInvite invite ->
             ( { model | state = InviteUser lmod ld }
-            , sendAIMsg model.location
-                (AI.GetInvite invite)
+            , if ld.admin then
+                sendAIMsg model.location
+                    (AI.GetInvite invite)
+
+              else
+                sendUIMsg model.location
+                    (UI.GetInvite invite)
             )
 
         InviteUser.Cancel ->
