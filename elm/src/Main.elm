@@ -2100,7 +2100,10 @@ init flags url key zone fontsize saveonclonk pageincrement =
                         JD.decodeValue OD.decodeAdminSettings v
                             |> Result.toMaybe
                     )
-                |> Maybe.withDefault { openRegistration = False }
+                |> Maybe.withDefault
+                    { openRegistration = False
+                    , nonAdminInvite = False
+                    }
 
         imodel =
             { state =
