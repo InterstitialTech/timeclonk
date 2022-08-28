@@ -25,6 +25,7 @@ type Msg
     | DonePress
     | SettingsPress
     | AdminPress
+    | InvitePress
 
 
 type alias Model =
@@ -38,6 +39,7 @@ type Command
     | Done
     | Settings
     | Admin
+    | Invite
     | None
 
 
@@ -46,8 +48,8 @@ init projects =
     { projects = projects }
 
 
-view : Data.LoginData -> Util.Size -> Model -> Element Msg
-view ld size model =
+view : OD.AdminSettings -> Data.LoginData -> Util.Size -> Model -> Element Msg
+view adminSettings ld size model =
     let
         maxwidth =
             700
@@ -73,6 +75,11 @@ view ld size model =
                     EI.button
                         (E.alignRight :: Common.buttonStyle)
                         { onPress = Just AdminPress, label = E.text "admin" }
+
+                  else if adminSettings.nonAdminInvite then
+                    EI.button
+                        (E.alignRight :: Common.buttonStyle)
+                        { onPress = Just InvitePress, label = E.text "invite" }
 
                   else
                     E.none
@@ -143,3 +150,6 @@ update msg model ld =
 
         AdminPress ->
             ( model, Admin )
+
+        InvitePress ->
+            ( model, Invite )
