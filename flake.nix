@@ -82,9 +82,11 @@
               cargo
               cargo-watch
               rustc
+              rustfmt
+              rust-analyzer
               sqlite
               pkgconfig
-              openssl.dev 
+              openssl.dev
               elm2nix
               elmPackages.elm
               elmPackages.elm-analyse
