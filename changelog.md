@@ -1,3 +1,27 @@
+## 2022-8-28
+
+Users can create user invite links, which have projects associated with them.  When a new user registers using the
+link, they are automatically added to the projects.
+
+## 2022-5-15
+
+User roles: admin, member, observer.  Admins can add users to a project and edit project level information.  Members
+can clock in and out; observers have read-only access.
+
+## 2022-4-14
+
+team view - show hours for the whole team.
+
+csv export.
+
+## 2022-2-24
+
+pagination.
+
+## 2022-2-8
+
+daily, weekly totals.
+
 ## 2022-2-1
 
 added project-level hourly rate, for helping with distribution calculations.
