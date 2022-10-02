@@ -1,3 +1,7 @@
+## 2022-10-5
+
+Allow selecting Task or allocation Description for edit, when they are empty.
+
 ## 2022-8-28
 
 Users can create user invite links, which have projects associated with them.  When a new user registers using the
