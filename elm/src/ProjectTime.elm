@@ -828,8 +828,15 @@ clonkview ld size zone isdirty model =
                                     [ EE.onClick <| OnRowItemClick te.startdate Description
                                     , igfont te
                                     , E.width E.fill
+                                    , E.height E.fill
                                     ]
-                                    [ E.text te.description ]
+                                    [ E.text <|
+                                        if te.description == "" then
+                                            " "
+
+                                        else
+                                            te.description
+                                    ]
                         in
                         if model.focus == Just ( te.startdate, Description ) then
                             E.column
@@ -2045,11 +2052,20 @@ allocationview ld size zone model =
                    , width = E.fill
                    , view =
                         \( date, a ) ->
+                            let
+                                row =
+                                    E.row [ EE.onClick <| OnRowItemClick date Description, E.height E.fill, E.width E.fill ]
+                                        [ E.text <|
+                                            if a.description == "" then
+                                                " "
+
+                                            else
+                                                a.description
+                                        ]
+                            in
                             if model.focus == Just ( date, Description ) then
                                 E.column cellEditStyle
-                                    [ E.row [ EE.onClick <| OnRowItemClick date Description ]
-                                        [ E.text a.description
-                                        ]
+                                    [ row
                                     , EI.text [ E.width E.fill ]
                                         { onChange = FocusDescriptionChanged
                                         , text = model.focusdescription
@@ -2069,9 +2085,7 @@ allocationview ld size zone model =
                                     ]
 
                             else
-                                E.row [ EE.onClick <| OnRowItemClick date Description ]
-                                    [ E.text a.description
-                                    ]
+                                row
                    }
                 :: { header = E.el headerStyle <| E.text "allocation"
                    , width = E.fill
