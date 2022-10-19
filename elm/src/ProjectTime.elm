@@ -2838,7 +2838,16 @@ update msg model ld zone =
                                 | timeentries =
                                     setTes model.timeentries <|
                                         (getTes model.timeentries
-                                            |> Dict.insert newtime { te | startdate = newtime }
+                                            |> Dict.insert newtime
+                                                { te
+                                                    | startdate = newtime
+                                                    , enddate =
+                                                        if te.enddate == startdate then
+                                                            newtime
+
+                                                        else
+                                                            te.enddate
+                                                }
                                             |> Dict.remove startdate
                                         )
                                 , focus = Nothing
