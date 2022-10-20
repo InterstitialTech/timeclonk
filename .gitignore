@@ -12,3 +12,4 @@ server/target/
 server/indra/
 server/*.db*
 server/last-email.txt
+target/

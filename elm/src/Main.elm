@@ -1414,6 +1414,34 @@ actualupdate msg model =
                                     , Cmd.none
                                     )
 
+                        UI.BlankUserName ->
+                            case state of
+                                Invited lmod ->
+                                    ( { model | state = Invited <| Invited.blankUserName lmod }, Cmd.none )
+
+                                Login lmod ->
+                                    ( { model | state = Login <| Login.blankUserName lmod }, Cmd.none )
+
+                                _ ->
+                                    ( unexpectedMessage { model | state = initLoginState model }
+                                        (UI.showServerResponse uiresponse)
+                                    , Cmd.none
+                                    )
+
+                        UI.BlankPassword ->
+                            case state of
+                                Invited lmod ->
+                                    ( { model | state = Invited <| Invited.blankPassword lmod }, Cmd.none )
+
+                                Login lmod ->
+                                    ( { model | state = Login <| Login.blankPassword lmod }, Cmd.none )
+
+                                _ ->
+                                    ( unexpectedMessage { model | state = initLoginState model }
+                                        (UI.showServerResponse uiresponse)
+                                    , Cmd.none
+                                    )
+
                         UI.Invite invite ->
                             case model.state of
                                 InviteUser mdl login ->
