@@ -153,6 +153,11 @@ pub fn dbinit(dbfile: &Path, token_expiration_ms: i64) -> Result<(), Box<dyn Err
     tm::udpate7(&dbfile)?;
     set_single_value(&conn, "migration_level", "7")?;
   }
+  if nlevel < 8 {
+    info!("udpate8");
+    tm::udpate8(&dbfile)?;
+    set_single_value(&conn, "migration_level", "8")?;
+  }
 
   info!("db up to date.");
 
