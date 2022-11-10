@@ -1,3 +1,7 @@
+## 2022-11-10
+
+Ignored time was still being counted in the daily/weekly totals.  Fixed.
+
 ## 2022-10-5
 
 Allow selecting Task or allocation Description for edit, when they are empty.
