@@ -212,6 +212,13 @@ dayTotes zone timeentries =
         |> List.foldl
             (\te ddict ->
                 millisPerDay zone (Time.millisToPosix te.startdate) (Time.millisToPosix te.enddate)
+                    |> (\lst ->
+                            if te.ignore then
+                                List.map (\( date, millis ) -> ( date, 0 )) lst
+
+                            else
+                                lst
+                       )
                     |> List.foldl
                         (\( date, millis ) ddicttoo ->
                             let
@@ -278,6 +285,13 @@ weekTotes zone timeentries =
         |> List.foldl
             (\te ddict ->
                 millisPerDay zone (Time.millisToPosix te.startdate) (Time.millisToPosix te.enddate)
+                    |> (\lst ->
+                            if te.ignore then
+                                List.map (\( date, millis ) -> ( date, 0 )) lst
+
+                            else
+                                lst
+                       )
                     |> List.foldl
                         (\( date, millis ) ddicttoo ->
                             let
