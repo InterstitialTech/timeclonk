@@ -620,3 +620,9 @@ pub fn udpate7(dbfile: &Path) -> Result<(), Box<dyn Error>> {
 
   Ok(())
 }
+
+pub fn udpate8(dbfile: &Path) -> Result<(), Box<dyn Error>> {
+  migrations::udpate5(dbfile)?;
+
+  Ok(())
+}
