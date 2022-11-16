@@ -382,6 +382,9 @@ pub fn user_time(
   userid: i64,
   ut: UserTime,
 ) -> Result<Vec<TimeEntry>, Box<dyn Error>> {
+  println!("userid {}", userid);
+  println!("usertime: {:?}", ut);
+
   let mut pstmt = conn.prepare(
     "select te.id, te.project, te.user, te.description, te.startdate, te.enddate, te.ignore, te.createdate, te.changeddate, te.creator
           from timeentry te where

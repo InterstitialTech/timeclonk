@@ -22,6 +22,7 @@ import WindowKeys as WK
 type Msg
     = SelectPress Int
     | NewPress
+    | UserTimePress
     | DonePress
     | SettingsPress
     | AdminPress
@@ -36,6 +37,7 @@ type alias Model =
 type Command
     = Selected Int
     | New
+    | UserTime
     | Done
     | Settings
     | Admin
@@ -87,8 +89,9 @@ view adminSettings ld size model =
                     (E.alignRight :: Common.buttonStyle)
                     { onPress = Just SettingsPress, label = E.text "settings" }
                 ]
-            , E.row [ E.spacing TC.defaultSpacing ]
+            , E.row [ E.spacing TC.defaultSpacing, E.width E.fill ]
                 [ EI.button Common.buttonStyle { onPress = Just NewPress, label = E.text "new" }
+                , EI.button (E.alignRight :: Common.buttonStyle) { onPress = Just UserTimePress, label = E.text "all" }
                 ]
             , E.column
                 [ E.padding 8
@@ -141,6 +144,9 @@ update msg model ld =
 
         NewPress ->
             ( model, New )
+
+        UserTimePress ->
+            ( model, UserTime )
 
         DonePress ->
             ( model, Done )

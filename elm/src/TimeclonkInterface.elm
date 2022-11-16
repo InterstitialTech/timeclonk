@@ -136,6 +136,9 @@ serverResponseDecoder =
                     "allusers" ->
                         JD.map AllUsers (JD.at [ "content" ] (JD.list Data.decodeUser))
 
+                    "usertime" ->
+                        JD.map UserTime (JD.at [ "content" ] (JD.list Data.decodeTimeEntry))
+
                     "not logged in" ->
                         JD.succeed NotLoggedIn
 

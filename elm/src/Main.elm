@@ -99,6 +99,7 @@ type Msg
     | ProjectEditMsg ProjectEdit.Msg
     | ProjectTimeMsg ProjectTime.Msg
     | FileLoaded (String -> Msg) F.File
+    | TimeCmd (Time.Posix -> Cmd Msg) Time.Posix
     | Noop
 
 
@@ -443,6 +444,9 @@ showMessage msg =
 
         WindowSize _ ->
             "WindowSize"
+
+        TimeCmd _ _ ->
+            "TimeCmd"
 
         FileLoaded _ _ ->
             "FileLoaded"
@@ -1218,6 +1222,11 @@ actualupdate msg model =
             , Task.perform toMsg (F.toString file)
             )
 
+        ( TimeCmd tocmd time, _ ) ->
+            ( model
+            , tocmd time
+            )
+
         ( ProjectTimeData mode urd, state ) ->
             case urd of
                 Err e ->
@@ -1810,6 +1819,25 @@ actualupdate msg model =
                 ProjectListing.New ->
                     ( { model | state = ProjectEdit (ProjectEdit.initNew login) login }
                     , Cmd.none
+                    )
+
+                ProjectListing.UserTime ->
+                    ( model
+                    , Time.now
+                        |> Task.perform
+                            (TimeCmd
+                                (\now ->
+                                    let
+                                        millis =
+                                            Time.posixToMillis now
+                                    in
+                                    sendTIMsg model.location <|
+                                        TI.GetUserTime
+                                            { startdate = millis - (50 * 7 * 24 * 60 * 60 * 1000)
+                                            , enddate = millis
+                                            }
+                                )
+                            )
                     )
 
                 ProjectListing.Done ->
