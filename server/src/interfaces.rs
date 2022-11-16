@@ -1,5 +1,5 @@
 use crate::config::Config;
-use crate::data::{Role, SaveProjectEdit, SaveProjectTime};
+use crate::data::{Role, SaveProjectEdit, SaveProjectTime, UserTime};
 use crate::messages::{PublicMessage, ServerResponse, UserMessage};
 use crate::sqldata;
 use actix_session::Session;
@@ -139,7 +139,16 @@ pub fn timeclonk_interface_loggedin(
         })
       }
     }
-
+    "GetUserTime" => {
+      let msgdata = Option::ok_or(msg.data.as_ref(), "malformed json data")?;
+      let ut: UserTime = serde_json::from_value(msgdata.clone())?;
+      let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
+      let time = sqldata::user_time(&conn, uid, ut)?;
+      Ok(ServerResponse {
+        what: "usertime".to_string(),
+        content: serde_json::to_value(time)?,
+      })
+    }
     "GetAllUsers" => {
       // all users can see all users!
       let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;

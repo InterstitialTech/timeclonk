@@ -1650,6 +1650,14 @@ actualupdate msg model =
                                 _ ->
                                     openProjectTime model "" x
 
+                        TI.UserTime telist ->
+                            case stateLogin state of
+                                Just login ->
+                                    ( { model | state = ShowMessage { message = Debug.toString telist } login (Just model.state) }, Cmd.none )
+
+                                Nothing ->
+                                    ( model, Cmd.none )
+
                         TI.SavedProjectEdit x ->
                             case state of
                                 ProjectEdit s l ->

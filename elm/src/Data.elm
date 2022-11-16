@@ -1,4 +1,69 @@
-module Data exposing (Allocation, AllocationId(..), ListProject, LoginData, PayEntry, PayEntryId(..), Project, ProjectEdit, ProjectId(..), ProjectMember, ProjectTime, Role(..), SaveAllocation, SavePayEntry, SaveProject, SaveProjectEdit, SaveProjectMember, SaveProjectTime, SaveTimeEntry, SavedProject, SavedProjectEdit, TimeEntry, TimeEntryId(..), User, UserInviteData, UserInviteProject, decodeAllocation, decodeListProject, decodePayEntry, decodeProject, decodeProjectEdit, decodeProjectMember, decodeProjectTime, decodeRole, decodeSavedProject, decodeSavedProjectEdit, decodeTimeEntry, decodeUser, encodeRole, encodeSaveAllocation, encodeSavePayEntry, encodeSaveProject, encodeSaveProjectEdit, encodeSaveProjectMember, encodeSaveProjectTime, encodeSaveTimeEntry, encodeUserInviteData, encodeUserInviteProject, getAllocationIdVal, getPayEntryIdVal, getProjectIdVal, getTimeEntryIdVal, ldToOdLd, makeAllocationId, makePayEntryId, makeProjectId, makeTimeEntryId, odLdToLd, projectMemberToUser, roleToString, showRole, stringToRole)
+module Data exposing
+    ( Allocation
+    , AllocationId(..)
+    , GetUserTime
+    , ListProject
+    , LoginData
+    , PayEntry
+    , PayEntryId(..)
+    , Project
+    , ProjectEdit
+    , ProjectId(..)
+    , ProjectMember
+    , ProjectTime
+    , Role(..)
+    , SaveAllocation
+    , SavePayEntry
+    , SaveProject
+    , SaveProjectEdit
+    , SaveProjectMember
+    , SaveProjectTime
+    , SaveTimeEntry
+    , SavedProject
+    , SavedProjectEdit
+    , TimeEntry
+    , TimeEntryId(..)
+    , User
+    , UserInviteData
+    , UserInviteProject
+    , decodeAllocation
+    , decodeListProject
+    , decodePayEntry
+    , decodeProject
+    , decodeProjectEdit
+    , decodeProjectMember
+    , decodeProjectTime
+    , decodeRole
+    , decodeSavedProject
+    , decodeSavedProjectEdit
+    , decodeTimeEntry
+    , decodeUser
+    , encodeGetUserTime
+    , encodeRole
+    , encodeSaveAllocation
+    , encodeSavePayEntry
+    , encodeSaveProject
+    , encodeSaveProjectEdit
+    , encodeSaveProjectMember
+    , encodeSaveProjectTime
+    , encodeSaveTimeEntry
+    , encodeUserInviteData
+    , encodeUserInviteProject
+    , getAllocationIdVal
+    , getPayEntryIdVal
+    , getProjectIdVal
+    , getTimeEntryIdVal
+    , ldToOdLd
+    , makeAllocationId
+    , makePayEntryId
+    , makeProjectId
+    , makeTimeEntryId
+    , odLdToLd
+    , projectMemberToUser
+    , roleToString
+    , showRole
+    , stringToRole
+    )
 
 import Json.Decode as JD
 import Json.Encode as JE
@@ -163,6 +228,12 @@ type alias SaveProjectEdit =
 type alias SavedProjectEdit =
     { project : Project
     , members : List ProjectMember
+    }
+
+
+type alias GetUserTime =
+    { startdate : Int
+    , enddate : Int
     }
 
 
@@ -484,6 +555,14 @@ encodeSaveProjectTime t =
         , ( "deletepayentries", JE.list (getPayEntryIdVal >> JE.int) t.deletepayentries )
         , ( "saveallocations", JE.list encodeSaveAllocation t.saveallocations )
         , ( "deleteallocations", JE.list (getAllocationIdVal >> JE.int) t.deleteallocations )
+        ]
+
+
+encodeGetUserTime : GetUserTime -> JE.Value
+encodeGetUserTime ut =
+    JE.object
+        [ ( "startdate", JE.int ut.startdate )
+        , ( "enddate", JE.int ut.enddate )
         ]
 
 

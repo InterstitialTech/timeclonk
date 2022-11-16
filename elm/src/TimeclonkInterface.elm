@@ -12,6 +12,7 @@ type SendMsg
     | SaveProjectEdit Data.SaveProjectEdit
     | GetProjectTime Int
     | SaveProjectTime Data.SaveProjectTime
+    | GetUserTime Data.GetUserTime
     | GetAllUsers
 
 
@@ -22,6 +23,7 @@ type ServerResponse
     | SavedProjectEdit Data.SavedProjectEdit
     | AllUsers (List Data.User)
     | ProjectTime Data.ProjectTime
+    | UserTime (List Data.TimeEntry)
     | NotLoggedIn
     | InvalidUserOrPwd
 
@@ -40,6 +42,9 @@ showServerResponse sr =
 
         ProjectTime _ ->
             "ProjectTime"
+
+        UserTime _ ->
+            "UserTime"
 
         SavedProjectEdit _ ->
             "SavedProjectEdit"
@@ -73,6 +78,12 @@ encodeSendMsg sm =
             JE.object
                 [ ( "what", JE.string "GetProjectTime" )
                 , ( "data", JE.int pid )
+                ]
+
+        GetUserTime gut ->
+            JE.object
+                [ ( "what", JE.string "GetUserTime" )
+                , ( "data", Data.encodeGetUserTime gut )
                 ]
 
         SaveProjectEdit p ->
