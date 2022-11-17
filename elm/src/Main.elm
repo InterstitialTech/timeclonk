@@ -1618,7 +1618,9 @@ actualupdate msg model =
             in
             case c of
                 UserTime.Done ->
-                    ( model, Cmd.none )
+                    ( model
+                    , sendTIMsg model.location <| TI.GetProjectList login.userid
+                    )
 
                 UserTime.SaveCsv filename csvstring ->
                     ( { model | state = UserTime nm login }
@@ -1626,7 +1628,12 @@ actualupdate msg model =
                     )
 
                 UserTime.Settings ->
-                    ( model, Cmd.none )
+                    ( { model
+                        | state =
+                            UserSettings (UserSettings.init (Data.ldToOdLd login) model.fontsize model.saveonclonk model.pageincrement) login model.state
+                      }
+                    , Cmd.none
+                    )
 
                 UserTime.ShowError e ->
                     ( displayMessageDialog { model | state = UserTime nm login } e, Cmd.none )

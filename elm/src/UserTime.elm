@@ -324,8 +324,12 @@ update msg model ld zone =
 
         ExportAll ->
             ( model
-            , None
-              -- , SaveCsv ("timeclonk-" ++ model.ld.name ++ ".csv") (eteToCsv zone model.ld.name model.membernames (getTes model.timeentries |> Dict.values))
+            , SaveCsv ("timeclonk-" ++ ld.name ++ ".csv")
+                (eteToCsv zone
+                    (Dict.map (\_ v -> v.name) model.projects)
+                    (Dict.fromList [ ( OD.getUserIdVal ld.userid, ld.name ) ])
+                    (getTes model.timeentries |> Dict.values)
+                )
             )
 
         TeForward ->

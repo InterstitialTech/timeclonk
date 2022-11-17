@@ -3,7 +3,7 @@ module TimeReporting exposing (..)
 import Calendar
 import Clock
 import Csv
-import Data exposing (AllocationId, PayEntryId, TimeEntryId)
+import Data exposing (AllocationId, PayEntryId, TimeEntryId, getProjectIdVal)
 import DateTime exposing (DateTime)
 import Dict exposing (Dict)
 import Orgauth.Data as OD exposing (UserId, getUserIdVal, makeUserId)
@@ -401,13 +401,15 @@ csvToEditTimeEntries zone user projectid csv =
 
 {-| just export the checked Etes
 -}
-eteToCsv : Time.Zone -> String -> Dict Int String -> List EditTimeEntry -> String
-eteToCsv zone projectname membernames timeentries =
+eteToCsv : Time.Zone -> Dict Int String -> Dict Int String -> List EditTimeEntry -> String
+eteToCsv zone projectnames membernames timeentries =
     ("project,user,task,startdate,enddate,duration"
         :: (timeentries
                 |> List.map
                     (\te ->
-                        projectname
+                        (Dict.get (getProjectIdVal te.project) projectnames
+                            |> Maybe.withDefault ""
+                        )
                             ++ ","
                             ++ (Dict.get (getUserIdVal te.user) membernames
                                     |> Maybe.withDefault ""
