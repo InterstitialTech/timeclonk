@@ -371,12 +371,6 @@ pub fn read_project_edit(conn: &Connection, projectid: i64) -> Result<ProjectEdi
   })
 }
 
-// pub struct UserTime {
-//   pub userid: i64,
-//   pub startdate: i64,
-//   pub enddate: i64,
-// }
-
 pub fn user_time(conn: &Connection, userid: i64) -> Result<Vec<TimeEntry>, Box<dyn Error>> {
   let mut pstmt = conn.prepare(
     "select te.id, te.project, te.user, te.description, te.startdate, te.enddate, te.ignore, te.createdate, te.changeddate, te.creator
