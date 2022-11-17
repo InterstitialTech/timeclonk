@@ -71,6 +71,7 @@ type Msg
     | UserSettingsMsg UserSettings.Msg
     | UserEditMsg UserEdit.Msg
     | UserListingMsg UserListing.Msg
+    | UserTimeMsg UserTime.Msg
     | ShowUrlMsg ShowUrl.Msg
     | ShowMessageMsg ShowMessage.Msg
     | UserReplyData (Result Http.Error UI.ServerResponse)
@@ -111,6 +112,7 @@ type State
     | UserSettings UserSettings.Model Data.LoginData State
     | UserListing UserListing.Model Data.LoginData
     | UserEdit UserEdit.Model Data.LoginData
+    | UserTime UserTime.Model Data.LoginData
     | ShowUrl ShowUrl.Model Data.LoginData
     | ShowMessage ShowMessage.Model Data.LoginData (Maybe State)
     | PubShowMessage ShowMessage.Model (Maybe State)
@@ -312,6 +314,9 @@ showMessage msg =
         UserEditMsg _ ->
             "UserEditMsg"
 
+        UserTimeMsg _ ->
+            "UserTimeMsg"
+
         UserListingMsg _ ->
             "UserListingMsg"
 
@@ -510,6 +515,9 @@ showState state =
         UserEdit _ _ ->
             "UserEdit"
 
+        UserTime _ _ ->
+            "UserTime"
+
         UserListing _ _ ->
             "UserListing"
 
@@ -588,6 +596,9 @@ viewState size state model =
         UserEdit em login ->
             E.map UserEditMsg <| UserEdit.view [] em
 
+        UserTime em ld ->
+            E.map UserTimeMsg <| UserTime.view ld size model.timezone em
+
         UserListing em login ->
             E.map UserListingMsg <| UserListing.view [] em
 
@@ -658,6 +669,9 @@ stateLogin state =
             Just login
 
         UserEdit _ login ->
+            Just login
+
+        UserTime _ login ->
             Just login
 
         UserListing _ login ->
@@ -1597,6 +1611,29 @@ actualupdate msg model =
                 UserEdit.None ->
                     ( { model | state = UserEdit numod login }, Cmd.none )
 
+        ( UserTimeMsg umsg, UserTime umod login ) ->
+            let
+                ( nm, c ) =
+                    UserTime.update umsg umod login model.timezone
+            in
+            case c of
+                UserTime.Done ->
+                    ( model, Cmd.none )
+
+                UserTime.SaveCsv filename csvstring ->
+                    ( { model | state = UserTime nm login }
+                    , FD.string filename "text/csv" csvstring
+                    )
+
+                UserTime.Settings ->
+                    ( model, Cmd.none )
+
+                UserTime.ShowError e ->
+                    ( displayMessageDialog { model | state = UserTime nm login } e, Cmd.none )
+
+                UserTime.None ->
+                    ( { model | state = UserTime nm login }, Cmd.none )
+
         ( ShowUrlMsg umsg, ShowUrl umod login ) ->
             let
                 ( numod, c ) =
@@ -1661,11 +1698,26 @@ actualupdate msg model =
                                     openProjectTime model "" x
 
                         TI.UserTime telist ->
-                            case stateLogin state of
-                                Just login ->
-                                    ( { model | state = ShowMessage { message = Debug.toString telist } login (Just model.state) }, Cmd.none )
+                            case state of
+                                ProjectListing plst ld ->
+                                    ( { model
+                                        | state =
+                                            UserTime
+                                                (UserTime.init model.timezone
+                                                    ld
+                                                    telist
+                                                    (plst.projects
+                                                        |> List.map (\p -> ( Data.getProjectIdVal p.id, p ))
+                                                        |> Dict.fromList
+                                                    )
+                                                    model.pageincrement
+                                                )
+                                                ld
+                                      }
+                                    , Cmd.none
+                                    )
 
-                                Nothing ->
+                                _ ->
                                     ( model, Cmd.none )
 
                         TI.SavedProjectEdit x ->
