@@ -31,7 +31,6 @@ type Msg
     = DonePress
     | SettingsPress
     | ExportAll
-      -- | CsvString String
     | TeForward
     | TeBack Int
     | TeToStart
@@ -92,8 +91,6 @@ init zone ld timeentries projects pageincrement =
             toEteDict timeentries
     in
     { projects = projects
-
-    -- , membernames = pt.members |> List.map (\m -> ( getUserIdVal m.id, m.name )) |> Dict.fromList
     , timeentries = mkTToteler ietes (\te -> te.user == ld.userid) zone
     , initialtimeentries = ietes
     , tepaginator = P.init TeForward TeBack TeToStart TeToEnd P.End pageincrement
@@ -109,20 +106,6 @@ setPageIncrement pageincrement model =
     { model
         | tepaginator = { tp | pageincrement = pageincrement }
     }
-
-
-
--- onProjectTime : Time.Zone -> Data.LoginData -> Data.ProjectTime -> Model -> Model
--- onProjectTime zone ld pt model =
---     let
---         nm =
---             init zone ld pt model.saveonclonk model.tepaginator.pageincrement (showViewMode model.viewmode)
---     in
---     { nm
---         | tepaginator = model.tepaginator
---         , pepaginator = model.pepaginator
---         , apaginator = model.apaginator
---     }
 
 
 view : Data.LoginData -> Util.Size -> Time.Zone -> Model -> Element Msg
