@@ -421,6 +421,7 @@ toEditTimeEntry te =
     , startdate = te.startdate
     , enddate = te.enddate
     , ignore = te.ignore
+    , project = te.project
     , checked = False
     }
 
@@ -2547,7 +2548,7 @@ update msg model ld zone =
             in
             case model.viewmode of
                 Clonks ->
-                    case parseItems str (csvToEditTimeEntries zone ld.userid) of
+                    case parseItems str (csvToEditTimeEntries zone ld.userid model.project.id) of
                         Ok el ->
                             ( { model
                                 | timeentries =
@@ -2611,6 +2612,7 @@ update msg model ld zone =
                                     , startdate = time
                                     , enddate = time
                                     , ignore = False
+                                    , project = model.project.id
                                     , checked = False
                                     }
                                     (getTes model.timeentries)

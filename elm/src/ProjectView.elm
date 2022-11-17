@@ -161,6 +161,7 @@ toEditTimeEntry te =
     , startdate = te.startdate
     , enddate = te.enddate
     , ignore = te.ignore
+    , project = te.project
     , checked = False
     }
 

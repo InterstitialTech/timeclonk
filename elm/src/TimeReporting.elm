@@ -22,6 +22,7 @@ type alias EditTimeEntry =
     , startdate : Int
     , enddate : Int
     , ignore : Bool
+    , project : Data.ProjectId
     , checked : Bool
     }
 
@@ -337,8 +338,8 @@ timeTotes entries =
             emptyUserTimeDict
 
 
-csvToEditTimeEntries : Time.Zone -> UserId -> Csv.Csv -> Result (List String) (List EditTimeEntry)
-csvToEditTimeEntries zone user csv =
+csvToEditTimeEntries : Time.Zone -> UserId -> Data.ProjectId -> Csv.Csv -> Result (List String) (List EditTimeEntry)
+csvToEditTimeEntries zone user projectid csv =
     let
         headers =
             List.map (String.trim >> String.toLower) csv.headers
@@ -374,6 +375,7 @@ csvToEditTimeEntries zone user csv =
                                                                 , description = task
                                                                 , startdate = Time.posixToMillis from
                                                                 , enddate = Time.posixToMillis to
+                                                                , project = projectid
                                                                 , ignore = False
                                                                 , checked = False
                                                                 }
