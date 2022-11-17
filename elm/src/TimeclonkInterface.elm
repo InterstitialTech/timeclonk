@@ -12,7 +12,7 @@ type SendMsg
     | SaveProjectEdit Data.SaveProjectEdit
     | GetProjectTime Int
     | SaveProjectTime Data.SaveProjectTime
-    | GetUserTime Data.GetUserTime
+    | GetUserTime
     | GetAllUsers
 
 
@@ -80,10 +80,9 @@ encodeSendMsg sm =
                 , ( "data", JE.int pid )
                 ]
 
-        GetUserTime gut ->
+        GetUserTime ->
             JE.object
                 [ ( "what", JE.string "GetUserTime" )
-                , ( "data", Data.encodeGetUserTime gut )
                 ]
 
         SaveProjectEdit p ->

@@ -140,10 +140,8 @@ pub fn timeclonk_interface_loggedin(
       }
     }
     "GetUserTime" => {
-      let msgdata = Option::ok_or(msg.data.as_ref(), "malformed json data")?;
-      let ut: UserTime = serde_json::from_value(msgdata.clone())?;
       let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
-      let time = sqldata::user_time(&conn, uid, ut)?;
+      let time = sqldata::user_time(&conn, uid)?;
       Ok(ServerResponse {
         what: "usertime".to_string(),
         content: serde_json::to_value(time)?,

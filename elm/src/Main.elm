@@ -1893,9 +1893,6 @@ actualupdate msg model =
                                     in
                                     sendTIMsg model.location <|
                                         TI.GetUserTime
-                                            { startdate = millis - (50 * 7 * 24 * 60 * 60 * 1000)
-                                            , enddate = millis
-                                            }
                                 )
                             )
                     )

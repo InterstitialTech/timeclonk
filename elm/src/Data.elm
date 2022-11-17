@@ -1,7 +1,6 @@
 module Data exposing
     ( Allocation
     , AllocationId(..)
-    , GetUserTime
     , ListProject
     , LoginData
     , PayEntry
@@ -38,7 +37,6 @@ module Data exposing
     , decodeSavedProjectEdit
     , decodeTimeEntry
     , decodeUser
-    , encodeGetUserTime
     , encodeRole
     , encodeSaveAllocation
     , encodeSavePayEntry
@@ -228,12 +226,6 @@ type alias SaveProjectEdit =
 type alias SavedProjectEdit =
     { project : Project
     , members : List ProjectMember
-    }
-
-
-type alias GetUserTime =
-    { startdate : Int
-    , enddate : Int
     }
 
 
@@ -555,14 +547,6 @@ encodeSaveProjectTime t =
         , ( "deletepayentries", JE.list (getPayEntryIdVal >> JE.int) t.deletepayentries )
         , ( "saveallocations", JE.list encodeSaveAllocation t.saveallocations )
         , ( "deleteallocations", JE.list (getAllocationIdVal >> JE.int) t.deleteallocations )
-        ]
-
-
-encodeGetUserTime : GetUserTime -> JE.Value
-encodeGetUserTime ut =
-    JE.object
-        [ ( "startdate", JE.int ut.startdate )
-        , ( "enddate", JE.int ut.enddate )
         ]
 
 
