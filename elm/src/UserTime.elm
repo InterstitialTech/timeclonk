@@ -185,7 +185,7 @@ clonkview ld size zone model =
         { data =
             P.filter model.tepaginator ttotes.mytimeentries
         , columns =
-            [ { header = E.el headerStyle <| E.text "task"
+            [ { header = E.el headerStyle <| E.text "project"
               , width = E.fill
               , view =
                     \te ->
@@ -194,7 +194,13 @@ clonkview ld size zone model =
                             , E.height E.fill
                             ]
                             [ E.text <|
-                                String.fromInt (Data.getProjectIdVal te.project)
+                                let
+                                    pid =
+                                        Data.getProjectIdVal te.project
+                                in
+                                Dict.get pid model.projects
+                                    |> Maybe.map .name
+                                    |> Maybe.withDefault (String.fromInt pid)
                             ]
               }
             , { header = E.el headerStyle <| E.text "task"
