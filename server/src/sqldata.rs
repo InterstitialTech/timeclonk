@@ -1,7 +1,7 @@
 use crate::data::{
   Allocation, ListProject, PayEntry, Project, ProjectEdit, ProjectMember, ProjectTime, Role,
   SaveAllocation, SavePayEntry, SaveProject, SaveProjectEdit, SaveProjectTime, SaveTimeEntry,
-  SavedProject, SavedProjectEdit, TimeEntry, User, UserInviteData,
+  SavedProject, SavedProjectEdit, TimeEntry, User, UserInviteData, UserTime,
 };
 use crate::migrations as tm;
 use barrel::backend::Sqlite;
@@ -369,6 +369,34 @@ pub fn read_project_edit(conn: &Connection, projectid: i64) -> Result<ProjectEdi
     project: proj,
     members: members,
   })
+}
+
+pub fn user_time(conn: &Connection, userid: i64) -> Result<Vec<TimeEntry>, Box<dyn Error>> {
+  let mut pstmt = conn.prepare(
+    "select te.id, te.project, te.user, te.description, te.startdate, te.enddate, te.ignore, te.createdate, te.changeddate, te.creator
+          from timeentry te where
+    te.user = ?1",
+  )?;
+  let r = Ok(
+    pstmt
+      .query_map(params![userid], |row| {
+        Ok(TimeEntry {
+          id: row.get(0)?,
+          project: row.get(1)?,
+          user: row.get(2)?,
+          description: row.get(3)?,
+          startdate: row.get(4)?,
+          enddate: row.get(5)?,
+          ignore: row.get(6)?,
+          createdate: row.get(7)?,
+          changeddate: row.get(8)?,
+          creator: row.get(9)?,
+        })
+      })?
+      .filter_map(|x| x.ok())
+      .collect(),
+  );
+  r
 }
 
 pub fn time_entries(conn: &Connection, projectid: i64) -> Result<Vec<TimeEntry>, Box<dyn Error>> {

@@ -421,6 +421,7 @@ toEditTimeEntry te =
     , startdate = te.startdate
     , enddate = te.enddate
     , ignore = te.ignore
+    , project = te.project
     , checked = False
     }
 
@@ -2547,7 +2548,7 @@ update msg model ld zone =
             in
             case model.viewmode of
                 Clonks ->
-                    case parseItems str (csvToEditTimeEntries zone ld.userid) of
+                    case parseItems str (csvToEditTimeEntries zone ld.userid model.project.id) of
                         Ok el ->
                             ( { model
                                 | timeentries =
@@ -2611,6 +2612,7 @@ update msg model ld zone =
                                     , startdate = time
                                     , enddate = time
                                     , ignore = False
+                                    , project = model.project.id
                                     , checked = False
                                     }
                                     (getTes model.timeentries)
@@ -3470,7 +3472,21 @@ update msg model ld zone =
 
         ExportAll ->
             ( model
-            , SaveCsv ("timeclonk-" ++ model.project.name ++ ".csv") (eteToCsv zone model.project.name model.membernames (getTes model.timeentries |> Dict.values))
+            , SaveCsv ("timeclonk-" ++ model.project.name ++ ".csv")
+                (eteToCsv zone
+                    (Dict.fromList [ ( Data.getProjectIdVal model.project.id, model.project.name ) ])
+                    model.membernames
+                    (case model.viewmode of
+                        Clonks ->
+                            getTotes model.timeentries |> .mytimeentries
+
+                        Team ->
+                            getTes model.timeentries |> Dict.values
+
+                        _ ->
+                            getTes model.timeentries |> Dict.values
+                    )
+                )
             )
 
         TeForward ->

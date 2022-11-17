@@ -161,6 +161,7 @@ toEditTimeEntry te =
     , startdate = te.startdate
     , enddate = te.enddate
     , ignore = te.ignore
+    , project = te.project
     , checked = False
     }
 
@@ -1253,7 +1254,13 @@ update msg model zone =
 
         ExportAll ->
             ( model
-            , SaveCsv ("timeclonk-" ++ model.project.name ++ ".csv") (eteToCsv zone model.project.name model.membernames (getTes model.teamentries |> Dict.values))
+            , SaveCsv
+                ("timeclonk-" ++ model.project.name ++ ".csv")
+                (eteToCsv zone
+                    (Dict.fromList [ ( Data.getProjectIdVal model.project.id, model.project.name ) ])
+                    model.membernames
+                    (getTes model.teamentries |> Dict.values)
+                )
             )
 
         TeamForward ->

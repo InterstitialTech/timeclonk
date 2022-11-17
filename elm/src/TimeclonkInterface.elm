@@ -12,6 +12,7 @@ type SendMsg
     | SaveProjectEdit Data.SaveProjectEdit
     | GetProjectTime Int
     | SaveProjectTime Data.SaveProjectTime
+    | GetUserTime
     | GetAllUsers
 
 
@@ -22,6 +23,7 @@ type ServerResponse
     | SavedProjectEdit Data.SavedProjectEdit
     | AllUsers (List Data.User)
     | ProjectTime Data.ProjectTime
+    | UserTime (List Data.TimeEntry)
     | NotLoggedIn
     | InvalidUserOrPwd
 
@@ -40,6 +42,9 @@ showServerResponse sr =
 
         ProjectTime _ ->
             "ProjectTime"
+
+        UserTime _ ->
+            "UserTime"
 
         SavedProjectEdit _ ->
             "SavedProjectEdit"
@@ -73,6 +78,11 @@ encodeSendMsg sm =
             JE.object
                 [ ( "what", JE.string "GetProjectTime" )
                 , ( "data", JE.int pid )
+                ]
+
+        GetUserTime ->
+            JE.object
+                [ ( "what", JE.string "GetUserTime" )
                 ]
 
         SaveProjectEdit p ->
@@ -124,6 +134,9 @@ serverResponseDecoder =
 
                     "allusers" ->
                         JD.map AllUsers (JD.at [ "content" ] (JD.list Data.decodeUser))
+
+                    "usertime" ->
+                        JD.map UserTime (JD.at [ "content" ] (JD.list Data.decodeTimeEntry))
 
                     "not logged in" ->
                         JD.succeed NotLoggedIn

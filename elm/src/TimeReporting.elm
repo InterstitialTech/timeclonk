@@ -3,7 +3,7 @@ module TimeReporting exposing (..)
 import Calendar
 import Clock
 import Csv
-import Data exposing (AllocationId, PayEntryId, TimeEntryId)
+import Data exposing (AllocationId, PayEntryId, TimeEntryId, getProjectIdVal)
 import DateTime exposing (DateTime)
 import Dict exposing (Dict)
 import Orgauth.Data as OD exposing (UserId, getUserIdVal, makeUserId)
@@ -22,6 +22,7 @@ type alias EditTimeEntry =
     , startdate : Int
     , enddate : Int
     , ignore : Bool
+    , project : Data.ProjectId
     , checked : Bool
     }
 
@@ -337,8 +338,8 @@ timeTotes entries =
             emptyUserTimeDict
 
 
-csvToEditTimeEntries : Time.Zone -> UserId -> Csv.Csv -> Result (List String) (List EditTimeEntry)
-csvToEditTimeEntries zone user csv =
+csvToEditTimeEntries : Time.Zone -> UserId -> Data.ProjectId -> Csv.Csv -> Result (List String) (List EditTimeEntry)
+csvToEditTimeEntries zone user projectid csv =
     let
         headers =
             List.map (String.trim >> String.toLower) csv.headers
@@ -374,6 +375,7 @@ csvToEditTimeEntries zone user csv =
                                                                 , description = task
                                                                 , startdate = Time.posixToMillis from
                                                                 , enddate = Time.posixToMillis to
+                                                                , project = projectid
                                                                 , ignore = False
                                                                 , checked = False
                                                                 }
@@ -399,13 +401,15 @@ csvToEditTimeEntries zone user csv =
 
 {-| just export the checked Etes
 -}
-eteToCsv : Time.Zone -> String -> Dict Int String -> List EditTimeEntry -> String
-eteToCsv zone projectname membernames timeentries =
+eteToCsv : Time.Zone -> Dict Int String -> Dict Int String -> List EditTimeEntry -> String
+eteToCsv zone projectnames membernames timeentries =
     ("project,user,task,startdate,enddate,duration"
         :: (timeentries
                 |> List.map
                     (\te ->
-                        projectname
+                        (Dict.get (getProjectIdVal te.project) projectnames
+                            |> Maybe.withDefault ""
+                        )
                             ++ ","
                             ++ (Dict.get (getUserIdVal te.user) membernames
                                     |> Maybe.withDefault ""
