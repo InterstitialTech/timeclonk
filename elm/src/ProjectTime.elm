@@ -80,6 +80,7 @@ type Msg
     | OnDistCurrencyChanged String
     | ClearDistribution
     | CalcDistribution
+    | ToClipboardMsg String
     | OnPaymentChanged UserId String
     | AddPaymentPress UserId Int
     | AddPayment UserId Int Int
@@ -185,6 +186,7 @@ type Command
     | Settings
     | ShowError String
     | SelectMember (List Data.User)
+    | ToClipboard String
     | None
 
 
@@ -1892,7 +1894,52 @@ distributionview ld size zone model =
                                     |> E.text
                                     |> E.el [ E.centerY ]
                       }
-                    , { header = E.none
+                    , { header =
+                            let
+                                textdist =
+                                    Debug.log "textdist"
+                                        (dist
+                                            |> TDict.toList
+                                            |> List.map
+                                                (\( user, hours ) ->
+                                                    let
+                                                        _ =
+                                                            Debug.log "user, hours" ( user, hours )
+                                                    in
+                                                    Debug.log "sraing"
+                                                        ((case TDict.get user md of
+                                                            Just m ->
+                                                                m.name
+
+                                                            Nothing ->
+                                                                ""
+                                                         )
+                                                            ++ "\t"
+                                                            ++ hours
+                                                            ++ "\t"
+                                                            ++ (hours
+                                                                    |> String.toFloat
+                                                                    |> Maybe.andThen
+                                                                        (\h ->
+                                                                            model.project.rate
+                                                                                |> Maybe.map
+                                                                                    (\r ->
+                                                                                        h
+                                                                                            * r
+                                                                                            |> String.fromFloat
+                                                                                    )
+                                                                        )
+                                                                    |> Maybe.withDefault ""
+                                                               )
+                                                            ++ "\n"
+                                                        )
+                                                )
+                                            |> String.concat
+                                        )
+                            in
+                            EI.button Common.buttonStyle
+                                { onPress = Just <| ToClipboardMsg textdist, label = E.text "⧉" }
+                                |> E.el [ E.centerY ]
                       , width = E.shrink
                       , view =
                             \( user, hours ) ->
@@ -3546,6 +3593,9 @@ update msg model ld zone =
 
         DToEnd c ->
             ( { model | dpaginator = P.onToEnd c model.dpaginator }, None )
+
+        ToClipboardMsg text ->
+            ( model, ToClipboard text )
 
         DonePress ->
             ( model, Done )
