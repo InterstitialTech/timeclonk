@@ -80,6 +80,7 @@ type Msg
     | OnDistCurrencyChanged String
     | ClearDistribution
     | CalcDistribution
+    | ToClipboardMsg String
     | OnPaymentChanged UserId String
     | AddPaymentPress UserId Int
     | AddPayment UserId Int Int
@@ -185,6 +186,7 @@ type Command
     | Settings
     | ShowError String
     | SelectMember (List Data.User)
+    | ToClipboard String
     | None
 
 
@@ -647,9 +649,6 @@ view ld size zone model =
         maxwidth =
             700
 
-        titlemaxconst =
-            85
-
         isdirty =
             isDirty model
     in
@@ -709,10 +708,12 @@ view ld size zone model =
                    )
 
 
+cellEditStyle : List (E.Attribute Msg)
 cellEditStyle =
     [ E.spacing TC.defaultSpacing, EBk.color TC.darkGrey, E.padding TC.defaultSpacing ]
 
 
+dateTimeWidth : Int
 dateTimeWidth =
     200
 
@@ -758,12 +759,11 @@ clonkview ld size zone isdirty model =
         cmillis =
             \te ->
                 if Just te.startdate == ttotes.lasttime && te.startdate == te.enddate then
-                    case model.clonkOutDisplay of
-                        Just time ->
-                            Just <| Time.posixToMillis time - te.startdate
-
-                        Nothing ->
-                            Nothing
+                    model.clonkOutDisplay
+                        |> Maybe.map
+                            (\time ->
+                                Time.posixToMillis time - te.startdate
+                            )
 
                 else
                     Nothing
@@ -1894,7 +1894,58 @@ distributionview ld size zone model =
                                     |> E.text
                                     |> E.el [ E.centerY ]
                       }
-                    , { header = E.none
+                    , { header =
+                            let
+                                textdist =
+                                    "user\thours\t"
+                                        ++ (model.project.rate
+                                                |> Maybe.map
+                                                    (\r -> "rate: " ++ String.fromFloat r ++ " ")
+                                                |> Maybe.withDefault ""
+                                           )
+                                        ++ (model.project.currency
+                                                |> Maybe.withDefault ""
+                                           )
+                                        ++ "\n"
+                                        ++ (dist
+                                                |> TDict.toList
+                                                |> List.filterMap
+                                                    (\( user, hours ) ->
+                                                        String.toFloat hours
+                                                            |> Maybe.map
+                                                                (\h ->
+                                                                    if h == 0.0 then
+                                                                        ""
+
+                                                                    else
+                                                                        (case TDict.get user md of
+                                                                            Just m ->
+                                                                                m.name
+
+                                                                            Nothing ->
+                                                                                ""
+                                                                        )
+                                                                            ++ "\t"
+                                                                            ++ hours
+                                                                            ++ "\t"
+                                                                            ++ (model.project.rate
+                                                                                    |> Maybe.map
+                                                                                        (\r ->
+                                                                                            h
+                                                                                                * r
+                                                                                                |> String.fromFloat
+                                                                                        )
+                                                                                    |> Maybe.withDefault ""
+                                                                               )
+                                                                            ++ "\n"
+                                                                )
+                                                    )
+                                                |> String.concat
+                                           )
+                            in
+                            EI.button Common.buttonStyle
+                                { onPress = Just <| ToClipboardMsg textdist, label = E.text "⧉" }
+                                |> E.el [ E.centerY ]
                       , width = E.shrink
                       , view =
                             \( user, hours ) ->
@@ -1958,184 +2009,184 @@ allocationview ld size zone model =
             Dict.toList model.allocations
                 |> P.filter model.apaginator
         , columns =
-            { header =
-                EI.checkbox [ E.width E.shrink, E.centerY ]
-                    { onChange = CheckAllocAll
-                    , icon = TC.checkboxIcon
-                    , checked =
-                        Dict.foldl
-                            (\_ pe ac ->
-                                ac && pe.checked
-                            )
-                            True
-                            model.allocations
-                    , label = EI.labelHidden "check all"
-                    }
-            , width = E.shrink
-            , view =
-                \( date, e ) ->
+            [ { header =
                     EI.checkbox [ E.width E.shrink, E.centerY ]
-                        { onChange = CheckAllocationItem e.allocationdate
+                        { onChange = CheckAllocAll
                         , icon = TC.checkboxIcon
-                        , checked = e.checked
-                        , label = EI.labelHidden "check item"
+                        , checked =
+                            Dict.foldl
+                                (\_ pe ac ->
+                                    ac && pe.checked
+                                )
+                                True
+                                model.allocations
+                        , label = EI.labelHidden "check all"
                         }
-            }
-                :: { header = E.el headerStyle <| E.text "date"
-                   , width = E.fill
-                   , view =
-                        \( date, a ) ->
-                            date
-                                |> Time.millisToPosix
-                                |> Calendar.fromPosix
-                                |> (\cdate ->
-                                        let
-                                            row =
-                                                E.row
-                                                    [ EE.onClick <| OnRowItemClick date PaymentDate
-                                                    ]
-                                                    [ E.text <|
-                                                        String.fromInt (Calendar.getYear cdate)
-                                                            ++ "/"
-                                                            ++ (cdate |> Calendar.getMonth |> Calendar.monthToInt |> String.fromInt)
-                                                            ++ "/"
-                                                            ++ String.fromInt
-                                                                (Calendar.getDay cdate)
-                                                    ]
-                                        in
-                                        if model.focus == Just ( a.allocationdate, PaymentDate ) then
-                                            let
-                                                ( display, mbstart ) =
-                                                    case Util.parseTime zone model.focuspaydate of
-                                                        Err e ->
-                                                            ( Util.deadEndsToString e, Nothing )
-
-                                                        Ok Nothing ->
-                                                            ( "invalid", Nothing )
-
-                                                        Ok (Just dt) ->
-                                                            ( Util.showDateTime zone dt, Just dt )
-                                            in
-                                            E.column cellEditStyle
-                                                [ row
-                                                , EI.text [ E.width <| E.px dateTimeWidth ]
-                                                    { onChange = FocusPayDateChanged
-                                                    , text = model.focuspaydate
-                                                    , placeholder = Nothing
-                                                    , label = EI.labelHidden "payment date"
-                                                    }
-                                                , E.text display
-                                                , E.row [ E.width E.fill, E.spacing TC.defaultSpacing ]
-                                                    [ case mbstart of
-                                                        Just start ->
-                                                            EI.button Common.buttonStyle
-                                                                { onPress = Just <| ChangeAllocationDate (Time.posixToMillis start)
-                                                                , label = E.text "ok"
-                                                                }
-
-                                                        Nothing ->
-                                                            EI.button Common.disabledButtonStyle
-                                                                { onPress = Nothing
-                                                                , label = E.text "ok"
-                                                                }
-                                                    , EI.button (E.alignRight :: Common.buttonStyle)
-                                                        { onPress = Just FocusCancel
-                                                        , label = E.text "cancel"
-                                                        }
-                                                    ]
+              , width = E.shrink
+              , view =
+                    \( date, e ) ->
+                        EI.checkbox [ E.width E.shrink, E.centerY ]
+                            { onChange = CheckAllocationItem e.allocationdate
+                            , icon = TC.checkboxIcon
+                            , checked = e.checked
+                            , label = EI.labelHidden "check item"
+                            }
+              }
+            , { header = E.el headerStyle <| E.text "date"
+              , width = E.fill
+              , view =
+                    \( date, a ) ->
+                        date
+                            |> Time.millisToPosix
+                            |> Calendar.fromPosix
+                            |> (\cdate ->
+                                    let
+                                        row =
+                                            E.row
+                                                [ EE.onClick <| OnRowItemClick date PaymentDate
                                                 ]
+                                                [ E.text <|
+                                                    String.fromInt (Calendar.getYear cdate)
+                                                        ++ "/"
+                                                        ++ (cdate |> Calendar.getMonth |> Calendar.monthToInt |> String.fromInt)
+                                                        ++ "/"
+                                                        ++ String.fromInt
+                                                            (Calendar.getDay cdate)
+                                                ]
+                                    in
+                                    if model.focus == Just ( a.allocationdate, PaymentDate ) then
+                                        let
+                                            ( display, mbstart ) =
+                                                case Util.parseTime zone model.focuspaydate of
+                                                    Err e ->
+                                                        ( Util.deadEndsToString e, Nothing )
+
+                                                    Ok Nothing ->
+                                                        ( "invalid", Nothing )
+
+                                                    Ok (Just dt) ->
+                                                        ( Util.showDateTime zone dt, Just dt )
+                                        in
+                                        E.column cellEditStyle
+                                            [ row
+                                            , EI.text [ E.width <| E.px dateTimeWidth ]
+                                                { onChange = FocusPayDateChanged
+                                                , text = model.focuspaydate
+                                                , placeholder = Nothing
+                                                , label = EI.labelHidden "payment date"
+                                                }
+                                            , E.text display
+                                            , E.row [ E.width E.fill, E.spacing TC.defaultSpacing ]
+                                                [ case mbstart of
+                                                    Just start ->
+                                                        EI.button Common.buttonStyle
+                                                            { onPress = Just <| ChangeAllocationDate (Time.posixToMillis start)
+                                                            , label = E.text "ok"
+                                                            }
+
+                                                    Nothing ->
+                                                        EI.button Common.disabledButtonStyle
+                                                            { onPress = Nothing
+                                                            , label = E.text "ok"
+                                                            }
+                                                , EI.button (E.alignRight :: Common.buttonStyle)
+                                                    { onPress = Just FocusCancel
+                                                    , label = E.text "cancel"
+                                                    }
+                                                ]
+                                            ]
+
+                                    else
+                                        row
+                               )
+              }
+            , { header = E.el headerStyle <| E.text "description"
+              , width = E.fill
+              , view =
+                    \( date, a ) ->
+                        let
+                            row =
+                                E.row [ EE.onClick <| OnRowItemClick date Description, E.height E.fill, E.width E.fill ]
+                                    [ E.text <|
+                                        if a.description == "" then
+                                            " "
 
                                         else
-                                            row
-                                   )
-                   }
-                :: { header = E.el headerStyle <| E.text "description"
-                   , width = E.fill
-                   , view =
-                        \( date, a ) ->
-                            let
-                                row =
-                                    E.row [ EE.onClick <| OnRowItemClick date Description, E.height E.fill, E.width E.fill ]
-                                        [ E.text <|
-                                            if a.description == "" then
-                                                " "
-
-                                            else
-                                                a.description
-                                        ]
-                            in
-                            if model.focus == Just ( date, Description ) then
-                                E.column cellEditStyle
-                                    [ row
-                                    , EI.text [ E.width E.fill ]
-                                        { onChange = FocusDescriptionChanged
-                                        , text = model.focusdescription
-                                        , placeholder = Nothing
-                                        , label = EI.labelHidden "allocation description"
-                                        }
-                                    , E.row [ E.width E.fill, E.spacing TC.defaultSpacing ]
-                                        [ EI.button Common.buttonStyle
-                                            { onPress = Just <| ChangeDescription
-                                            , label = E.text "ok"
-                                            }
-                                        , EI.button (E.alignRight :: Common.buttonStyle)
-                                            { onPress = Just FocusCancel
-                                            , label = E.text "cancel"
-                                            }
-                                        ]
+                                            a.description
                                     ]
-
-                            else
-                                row
-                   }
-                :: { header = E.el headerStyle <| E.text "allocation"
-                   , width = E.fill
-                   , view =
-                        \( date, a ) ->
-                            let
-                                s =
-                                    millisAsHours a.duration
-
-                                p =
-                                    E.el [] <| E.text <| s
-                            in
-                            if model.focus == Just ( date, PaymentAmount ) then
-                                E.column cellEditStyle
-                                    [ E.row [ EE.onClick <| OnRowItemClick date PaymentAmount ]
-                                        [ p
-                                        ]
-                                    , EI.text [ E.width E.fill ]
-                                        { onChange = FocusAllocationChanged
-                                        , text = model.focuspay
-                                        , placeholder = Nothing
-                                        , label = EI.labelHidden "allocation"
+                        in
+                        if model.focus == Just ( date, Description ) then
+                            E.column cellEditStyle
+                                [ row
+                                , EI.text [ E.width E.fill ]
+                                    { onChange = FocusDescriptionChanged
+                                    , text = model.focusdescription
+                                    , placeholder = Nothing
+                                    , label = EI.labelHidden "allocation description"
+                                    }
+                                , E.row [ E.width E.fill, E.spacing TC.defaultSpacing ]
+                                    [ EI.button Common.buttonStyle
+                                        { onPress = Just <| ChangeDescription
+                                        , label = E.text "ok"
                                         }
-                                    , E.row [ E.width E.fill, E.spacing TC.defaultSpacing ]
-                                        [ case String.toFloat model.focuspay of
-                                            Just amt ->
-                                                EI.button Common.buttonStyle
-                                                    { onPress = Just <| ChangeAllocation amt
-                                                    , label = E.text "ok"
-                                                    }
-
-                                            Nothing ->
-                                                EI.button Common.disabledButtonStyle
-                                                    { onPress = Nothing
-                                                    , label = E.text "ok"
-                                                    }
-                                        , EI.button (E.alignRight :: Common.buttonStyle)
-                                            { onPress = Just FocusCancel
-                                            , label = E.text "cancel"
-                                            }
-                                        ]
+                                    , EI.button (E.alignRight :: Common.buttonStyle)
+                                        { onPress = Just FocusCancel
+                                        , label = E.text "cancel"
+                                        }
                                     ]
+                                ]
 
-                            else
-                                E.row [ EE.onClick <| OnRowItemClick date PaymentAmount ]
+                        else
+                            row
+              }
+            , { header = E.el headerStyle <| E.text "allocation"
+              , width = E.fill
+              , view =
+                    \( date, a ) ->
+                        let
+                            s =
+                                millisAsHours a.duration
+
+                            p =
+                                E.el [] <| E.text <| s
+                        in
+                        if model.focus == Just ( date, PaymentAmount ) then
+                            E.column cellEditStyle
+                                [ E.row [ EE.onClick <| OnRowItemClick date PaymentAmount ]
                                     [ p
                                     ]
-                   }
-                :: []
+                                , EI.text [ E.width E.fill ]
+                                    { onChange = FocusAllocationChanged
+                                    , text = model.focuspay
+                                    , placeholder = Nothing
+                                    , label = EI.labelHidden "allocation"
+                                    }
+                                , E.row [ E.width E.fill, E.spacing TC.defaultSpacing ]
+                                    [ case String.toFloat model.focuspay of
+                                        Just amt ->
+                                            EI.button Common.buttonStyle
+                                                { onPress = Just <| ChangeAllocation amt
+                                                , label = E.text "ok"
+                                                }
+
+                                        Nothing ->
+                                            EI.button Common.disabledButtonStyle
+                                                { onPress = Nothing
+                                                , label = E.text "ok"
+                                                }
+                                    , EI.button (E.alignRight :: Common.buttonStyle)
+                                        { onPress = Just FocusCancel
+                                        , label = E.text "cancel"
+                                        }
+                                    ]
+                                ]
+
+                        else
+                            E.row [ EE.onClick <| OnRowItemClick date PaymentAmount ]
+                                [ p
+                                ]
+              }
+            ]
         }
     , if model.shownewalloc then
         E.column [ E.width E.fill, EBk.color TC.darkGray, EBd.width 1, E.padding 8, E.spacing TC.defaultSpacing ]
@@ -2183,35 +2234,35 @@ allocationview ld size zone model =
             ]
         , columns =
             -- dummy checkboxes for alignment.  alpha 0 hides them.
-            { header =
-                EI.checkbox [ E.width E.shrink, E.alpha 0.0 ]
-                    { onChange = \_ -> Noop
-                    , icon = TC.checkboxIcon
-                    , checked = False
-                    , label = EI.labelHidden "alignment checkbox"
-                    }
-            , width = E.shrink
-            , view =
-                \_ ->
+            [ { header =
                     EI.checkbox [ E.width E.shrink, E.alpha 0.0 ]
                         { onChange = \_ -> Noop
                         , icon = TC.checkboxIcon
                         , checked = False
                         , label = EI.labelHidden "alignment checkbox"
                         }
-            }
-                :: { header = E.el [ EF.bold ] <| E.el headerStyle <| E.text "totals"
-                   , width = E.fill
-                   , view =
-                        \( title, _ ) ->
-                            E.el headerStyle <| E.text title
-                   }
-                :: { header = E.none
-                   , width = E.fill
-                   , view =
-                        \( _, tote ) -> E.text <| millisAsHours tote
-                   }
-                :: []
+              , width = E.shrink
+              , view =
+                    \_ ->
+                        EI.checkbox [ E.width E.shrink, E.alpha 0.0 ]
+                            { onChange = \_ -> Noop
+                            , icon = TC.checkboxIcon
+                            , checked = False
+                            , label = EI.labelHidden "alignment checkbox"
+                            }
+              }
+            , { header = E.el [ EF.bold ] <| E.el headerStyle <| E.text "totals"
+              , width = E.fill
+              , view =
+                    \( title, _ ) ->
+                        E.el headerStyle <| E.text title
+              }
+            , { header = E.none
+              , width = E.fill
+              , view =
+                    \( _, tote ) -> E.text <| millisAsHours tote
+              }
+            ]
         }
     ]
 
@@ -2253,165 +2304,165 @@ payview ld size zone model =
             Dict.toList model.payentries
                 |> P.filter model.pepaginator
         , columns =
-            { header =
-                EI.checkbox [ E.width E.shrink, E.centerY ]
-                    { onChange = CheckPayAll
-                    , icon = TC.checkboxIcon
-                    , checked =
-                        Dict.foldl
-                            (\_ pe ac ->
-                                ac && pe.checked
-                            )
-                            True
-                            model.payentries
-                    , label = EI.labelHidden "check all"
-                    }
-            , width = E.shrink
-            , view =
-                \( date, e ) ->
+            [ { header =
                     EI.checkbox [ E.width E.shrink, E.centerY ]
-                        { onChange = CheckPayItem e.paymentdate
+                        { onChange = CheckPayAll
                         , icon = TC.checkboxIcon
-                        , checked = e.checked
-                        , label = EI.labelHidden "check item"
+                        , checked =
+                            Dict.foldl
+                                (\_ pe ac ->
+                                    ac && pe.checked
+                                )
+                                True
+                                model.payentries
+                        , label = EI.labelHidden "check all"
                         }
-            }
-                :: { header = E.el headerStyle <| E.text "date"
-                   , width = E.fill
-                   , view =
-                        \( date, a ) ->
-                            date
-                                |> Time.millisToPosix
-                                |> Calendar.fromPosix
-                                |> (\cdate ->
-                                        let
-                                            row =
-                                                E.row
-                                                    [ EE.onClick <| OnRowItemClick date PaymentDate
-                                                    ]
-                                                    [ E.text <|
-                                                        String.fromInt (Calendar.getYear cdate)
-                                                            ++ "/"
-                                                            ++ (cdate |> Calendar.getMonth |> Calendar.monthToInt |> String.fromInt)
-                                                            ++ "/"
-                                                            ++ String.fromInt
-                                                                (Calendar.getDay cdate)
-                                                    ]
-                                        in
-                                        if model.focus == Just ( a.paymentdate, PaymentDate ) then
-                                            let
-                                                ( display, mbstart ) =
-                                                    case Util.parseTime zone model.focuspaydate of
-                                                        Err e ->
-                                                            ( Util.deadEndsToString e, Nothing )
-
-                                                        Ok Nothing ->
-                                                            ( "invalid", Nothing )
-
-                                                        Ok (Just dt) ->
-                                                            ( Util.showDateTime zone dt, Just dt )
-                                            in
-                                            E.column cellEditStyle
-                                                [ row
-                                                , EI.text [ E.width <| E.px dateTimeWidth ]
-                                                    { onChange = FocusPayDateChanged
-                                                    , text = model.focuspaydate
-                                                    , placeholder = Nothing
-                                                    , label = EI.labelHidden "payment date"
-                                                    }
-                                                , E.text display
-                                                , E.row [ E.width E.fill, E.spacing TC.defaultSpacing ]
-                                                    [ case mbstart of
-                                                        Just start ->
-                                                            EI.button Common.buttonStyle
-                                                                { onPress = Just <| ChangePaymentDate (Time.posixToMillis start)
-                                                                , label = E.text "ok"
-                                                                }
-
-                                                        Nothing ->
-                                                            EI.button Common.disabledButtonStyle
-                                                                { onPress = Nothing
-                                                                , label = E.text "ok"
-                                                                }
-                                                    , EI.button (E.alignRight :: Common.buttonStyle)
-                                                        { onPress = Just FocusCancel
-                                                        , label = E.text "cancel"
-                                                        }
-                                                    ]
+              , width = E.shrink
+              , view =
+                    \( date, e ) ->
+                        EI.checkbox [ E.width E.shrink, E.centerY ]
+                            { onChange = CheckPayItem e.paymentdate
+                            , icon = TC.checkboxIcon
+                            , checked = e.checked
+                            , label = EI.labelHidden "check item"
+                            }
+              }
+            , { header = E.el headerStyle <| E.text "date"
+              , width = E.fill
+              , view =
+                    \( date, a ) ->
+                        date
+                            |> Time.millisToPosix
+                            |> Calendar.fromPosix
+                            |> (\cdate ->
+                                    let
+                                        row =
+                                            E.row
+                                                [ EE.onClick <| OnRowItemClick date PaymentDate
                                                 ]
+                                                [ E.text <|
+                                                    String.fromInt (Calendar.getYear cdate)
+                                                        ++ "/"
+                                                        ++ (cdate |> Calendar.getMonth |> Calendar.monthToInt |> String.fromInt)
+                                                        ++ "/"
+                                                        ++ String.fromInt
+                                                            (Calendar.getDay cdate)
+                                                ]
+                                    in
+                                    if model.focus == Just ( a.paymentdate, PaymentDate ) then
+                                        let
+                                            ( display, mbstart ) =
+                                                case Util.parseTime zone model.focuspaydate of
+                                                    Err e ->
+                                                        ( Util.deadEndsToString e, Nothing )
 
-                                        else
-                                            row
-                                   )
-                   }
-                :: { header = E.el headerStyle <| E.text "payee"
-                   , width = E.fill
-                   , view =
-                        \( date, a ) ->
-                            if model.focus == Just ( date, PaymentUser ) then
-                                E.column cellEditStyle
-                                    [ E.row [ EE.onClick <| OnRowItemClick date PaymentUser ]
-                                        [ E.text (a.user |> getUserIdVal |> (\i -> Dict.get i model.membernames |> Maybe.withDefault ""))
-                                        ]
-                                    , EI.button Common.buttonStyle
-                                        { onPress = Just SelectPaymentUser
-                                        , label = E.text "select member"
-                                        }
-                                    ]
+                                                    Ok Nothing ->
+                                                        ( "invalid", Nothing )
 
-                            else
-                                E.row [ EE.onClick <| OnRowItemClick date PaymentUser ]
+                                                    Ok (Just dt) ->
+                                                        ( Util.showDateTime zone dt, Just dt )
+                                        in
+                                        E.column cellEditStyle
+                                            [ row
+                                            , EI.text [ E.width <| E.px dateTimeWidth ]
+                                                { onChange = FocusPayDateChanged
+                                                , text = model.focuspaydate
+                                                , placeholder = Nothing
+                                                , label = EI.labelHidden "payment date"
+                                                }
+                                            , E.text display
+                                            , E.row [ E.width E.fill, E.spacing TC.defaultSpacing ]
+                                                [ case mbstart of
+                                                    Just start ->
+                                                        EI.button Common.buttonStyle
+                                                            { onPress = Just <| ChangePaymentDate (Time.posixToMillis start)
+                                                            , label = E.text "ok"
+                                                            }
+
+                                                    Nothing ->
+                                                        EI.button Common.disabledButtonStyle
+                                                            { onPress = Nothing
+                                                            , label = E.text "ok"
+                                                            }
+                                                , EI.button (E.alignRight :: Common.buttonStyle)
+                                                    { onPress = Just FocusCancel
+                                                    , label = E.text "cancel"
+                                                    }
+                                                ]
+                                            ]
+
+                                    else
+                                        row
+                               )
+              }
+            , { header = E.el headerStyle <| E.text "payee"
+              , width = E.fill
+              , view =
+                    \( date, a ) ->
+                        if model.focus == Just ( date, PaymentUser ) then
+                            E.column cellEditStyle
+                                [ E.row [ EE.onClick <| OnRowItemClick date PaymentUser ]
                                     [ E.text (a.user |> getUserIdVal |> (\i -> Dict.get i model.membernames |> Maybe.withDefault ""))
                                     ]
-                   }
-                :: { header = E.el headerStyle <| E.text "payment"
-                   , width = E.fill
-                   , view =
-                        \( date, a ) ->
-                            let
-                                s =
-                                    millisAsHours a.duration
+                                , EI.button Common.buttonStyle
+                                    { onPress = Just SelectPaymentUser
+                                    , label = E.text "select member"
+                                    }
+                                ]
 
-                                p =
-                                    E.el [] <| E.text <| s
-                            in
-                            if model.focus == Just ( date, PaymentAmount ) then
-                                E.column cellEditStyle
-                                    [ E.row [ EE.onClick <| OnRowItemClick date PaymentAmount ]
-                                        [ p
-                                        ]
-                                    , EI.text [ E.width E.fill ]
-                                        { onChange = FocusPayChanged
-                                        , text = model.focuspay
-                                        , placeholder = Nothing
-                                        , label = EI.labelHidden "payment"
-                                        }
-                                    , E.row [ E.width E.fill, E.spacing TC.defaultSpacing ]
-                                        [ case String.toFloat model.focuspay of
-                                            Just amt ->
-                                                EI.button Common.buttonStyle
-                                                    { onPress = Just <| ChangePay amt
-                                                    , label = E.text "ok"
-                                                    }
+                        else
+                            E.row [ EE.onClick <| OnRowItemClick date PaymentUser ]
+                                [ E.text (a.user |> getUserIdVal |> (\i -> Dict.get i model.membernames |> Maybe.withDefault ""))
+                                ]
+              }
+            , { header = E.el headerStyle <| E.text "payment"
+              , width = E.fill
+              , view =
+                    \( date, a ) ->
+                        let
+                            s =
+                                millisAsHours a.duration
 
-                                            Nothing ->
-                                                EI.button Common.disabledButtonStyle
-                                                    { onPress = Nothing
-                                                    , label = E.text "ok"
-                                                    }
-                                        , EI.button (E.alignRight :: Common.buttonStyle)
-                                            { onPress = Just FocusCancel
-                                            , label = E.text "cancel"
-                                            }
-                                        ]
-                                    ]
-
-                            else
-                                E.row [ EE.onClick <| OnRowItemClick date PaymentAmount ]
+                            p =
+                                E.el [] <| E.text <| s
+                        in
+                        if model.focus == Just ( date, PaymentAmount ) then
+                            E.column cellEditStyle
+                                [ E.row [ EE.onClick <| OnRowItemClick date PaymentAmount ]
                                     [ p
                                     ]
-                   }
-                :: []
+                                , EI.text [ E.width E.fill ]
+                                    { onChange = FocusPayChanged
+                                    , text = model.focuspay
+                                    , placeholder = Nothing
+                                    , label = EI.labelHidden "payment"
+                                    }
+                                , E.row [ E.width E.fill, E.spacing TC.defaultSpacing ]
+                                    [ case String.toFloat model.focuspay of
+                                        Just amt ->
+                                            EI.button Common.buttonStyle
+                                                { onPress = Just <| ChangePay amt
+                                                , label = E.text "ok"
+                                                }
+
+                                        Nothing ->
+                                            EI.button Common.disabledButtonStyle
+                                                { onPress = Nothing
+                                                , label = E.text "ok"
+                                                }
+                                    , EI.button (E.alignRight :: Common.buttonStyle)
+                                        { onPress = Just FocusCancel
+                                        , label = E.text "cancel"
+                                        }
+                                    ]
+                                ]
+
+                        else
+                            E.row [ EE.onClick <| OnRowItemClick date PaymentAmount ]
+                                [ p
+                                ]
+              }
+            ]
         }
     , if model.shownewpayment then
         E.column [ E.width E.fill, EBk.color TC.darkGray, EBd.width 1, E.padding 8, E.spacing TC.defaultSpacing ]
@@ -2471,36 +2522,36 @@ payview ld size zone model =
             , ( "hours allocated remaining", alloctote - timetote )
             ]
         , columns =
-            -- dummy checkboxes for alignment.  alpha 0 hides them.
-            { header =
-                EI.checkbox [ E.width E.shrink, E.alpha 0.0 ]
-                    { onChange = \_ -> Noop
-                    , icon = TC.checkboxIcon
-                    , checked = False
-                    , label = EI.labelHidden "alignment checkbox"
-                    }
-            , width = E.shrink
-            , view =
-                \_ ->
+            [ -- dummy checkboxes for alignment.  alpha 0 hides them.
+              { header =
                     EI.checkbox [ E.width E.shrink, E.alpha 0.0 ]
                         { onChange = \_ -> Noop
                         , icon = TC.checkboxIcon
                         , checked = False
                         , label = EI.labelHidden "alignment checkbox"
                         }
-            }
-                :: { header = E.el [ EF.bold ] <| E.el headerStyle <| E.text "totals"
-                   , width = E.fill
-                   , view =
-                        \( title, _ ) ->
-                            E.el headerStyle <| E.text title
-                   }
-                :: { header = E.none
-                   , width = E.fill
-                   , view =
-                        \( _, tote ) -> E.text <| millisAsHours tote
-                   }
-                :: []
+              , width = E.shrink
+              , view =
+                    \_ ->
+                        EI.checkbox [ E.width E.shrink, E.alpha 0.0 ]
+                            { onChange = \_ -> Noop
+                            , icon = TC.checkboxIcon
+                            , checked = False
+                            , label = EI.labelHidden "alignment checkbox"
+                            }
+              }
+            , { header = E.el [ EF.bold ] <| E.el headerStyle <| E.text "totals"
+              , width = E.fill
+              , view =
+                    \( title, _ ) ->
+                        E.el headerStyle <| E.text title
+              }
+            , { header = E.none
+              , width = E.fill
+              , view =
+                    \( _, tote ) -> E.text <| millisAsHours tote
+              }
+            ]
         }
     ]
 
@@ -3548,6 +3599,9 @@ update msg model ld zone =
 
         DToEnd c ->
             ( { model | dpaginator = P.onToEnd c model.dpaginator }, None )
+
+        ToClipboardMsg text ->
+            ( model, ToClipboard text )
 
         DonePress ->
             ( model, Done )

@@ -56,6 +56,9 @@
         };
         app.ports.receiveSelectedText.send(text);
       }
+      function toClipBoard(text) {
+        navigator.clipboard.writeText(text)
+      }
 
       login = {{logindata}};
       appname = "{{appname}}";
@@ -76,6 +79,8 @@
       app.ports.storeLocalVal.subscribe(storeVal);
       app.ports.getLocalVal.subscribe(getVal);
       // app.ports.clearLocalStorage.subscribe(clearStorage);
+
+      app.ports.toClipBoard.subscribe(toClipBoard)
 
       // selected text
       // app.ports.getSelectedText.subscribe(getSelectedText);

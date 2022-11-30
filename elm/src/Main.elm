@@ -2073,6 +2073,9 @@ handleProjectTime model ( nm, cmd ) login =
         ProjectTime.None ->
             ( { model | state = ProjectTime nm login }, Cmd.none )
 
+        ProjectTime.ToClipboard text ->
+            ( { model | state = ProjectTime nm login }, toClipBoard text )
+
 
 handleProjectView : Model -> ( ProjectView.Model, ProjectView.Command ) -> Maybe Data.LoginData -> ( Model, Cmd Msg )
 handleProjectView model ( nm, cmd ) mblogin =
@@ -2356,6 +2359,9 @@ port receiveSelectedText : (JD.Value -> msg) -> Sub msg
 
 
 port receiveKeyMsg : (JD.Value -> msg) -> Sub msg
+
+
+port toClipBoard : String -> Cmd msg
 
 
 keyreceive =
