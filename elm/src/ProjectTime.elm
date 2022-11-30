@@ -1897,45 +1897,51 @@ distributionview ld size zone model =
                     , { header =
                             let
                                 textdist =
-                                    Debug.log "textdist"
-                                        (dist
-                                            |> TDict.toList
-                                            |> List.map
-                                                (\( user, hours ) ->
-                                                    let
-                                                        _ =
-                                                            Debug.log "user, hours" ( user, hours )
-                                                    in
-                                                    Debug.log "sraing"
-                                                        ((case TDict.get user md of
-                                                            Just m ->
-                                                                m.name
+                                    "user\thours\t"
+                                        ++ (model.project.rate
+                                                |> Maybe.map
+                                                    (\r -> "rate: " ++ String.fromFloat r ++ " ")
+                                                |> Maybe.withDefault ""
+                                           )
+                                        ++ (model.project.currency
+                                                |> Maybe.withDefault ""
+                                           )
+                                        ++ "\n"
+                                        ++ (dist
+                                                |> TDict.toList
+                                                |> List.filterMap
+                                                    (\( user, hours ) ->
+                                                        String.toFloat hours
+                                                            |> Maybe.map
+                                                                (\h ->
+                                                                    if h == 0.0 then
+                                                                        ""
 
-                                                            Nothing ->
-                                                                ""
-                                                         )
-                                                            ++ "\t"
-                                                            ++ hours
-                                                            ++ "\t"
-                                                            ++ (hours
-                                                                    |> String.toFloat
-                                                                    |> Maybe.andThen
-                                                                        (\h ->
-                                                                            model.project.rate
-                                                                                |> Maybe.map
-                                                                                    (\r ->
-                                                                                        h
-                                                                                            * r
-                                                                                            |> String.fromFloat
-                                                                                    )
+                                                                    else
+                                                                        (case TDict.get user md of
+                                                                            Just m ->
+                                                                                m.name
+
+                                                                            Nothing ->
+                                                                                ""
                                                                         )
-                                                                    |> Maybe.withDefault ""
-                                                               )
-                                                            ++ "\n"
-                                                        )
-                                                )
-                                            |> String.concat
-                                        )
+                                                                            ++ "\t"
+                                                                            ++ hours
+                                                                            ++ "\t"
+                                                                            ++ (model.project.rate
+                                                                                    |> Maybe.map
+                                                                                        (\r ->
+                                                                                            h
+                                                                                                * r
+                                                                                                |> String.fromFloat
+                                                                                        )
+                                                                                    |> Maybe.withDefault ""
+                                                                               )
+                                                                            ++ "\n"
+                                                                )
+                                                    )
+                                                |> String.concat
+                                           )
                             in
                             EI.button Common.buttonStyle
                                 { onPress = Just <| ToClipboardMsg textdist, label = E.text "⧉" }
