@@ -1,3 +1,7 @@
+## 2022-11-30
+
+added copy button to disbursement, to make it easier to paste the relevant data into our disbursement form.
+
 ## 2022-11-10
 
 Ignored time was still being counted in the daily/weekly totals.  Fixed.
