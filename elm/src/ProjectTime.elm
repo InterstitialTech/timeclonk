@@ -1897,12 +1897,19 @@ distributionview ld size zone model =
                     , { header =
                             let
                                 textdist =
-                                    "user\thours\t"
+                                    "Project: "
+                                        ++ model.project.name
+                                        ++ "\t"
                                         ++ (model.project.rate
                                                 |> Maybe.map
                                                     (\r -> "rate: " ++ String.fromFloat r ++ " ")
                                                 |> Maybe.withDefault ""
                                            )
+                                        ++ (model.project.currency
+                                                |> Maybe.withDefault ""
+                                           )
+                                        ++ "\n"
+                                        ++ "user\thours\t"
                                         ++ (model.project.currency
                                                 |> Maybe.withDefault ""
                                            )
