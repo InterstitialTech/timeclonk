@@ -199,7 +199,9 @@ fn timeclonk_interface_check(
       let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
       match orgauth::dbfun::read_user_by_token(
         &conn,
+        &session,
         token,
+        config.orgauth_config.regen_login_tokens,
         config.orgauth_config.login_token_expiration_ms,
       ) {
         Err(e) => {

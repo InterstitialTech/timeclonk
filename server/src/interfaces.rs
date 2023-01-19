@@ -16,7 +16,9 @@ pub fn login_data_for_token(
     Some(token) => {
       match orgauth::dbfun::read_user_by_token(
         &conn,
+        &session,
         token,
+        config.orgauth_config.regen_login_tokens,
         config.orgauth_config.login_token_expiration_ms,
       ) {
         Ok(user) => Ok(Some(orgauth::dbfun::login_data(&conn, user.id)?)),
