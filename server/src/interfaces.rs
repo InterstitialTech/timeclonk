@@ -1,5 +1,5 @@
 use crate::config::Config;
-use crate::data::{Role, SaveProjectEdit, SaveProjectTime, UserTime};
+use crate::data::{Role, SaveProjectEdit, SaveProjectTime};
 use crate::messages::{PublicMessage, ServerResponse, UserMessage};
 use crate::sqldata;
 use actix_session::Session;
@@ -17,7 +17,7 @@ pub fn login_data_for_token(
       match orgauth::dbfun::read_user_by_token(
         &conn,
         token,
-        Some(config.orgauth_config.login_token_expiration_ms),
+        config.orgauth_config.login_token_expiration_ms,
       ) {
         Ok(user) => Ok(Some(orgauth::dbfun::login_data(&conn, user.id)?)),
         Err(e) => Err(e),
