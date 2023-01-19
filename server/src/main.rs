@@ -65,9 +65,11 @@ fn mainpage(session: Session, data: web::Data<Config>, req: HttpRequest) -> Http
               .replace("{{adminsettings}}", adminsettings.to_string().as_str()),
           )
       }
-      Err(e) => HttpResponse::from_error(actix_web::error::ErrorImATeapot(e)),
+      Err(e) => HttpResponse::from_error(actix_web::error::ErrorInternalServerError(e)),
     },
-    None => HttpResponse::from_error(actix_web::error::ErrorImATeapot("bad static path")),
+    None => HttpResponse::from_error(actix_web::error::ErrorInternalServerError(
+      "bad static path",
+    )),
   }
 }
 
@@ -199,9 +201,7 @@ fn timeclonk_interface_check(
       let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
       match orgauth::dbfun::read_user_by_token(
         &conn,
-        &session,
         token,
-        config.orgauth_config.regen_login_tokens,
         config.orgauth_config.login_token_expiration_ms,
       ) {
         Err(e) => {
