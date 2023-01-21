@@ -1,6 +1,6 @@
 use barrel::backend::Sqlite;
 use barrel::{types, Migration};
-use orgauth::migrations;
+use orgauth::migrations as om;
 use rusqlite::{params, Connection};
 use std::error::Error;
 use std::path::Path;
@@ -389,7 +389,7 @@ pub fn udpate5(dbfile: &Path) -> Result<(), Box<dyn Error>> {
   // db connection without foreign key checking.
   let conn = Connection::open(dbfile)?;
 
-  migrations::udpate1(dbfile)?;
+  om::udpate1(dbfile)?;
 
   // copy from old user tables into orgauth tables.
   conn.execute(
@@ -614,15 +614,20 @@ pub fn udpate6(dbfile: &Path) -> Result<(), Box<dyn Error>> {
 }
 
 pub fn udpate7(dbfile: &Path) -> Result<(), Box<dyn Error>> {
-  migrations::udpate2(dbfile)?;
-  migrations::udpate3(dbfile)?;
-  migrations::udpate4(dbfile)?;
+  om::udpate2(dbfile)?;
+  om::udpate3(dbfile)?;
+  om::udpate4(dbfile)?;
 
   Ok(())
 }
 
 pub fn udpate8(dbfile: &Path) -> Result<(), Box<dyn Error>> {
-  migrations::udpate5(dbfile)?;
+  om::udpate5(dbfile)?;
+
+  Ok(())
+}
+pub fn udpate9(dbfile: &Path) -> Result<(), Box<dyn Error>> {
+  om::udpate6(dbfile)?;
 
   Ok(())
 }

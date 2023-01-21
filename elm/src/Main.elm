@@ -1565,15 +1565,10 @@ actualupdate msg model =
                 UserListing.Done ->
                     initialPage model
 
-                UserListing.NewUser ->
+                UserListing.InviteUser ->
                     -- get project listing, so we can add users to a specific project.
                     ( model
                     , sendTIMsg model.location <| TI.GetProjectList login.userid
-                    )
-
-                UserListing.InviteUser ->
-                    ( { model | state = UserListing numod login }
-                    , sendAIMsg model.location (AI.GetInvite { email = Nothing, data = Nothing })
                     )
 
                 UserListing.EditUser ld ->

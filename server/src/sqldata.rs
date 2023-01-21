@@ -1,7 +1,7 @@
 use crate::data::{
   Allocation, ListProject, PayEntry, Project, ProjectEdit, ProjectMember, ProjectTime, Role,
   SaveAllocation, SavePayEntry, SaveProject, SaveProjectEdit, SaveProjectTime, SaveTimeEntry,
-  SavedProject, SavedProjectEdit, TimeEntry, User, UserInviteData, UserTime,
+  SavedProject, SavedProjectEdit, TimeEntry, User, UserInviteData,
 };
 use crate::migrations as tm;
 use barrel::backend::Sqlite;
@@ -99,7 +99,7 @@ pub fn set_single_value(conn: &Connection, name: &str, value: &str) -> Result<()
   Ok(())
 }
 
-pub fn dbinit(dbfile: &Path, token_expiration_ms: i64) -> Result<(), Box<dyn Error>> {
+pub fn dbinit(dbfile: &Path, token_expiration_ms: Option<i64>) -> Result<(), Box<dyn Error>> {
   let exists = dbfile.exists();
 
   let conn = connection_open(dbfile)?;
@@ -158,10 +158,17 @@ pub fn dbinit(dbfile: &Path, token_expiration_ms: i64) -> Result<(), Box<dyn Err
     tm::udpate8(&dbfile)?;
     set_single_value(&conn, "migration_level", "8")?;
   }
+  if nlevel < 9 {
+    info!("udpate9");
+    tm::udpate9(&dbfile)?;
+    set_single_value(&conn, "migration_level", "9")?;
+  }
 
   info!("db up to date.");
 
-  orgauth::dbfun::purge_login_tokens(&conn, token_expiration_ms)?;
+  if let Some(expms) = token_expiration_ms {
+    orgauth::dbfun::purge_login_tokens(&conn, expms)?;
+  }
 
   Ok(())
 }
