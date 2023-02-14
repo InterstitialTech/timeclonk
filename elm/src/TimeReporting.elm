@@ -407,20 +407,21 @@ eteToCsv zone projectnames membernames timeentries =
         :: (timeentries
                 |> List.map
                     (\te ->
-                        (Dict.get (getProjectIdVal te.project) projectnames
-                            |> Maybe.withDefault ""
-                        )
-                            ++ ","
+                        "\""
+                            ++ (Dict.get (getProjectIdVal te.project) projectnames
+                                    |> Maybe.withDefault ""
+                               )
+                            ++ "\",\""
                             ++ (Dict.get (getUserIdVal te.user) membernames
                                     |> Maybe.withDefault ""
                                )
-                            ++ ","
+                            ++ "\",\""
                             ++ te.description
-                            ++ ","
+                            ++ "\",\""
                             ++ Util.showDateTime zone (Time.millisToPosix te.startdate)
-                            ++ ","
+                            ++ "\",\""
                             ++ Util.showDateTime zone (Time.millisToPosix te.enddate)
-                            ++ ","
+                            ++ "\","
                             ++ (te.enddate - te.startdate |> millisAsHours)
                     )
            )
