@@ -199,13 +199,14 @@ fn timeclonk_interface_check(
     }),
     Some(token) => {
       let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
-      match orgauth::dbfun::read_user_by_token(
+      match orgauth::dbfun::read_user_by_token_api(
         &conn,
         token,
         config.orgauth_config.login_token_expiration_ms,
+        config.orgauth_config.regen_login_tokens,
       ) {
         Err(e) => {
-          info!("read_user_by_token error: {:?}", e);
+          info!("read_user_by_token_api error: {:?}", e);
 
           Ok(ServerResponse {
             what: "invalid user or pwd".to_string(),
