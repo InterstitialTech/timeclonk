@@ -10,12 +10,12 @@ pub fn login_data_for_token(
   session: Session,
   config: &Config,
 ) -> Result<Option<orgauth::data::LoginData>, Box<dyn Error>> {
-  let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
+  let mut conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
   match session.get("token")? {
     None => Ok(None),
     Some(token) => {
-      match orgauth::dbfun::read_user_with_token_regen(
-        &conn,
+      match orgauth::dbfun::read_user_with_token_pageload(
+        &mut conn,
         &session,
         token,
         config.orgauth_config.regen_login_tokens,

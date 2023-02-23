@@ -626,8 +626,15 @@ pub fn udpate8(dbfile: &Path) -> Result<(), Box<dyn Error>> {
 
   Ok(())
 }
+
 pub fn udpate9(dbfile: &Path) -> Result<(), Box<dyn Error>> {
   om::udpate6(dbfile)?;
+
+  Ok(())
+}
+
+pub fn udpate10(dbfile: &Path) -> Result<(), Box<dyn Error>> {
+  om::udpate7(dbfile)?;
 
   Ok(())
 }
