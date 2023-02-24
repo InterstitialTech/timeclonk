@@ -20,7 +20,7 @@ pub fn on_new_user(
   data: Option<String>,
   creator: Option<i64>,
   uid: i64,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), orgauth::error::Error> {
   match data {
     Some(d) => {
       let invitedata: UserInviteData = serde_json::from_str(d.as_str())?;
@@ -50,7 +50,7 @@ pub fn on_new_user(
   }
 }
 
-pub fn on_delete_user(_conn: &Connection, _uid: i64) -> Result<bool, Box<dyn Error>> {
+pub fn on_delete_user(_conn: &Connection, _uid: i64) -> Result<bool, orgauth::error::Error> {
   Ok(true)
 }
 
@@ -58,11 +58,11 @@ pub fn on_delete_user(_conn: &Connection, _uid: i64) -> Result<bool, Box<dyn Err
 pub fn extra_login_data_callback(
   _conn: &Connection,
   _uid: i64,
-) -> Result<Option<serde_json::Value>, Box<dyn Error>> {
+) -> Result<Option<serde_json::Value>, orgauth::error::Error> {
   Ok(None)
 }
 
-pub fn connection_open(dbfile: &Path) -> Result<Connection, Box<dyn Error>> {
+pub fn connection_open(dbfile: &Path) -> Result<Connection, orgauth::error::Error> {
   let conn = Connection::open(dbfile)?;
 
   // conn.busy_timeout(Duration::from_millis(500))?;
@@ -78,7 +78,10 @@ pub fn connection_open(dbfile: &Path) -> Result<Connection, Box<dyn Error>> {
   Ok(conn)
 }
 
-pub fn get_single_value(conn: &Connection, name: &str) -> Result<Option<String>, Box<dyn Error>> {
+pub fn get_single_value(
+  conn: &Connection,
+  name: &str,
+) -> Result<Option<String>, orgauth::error::Error> {
   match conn.query_row(
     "select value from singlevalue where name = ?1",
     params![name],
@@ -86,11 +89,15 @@ pub fn get_single_value(conn: &Connection, name: &str) -> Result<Option<String>,
   ) {
     Ok(v) => Ok(Some(v)),
     Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-    Err(x) => Err(Box::new(x)),
+    Err(x) => Err(x.into()),
   }
 }
 
-pub fn set_single_value(conn: &Connection, name: &str, value: &str) -> Result<(), Box<dyn Error>> {
+pub fn set_single_value(
+  conn: &Connection,
+  name: &str,
+  value: &str,
+) -> Result<(), orgauth::error::Error> {
   conn.execute(
     "insert into singlevalue (name, value) values (?1, ?2)
         on conflict (name) do update set value = ?2 where name = ?1",
@@ -99,7 +106,10 @@ pub fn set_single_value(conn: &Connection, name: &str, value: &str) -> Result<()
   Ok(())
 }
 
-pub fn dbinit(dbfile: &Path, token_expiration_ms: Option<i64>) -> Result<(), Box<dyn Error>> {
+pub fn dbinit(
+  dbfile: &Path,
+  token_expiration_ms: Option<i64>,
+) -> Result<(), orgauth::error::Error> {
   let exists = dbfile.exists();
 
   let conn = connection_open(dbfile)?;
@@ -113,7 +123,10 @@ pub fn dbinit(dbfile: &Path, token_expiration_ms: Option<i64>) -> Result<(), Box
     Err(_) => 0,
     Ok(None) => 0,
     Ok(Some(level)) => {
-      let l = level.parse::<i32>()?;
+      let l = match level.parse::<i32>() {
+        Ok(i) => i,
+        Err(e) => return Err(format!("migration level parse error {:?}", e).into()),
+      };
       l
     }
   };
@@ -180,7 +193,11 @@ pub fn dbinit(dbfile: &Path, token_expiration_ms: Option<i64>) -> Result<(), Box
 
 // --------------------------------------------------------
 
-pub fn member_role(conn: &Connection, uid: i64, pid: i64) -> Result<Option<Role>, Box<dyn Error>> {
+pub fn member_role(
+  conn: &Connection,
+  uid: i64,
+  pid: i64,
+) -> Result<Option<Role>, orgauth::error::Error> {
   match conn.query_row(
     "select role from projectmember where project = ?1 and user = ?2",
     params![pid, uid],
@@ -191,11 +208,14 @@ pub fn member_role(conn: &Connection, uid: i64, pid: i64) -> Result<Option<Role>
       Err(_) => Ok(None),
     },
     Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-    Err(x) => Err(Box::new(x)),
+    Err(x) => Err(x.into()),
   }
 }
 
-pub fn project_list(conn: &Connection, uid: i64) -> Result<Vec<ListProject>, Box<dyn Error>> {
+pub fn project_list(
+  conn: &Connection,
+  uid: i64,
+) -> Result<Vec<ListProject>, orgauth::error::Error> {
   let mut pstmt = conn.prepare(
     "select project.id, project.name, projectmember.role from project, projectmember where
     project.id = projectmember.project and
@@ -224,7 +244,7 @@ pub fn save_project_edit(
   conn: &Connection,
   user: i64,
   project_edit: SaveProjectEdit,
-) -> Result<SavedProjectEdit, Box<dyn Error>> {
+) -> Result<SavedProjectEdit, orgauth::error::Error> {
   let sp = save_project(conn, user, project_edit.project)?;
 
   for m in project_edit.members {
@@ -257,7 +277,7 @@ pub fn save_project(
   conn: &Connection,
   user: i64,
   project: SaveProject,
-) -> Result<SavedProject, Box<dyn Error>> {
+) -> Result<SavedProject, orgauth::error::Error> {
   let now = now()?;
 
   let proj = match project.id {
@@ -301,7 +321,7 @@ pub fn save_project(
   Ok(proj)
 }
 
-pub fn read_project(conn: &Connection, projectid: i64) -> Result<Project, Box<dyn Error>> {
+pub fn read_project(conn: &Connection, projectid: i64) -> Result<Project, orgauth::error::Error> {
   let mut pstmt = conn.prepare(
     "select project.id, project.name, project.description, project.public, project.rate, project.currency, project.createdate, project.changeddate
       from project, projectmember where
@@ -325,7 +345,7 @@ pub fn read_project(conn: &Connection, projectid: i64) -> Result<Project, Box<dy
 pub fn member_list(
   conn: &Connection,
   projectid: i64,
-) -> Result<Vec<ProjectMember>, Box<dyn Error>> {
+) -> Result<Vec<ProjectMember>, orgauth::error::Error> {
   let mut pstmt = conn.prepare(
         "select orgauth_user.id, orgauth_user.name, projectmember.role from orgauth_user, projectmember where
           orgauth_user.id = projectmember.user and
@@ -357,7 +377,7 @@ pub fn member_list(
   Ok(r)
 }
 
-pub fn user_list(conn: &Connection) -> Result<Vec<User>, Box<dyn Error>> {
+pub fn user_list(conn: &Connection) -> Result<Vec<User>, orgauth::error::Error> {
   let mut pstmt = conn.prepare("select orgauth_user.id, orgauth_user.name from orgauth_user")?;
   let r = pstmt
     .query_map(params![], |row| {
@@ -374,7 +394,10 @@ pub fn user_list(conn: &Connection) -> Result<Vec<User>, Box<dyn Error>> {
   Ok(r)
 }
 
-pub fn read_project_edit(conn: &Connection, projectid: i64) -> Result<ProjectEdit, Box<dyn Error>> {
+pub fn read_project_edit(
+  conn: &Connection,
+  projectid: i64,
+) -> Result<ProjectEdit, orgauth::error::Error> {
   let proj = read_project(conn, projectid)?;
   let members = member_list(conn, projectid)?;
   Ok(ProjectEdit {
@@ -383,7 +406,7 @@ pub fn read_project_edit(conn: &Connection, projectid: i64) -> Result<ProjectEdi
   })
 }
 
-pub fn user_time(conn: &Connection, userid: i64) -> Result<Vec<TimeEntry>, Box<dyn Error>> {
+pub fn user_time(conn: &Connection, userid: i64) -> Result<Vec<TimeEntry>, orgauth::error::Error> {
   let mut pstmt = conn.prepare(
     "select te.id, te.project, te.user, te.description, te.startdate, te.enddate, te.ignore, te.createdate, te.changeddate, te.creator
           from timeentry te where
@@ -411,7 +434,10 @@ pub fn user_time(conn: &Connection, userid: i64) -> Result<Vec<TimeEntry>, Box<d
   r
 }
 
-pub fn time_entries(conn: &Connection, projectid: i64) -> Result<Vec<TimeEntry>, Box<dyn Error>> {
+pub fn time_entries(
+  conn: &Connection,
+  projectid: i64,
+) -> Result<Vec<TimeEntry>, orgauth::error::Error> {
   let mut pstmt = conn.prepare(
     "select te.id, te.project, te.user, te.description, te.startdate, te.enddate, te.ignore, te.createdate, te.changeddate, te.creator
           from timeentry te where
@@ -439,7 +465,10 @@ pub fn time_entries(conn: &Connection, projectid: i64) -> Result<Vec<TimeEntry>,
   r
 }
 
-pub fn pay_entries(conn: &Connection, projectid: i64) -> Result<Vec<PayEntry>, Box<dyn Error>> {
+pub fn pay_entries(
+  conn: &Connection,
+  projectid: i64,
+) -> Result<Vec<PayEntry>, orgauth::error::Error> {
   let mut pstmt = conn.prepare(
     "select  pe.id, pe.project, pe.user, pe.duration, pe.paymentdate, pe.description, pe.createdate, pe.changeddate, pe.creator
           from payentry pe where
@@ -470,7 +499,7 @@ pub fn save_pay_entry(
   conn: &Connection,
   uid: i64,
   spe: SavePayEntry,
-) -> Result<i64, Box<dyn Error>> {
+) -> Result<i64, orgauth::error::Error> {
   let now = now()?;
   match spe.id {
     Some(id) =>
@@ -497,12 +526,19 @@ pub fn save_pay_entry(
 }
 
 // check for user membership before calling!
-pub fn delete_pay_entry(conn: &Connection, _uid: i64, peid: i64) -> Result<(), Box<dyn Error>> {
+pub fn delete_pay_entry(
+  conn: &Connection,
+  _uid: i64,
+  peid: i64,
+) -> Result<(), orgauth::error::Error> {
   conn.execute("delete from payentry where id = ?1", params![peid])?;
   Ok(())
 }
 
-pub fn allocations(conn: &Connection, projectid: i64) -> Result<Vec<Allocation>, Box<dyn Error>> {
+pub fn allocations(
+  conn: &Connection,
+  projectid: i64,
+) -> Result<Vec<Allocation>, orgauth::error::Error> {
   let mut pstmt = conn.prepare(
     "select  a.id, a.project, a.duration, a.allocationdate, a.description, a.createdate, a.changeddate, a.creator
           from allocation a, projectmember pm where
@@ -532,7 +568,7 @@ pub fn save_allocation(
   conn: &Connection,
   uid: i64,
   sa: SaveAllocation,
-) -> Result<i64, Box<dyn Error>> {
+) -> Result<i64, orgauth::error::Error> {
   let now = now()?;
   match sa.id {
     Some(id) =>
@@ -558,7 +594,11 @@ pub fn save_allocation(
 }
 
 // check for user membership before calling!
-pub fn delete_allocation(conn: &Connection, _uid: i64, id: i64) -> Result<(), Box<dyn Error>> {
+pub fn delete_allocation(
+  conn: &Connection,
+  _uid: i64,
+  id: i64,
+) -> Result<(), orgauth::error::Error> {
   conn.execute("delete from allocation where id = ?1", params![id])?;
   Ok(())
 }
@@ -567,7 +607,7 @@ pub fn is_project_member(
   conn: &Connection,
   uid: i64,
   projectid: i64,
-) -> Result<bool, Box<dyn Error>> {
+) -> Result<bool, orgauth::error::Error> {
   match conn.query_row(
     "select user from projectmember where user = ?1 and project = ?2",
     params![uid, projectid],
@@ -575,11 +615,14 @@ pub fn is_project_member(
   ) {
     Ok(_v) => Ok(true),
     Err(rusqlite::Error::QueryReturnedNoRows) => Ok(false),
-    Err(x) => Err(Box::new(x)),
+    Err(x) => Err(x.into()),
   }
 }
 
-pub fn read_project_time(conn: &Connection, projectid: i64) -> Result<ProjectTime, Box<dyn Error>> {
+pub fn read_project_time(
+  conn: &Connection,
+  projectid: i64,
+) -> Result<ProjectTime, orgauth::error::Error> {
   let proj = read_project(conn, projectid)?;
   let members = member_list(conn, projectid)?;
   let timeentries = time_entries(conn, projectid)?;
@@ -598,7 +641,7 @@ pub fn save_time_entry(
   conn: &Connection,
   uid: i64,
   spt: SaveTimeEntry,
-) -> Result<i64, Box<dyn Error>> {
+) -> Result<i64, orgauth::error::Error> {
   let now = now()?;
   match spt.id {
     Some(id) =>
@@ -626,7 +669,11 @@ pub fn save_time_entry(
 }
 
 // check for user membership before calling!
-pub fn delete_time_entry(conn: &Connection, _uid: i64, teid: i64) -> Result<(), Box<dyn Error>> {
+pub fn delete_time_entry(
+  conn: &Connection,
+  _uid: i64,
+  teid: i64,
+) -> Result<(), orgauth::error::Error> {
   conn.execute("delete from timeentry where id = ?1", params![teid])?;
   Ok(())
 }
@@ -635,7 +682,7 @@ pub fn save_project_time(
   conn: &Connection,
   uid: i64,
   spt: SaveProjectTime,
-) -> Result<ProjectTime, Box<dyn Error>> {
+) -> Result<ProjectTime, orgauth::error::Error> {
   // is user a member of this project?
   if is_project_member(conn, uid, spt.project)? {
     for te in spt.savetimeentries {

@@ -4,12 +4,13 @@ use crate::messages::{PublicMessage, ServerResponse, UserMessage};
 use crate::sqldata;
 use actix_session::Session;
 use log::info;
+use orgauth::error;
 use std::error::Error;
 
 pub fn login_data_for_token(
   session: Session,
   config: &Config,
-) -> Result<Option<orgauth::data::LoginData>, Box<dyn Error>> {
+) -> Result<Option<orgauth::data::LoginData>, orgauth::error::Error> {
   let mut conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
   match session.get("token")? {
     None => Ok(None),
