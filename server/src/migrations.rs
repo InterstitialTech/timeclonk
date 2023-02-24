@@ -139,7 +139,7 @@ pub fn udpate1() -> Migration {
   m
 }
 
-pub fn udpate2(dbfile: &Path) -> Result<(), Box<dyn Error>> {
+pub fn udpate2(dbfile: &Path) -> Result<(), orgauth::error::Error> {
   // db connection without foreign key checking.
   let conn = Connection::open(dbfile)?;
   let mut m1 = Migration::new();
@@ -288,7 +288,7 @@ pub fn udpate3() -> Migration {
   m
 }
 
-pub fn udpate4(dbfile: &Path) -> Result<(), Box<dyn Error>> {
+pub fn udpate4(dbfile: &Path) -> Result<(), orgauth::error::Error> {
   // db connection without foreign key checking.
   let conn = Connection::open(dbfile)?;
   let mut m1 = Migration::new();
@@ -385,7 +385,7 @@ pub fn udpate4(dbfile: &Path) -> Result<(), Box<dyn Error>> {
 // --------------------------------------------------------------------------------
 // orgauth enters the chat
 // --------------------------------------------------------------------------------
-pub fn udpate5(dbfile: &Path) -> Result<(), Box<dyn Error>> {
+pub fn udpate5(dbfile: &Path) -> Result<(), orgauth::error::Error> {
   // db connection without foreign key checking.
   let conn = Connection::open(dbfile)?;
 
@@ -556,7 +556,7 @@ pub fn udpate5(dbfile: &Path) -> Result<(), Box<dyn Error>> {
   Ok(())
 }
 
-pub fn udpate6(dbfile: &Path) -> Result<(), Box<dyn Error>> {
+pub fn udpate6(dbfile: &Path) -> Result<(), orgauth::error::Error> {
   // db connection without foreign key checking.
   let conn = Connection::open(dbfile)?;
   let mut m1 = Migration::new();
@@ -613,7 +613,7 @@ pub fn udpate6(dbfile: &Path) -> Result<(), Box<dyn Error>> {
   Ok(())
 }
 
-pub fn udpate7(dbfile: &Path) -> Result<(), Box<dyn Error>> {
+pub fn udpate7(dbfile: &Path) -> Result<(), orgauth::error::Error> {
   om::udpate2(dbfile)?;
   om::udpate3(dbfile)?;
   om::udpate4(dbfile)?;
@@ -621,19 +621,19 @@ pub fn udpate7(dbfile: &Path) -> Result<(), Box<dyn Error>> {
   Ok(())
 }
 
-pub fn udpate8(dbfile: &Path) -> Result<(), Box<dyn Error>> {
+pub fn udpate8(dbfile: &Path) -> Result<(), orgauth::error::Error> {
   om::udpate5(dbfile)?;
 
   Ok(())
 }
 
-pub fn udpate9(dbfile: &Path) -> Result<(), Box<dyn Error>> {
+pub fn udpate9(dbfile: &Path) -> Result<(), orgauth::error::Error> {
   om::udpate6(dbfile)?;
 
   Ok(())
 }
 
-pub fn udpate10(dbfile: &Path) -> Result<(), Box<dyn Error>> {
+pub fn udpate10(dbfile: &Path) -> Result<(), orgauth::error::Error> {
   om::udpate7(dbfile)?;
 
   Ok(())
