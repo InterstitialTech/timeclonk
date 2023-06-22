@@ -357,7 +357,7 @@ async fn err_main() -> Result<(), Box<dyn Error>> {
       HttpServer::new(move || {
         let staticpath = c.static_path.clone().unwrap_or(PathBuf::from("static/"));
         App::new()
-          .data(c.clone()) // <- create app with shared state
+          .app_data(web::Data::new(c.clone())) // <- create app with shared state
           .wrap(middleware::Logger::default())
           .wrap(
             SessionMiddleware::builder(CookieSessionStore::default(), Key::from(&[0; 64]))
