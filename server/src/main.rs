@@ -4,7 +4,6 @@ mod interfaces;
 mod messages;
 mod migrations;
 mod sqldata;
-// use actix_session::{CookieSession, Session};
 use actix_session::{
   config::PersistentSession, storage::CookieSessionStore, Session, SessionMiddleware,
 };
@@ -367,10 +366,6 @@ async fn err_main() -> Result<(), Box<dyn Error>> {
                 PersistentSession::default().session_ttl(cookie::time::Duration::hours(2)),
               )
               .build(),
-            // .wrap(
-            //   CookieSession::signed(&[0; 32]) // <- create cookie based session middleware
-            //     .secure(false) // allows for dev access
-            //     .max_age(10 * 24 * 60 * 60), // 10 days
           )
           .service(web::resource("/public").route(web::post().to(public)))
           .service(web::resource("/private").route(web::post().to(private)))
