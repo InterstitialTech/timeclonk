@@ -5,7 +5,6 @@ mod messages;
 mod migrations;
 mod sqldata;
 // use actix_session::{CookieSession, Session};
-use actix_files::NamedFile;
 use actix_session::{
   config::PersistentSession, storage::CookieSessionStore, Session, SessionMiddleware,
 };

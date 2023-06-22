@@ -2,7 +2,6 @@ use barrel::backend::Sqlite;
 use barrel::{types, Migration};
 use orgauth::migrations as om;
 use rusqlite::{params, Connection};
-use std::error::Error;
 use std::path::Path;
 
 pub fn initialdb() -> Migration {
