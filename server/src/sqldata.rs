@@ -9,7 +9,6 @@ use log::info;
 use orgauth::data::RegistrationData;
 use orgauth::util::now;
 use rusqlite::{params, Connection};
-use std::error::Error;
 use std::path::Path;
 use std::str::FromStr;
 use std::time::Duration;
@@ -216,28 +215,59 @@ pub fn project_list(
   conn: &Connection,
   uid: i64,
 ) -> Result<Vec<ListProject>, orgauth::error::Error> {
+  // projects ordered by last clonk.
   let mut pstmt = conn.prepare(
-    "select project.id, project.name, projectmember.role from project, projectmember where
+    "select project.id, project.name, projectmember.role from project, projectmember,
+      (select project, max(startdate) as sd from timeentry where user = ?1 group by project) te
+    where
     project.id = projectmember.project and
-    projectmember.user = ?1",
+    te.project = project.id and
+    projectmember.user = ?1
+    order by te.sd desc
+    ",
   )?;
-  let r = Ok(
-    pstmt
-      .query_map(params![uid], |row| {
-        let role: String = row.get(2)?;
-        Ok(ListProject {
-          id: row.get(0)?,
-          name: row.get(1)?,
-          role: match Role::from_str(role.as_str()) {
-            Ok(r) => r,
-            Err(_) => Role::Observer, // default to observer on decode failure.  lame
-          },
-        })
-      })?
-      .filter_map(|x| x.ok())
-      .collect(),
-  );
-  r
+  let mut r: Vec<ListProject> = pstmt
+    .query_map(params![uid], |row| {
+      let role: String = row.get(2)?;
+      Ok(ListProject {
+        id: row.get(0)?,
+        name: row.get(1)?,
+        role: match Role::from_str(role.as_str()) {
+          Ok(r) => r,
+          Err(_) => Role::Observer, // default to observer on decode failure.  lame
+        },
+      })
+    })?
+    .filter_map(|x| x.ok())
+    .collect();
+
+  // projects without any clonks.
+  let mut pstmt = conn.prepare(
+    "select project.id, project.name, projectmember.role from project, projectmember
+    where
+    project.id = projectmember.project and
+    projectmember.user = ?1 and
+    not exists (select * from timeentry where project = project.id and user = ?1)
+    ",
+  )?;
+  let mut rempty: Vec<ListProject> = pstmt
+    .query_map(params![uid], |row| {
+      let role: String = row.get(2)?;
+      Ok(ListProject {
+        id: row.get(0)?,
+        name: row.get(1)?,
+        role: match Role::from_str(role.as_str()) {
+          Ok(r) => r,
+          Err(_) => Role::Observer, // default to observer on decode failure.  lame
+        },
+      })
+    })?
+    .filter_map(|x| x.ok())
+    .collect();
+
+  // append unclonked projects onto the by-clonk results.
+  r.append(&mut rempty);
+  Ok(r)
 }
 
 pub fn save_project_edit(

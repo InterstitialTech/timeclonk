@@ -4,8 +4,13 @@ mod interfaces;
 mod messages;
 mod migrations;
 mod sqldata;
-use actix_session::{CookieSession, Session};
-use actix_web::{middleware, web, App, HttpRequest, HttpResponse, HttpServer, Result};
+use actix_session::{
+  config::PersistentSession, storage::CookieSessionStore, Session, SessionMiddleware,
+};
+use actix_web::{
+  cookie::{self, Key},
+  middleware, web, App, HttpRequest, HttpResponse, HttpServer, Result,
+};
 use chrono;
 use clap::Arg;
 use config::Config;
@@ -20,6 +25,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use timer;
 use uuid::Uuid;
+
 /*
 use actix_files::NamedFile;
 
@@ -36,7 +42,7 @@ fn sitemap(_req: &HttpRequest) -> Result<NamedFile> {
 */
 
 // simple index handler
-fn mainpage(session: Session, data: web::Data<Config>, req: HttpRequest) -> HttpResponse {
+async fn mainpage(session: Session, data: web::Data<Config>, req: HttpRequest) -> HttpResponse {
   info!("remote ip: {:?}, request:{:?}", req.connection_info(), req);
 
   // logged in?
@@ -73,7 +79,7 @@ fn mainpage(session: Session, data: web::Data<Config>, req: HttpRequest) -> Http
   }
 }
 
-fn public(
+async fn public(
   data: web::Data<Config>,
   item: web::Json<PublicMessage>,
   req: HttpRequest,
@@ -97,7 +103,7 @@ fn public(
   }
 }
 
-fn user(
+async fn user(
   session: Session,
   data: web::Data<Config>,
   item: web::Json<WhatMessage>,
@@ -133,7 +139,7 @@ fn user(
   }
 }
 
-fn admin(
+async fn admin(
   session: Session,
   data: web::Data<Config>,
   item: web::Json<orgauth::data::WhatMessage>,
@@ -168,7 +174,7 @@ fn admin(
   }
 }
 
-fn private(
+async fn private(
   session: Session,
   data: web::Data<Config>,
   item: web::Json<UserMessage>,
@@ -222,11 +228,11 @@ fn timeclonk_interface_check(
   }
 }
 
-fn register(data: web::Data<Config>, req: HttpRequest) -> HttpResponse {
+async fn register(data: web::Data<Config>, req: HttpRequest) -> HttpResponse {
   orgauth::endpoints::register(&data.orgauth_config, req)
 }
 
-fn new_email(data: web::Data<Config>, req: HttpRequest) -> HttpResponse {
+async fn new_email(data: web::Data<Config>, req: HttpRequest) -> HttpResponse {
   orgauth::endpoints::new_email(&data.orgauth_config, req)
 }
 
@@ -350,12 +356,16 @@ async fn err_main() -> Result<(), Box<dyn Error>> {
       HttpServer::new(move || {
         let staticpath = c.static_path.clone().unwrap_or(PathBuf::from("static/"));
         App::new()
-          .data(c.clone()) // <- create app with shared state
+          .app_data(web::Data::new(c.clone())) // <- create app with shared state
           .wrap(middleware::Logger::default())
           .wrap(
-            CookieSession::signed(&[0; 32]) // <- create cookie based session middleware
-              .secure(false) // allows for dev access
-              .max_age(10 * 24 * 60 * 60), // 10 days
+            SessionMiddleware::builder(CookieSessionStore::default(), Key::from(&[0; 64]))
+              .cookie_secure(false)
+              // customize session and cookie expiration
+              .session_lifecycle(
+                PersistentSession::default().session_ttl(cookie::time::Duration::hours(2)),
+              )
+              .build(),
           )
           .service(web::resource("/public").route(web::post().to(public)))
           .service(web::resource("/private").route(web::post().to(private)))

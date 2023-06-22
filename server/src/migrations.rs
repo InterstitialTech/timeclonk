@@ -2,7 +2,6 @@ use barrel::backend::Sqlite;
 use barrel::{types, Migration};
 use orgauth::migrations as om;
 use rusqlite::{params, Connection};
-use std::error::Error;
 use std::path::Path;
 
 pub fn initialdb() -> Migration {
@@ -34,7 +33,16 @@ pub fn initialdb() -> Migration {
 
   // add token table.  multiple tokens per user to support multiple browsers and/or devices.
   m.create_table("token", |t| {
-    t.add_column("user", types::foreign("user", "id").nullable(false));
+    t.add_column(
+      "user",
+      types::foreign(
+        "user",
+        "id",
+        types::ReferentialAction::Restrict,
+        types::ReferentialAction::Restrict,
+      )
+      .nullable(false),
+    );
     t.add_column("token", types::text().nullable(false));
     t.add_column("tokendate", types::integer().nullable(false));
     t.add_index("tokenunq", types::index(vec!["user", "token"]).unique(true));
@@ -42,7 +50,16 @@ pub fn initialdb() -> Migration {
 
   // add newemail table.  each request for a new email creates an entry.
   m.create_table("newemail", |t| {
-    t.add_column("user", types::foreign("user", "id").nullable(false));
+    t.add_column(
+      "user",
+      types::foreign(
+        "user",
+        "id",
+        types::ReferentialAction::Restrict,
+        types::ReferentialAction::Restrict,
+      )
+      .nullable(false),
+    );
     t.add_column("email", types::text().nullable(false));
     t.add_column("token", types::text().nullable(false));
     t.add_column("tokendate", types::integer().nullable(false));
@@ -54,7 +71,16 @@ pub fn initialdb() -> Migration {
 
   // add newpassword table.  each request for a new password creates an entry.
   m.create_table("newpassword", |t| {
-    t.add_column("user", types::foreign("user", "id").nullable(false));
+    t.add_column(
+      "user",
+      types::foreign(
+        "user",
+        "id",
+        types::ReferentialAction::Restrict,
+        types::ReferentialAction::Restrict,
+      )
+      .nullable(false),
+    );
     t.add_column("token", types::text().nullable(false));
     t.add_column("tokendate", types::integer().nullable(false));
     t.add_index(
@@ -87,8 +113,26 @@ pub fn udpate1() -> Migration {
   });
 
   m.create_table("projectmember", |t| {
-    t.add_column("project", types::foreign("project", "id").nullable(false));
-    t.add_column("user", types::foreign("user", "id").nullable(false));
+    t.add_column(
+      "project",
+      types::foreign(
+        "project",
+        "id",
+        types::ReferentialAction::Restrict,
+        types::ReferentialAction::Restrict,
+      )
+      .nullable(false),
+    );
+    t.add_column(
+      "user",
+      types::foreign(
+        "user",
+        "id",
+        types::ReferentialAction::Restrict,
+        types::ReferentialAction::Restrict,
+      )
+      .nullable(false),
+    );
     t.add_index("unq", types::index(vec!["project", "user"]).unique(true));
   });
 
@@ -100,14 +144,41 @@ pub fn udpate1() -> Migration {
         .increments(true)
         .nullable(false),
     );
-    t.add_column("project", types::foreign("project", "id").nullable(false));
-    t.add_column("user", types::foreign("user", "id").nullable(false));
+    t.add_column(
+      "project",
+      types::foreign(
+        "project",
+        "id",
+        types::ReferentialAction::Restrict,
+        types::ReferentialAction::Restrict,
+      )
+      .nullable(false),
+    );
+    t.add_column(
+      "user",
+      types::foreign(
+        "user",
+        "id",
+        types::ReferentialAction::Restrict,
+        types::ReferentialAction::Restrict,
+      )
+      .nullable(false),
+    );
     t.add_column("description", types::text().nullable(false));
     t.add_column("startdate", types::integer().nullable(false));
     t.add_column("enddate", types::integer().nullable(false));
     t.add_column("createdate", types::integer().nullable(false));
     t.add_column("changeddate", types::integer().nullable(false));
-    t.add_column("creator", types::foreign("user", "id").nullable(false));
+    t.add_column(
+      "creator",
+      types::foreign(
+        "user",
+        "id",
+        types::ReferentialAction::Restrict,
+        types::ReferentialAction::Restrict,
+      )
+      .nullable(false),
+    );
     t.add_index(
       "timeentryunq",
       types::index(vec!["user", "startdate"]).unique(true),
@@ -122,14 +193,41 @@ pub fn udpate1() -> Migration {
         .increments(true)
         .nullable(false),
     );
-    t.add_column("project", types::foreign("project", "id").nullable(false));
-    t.add_column("user", types::foreign("user", "id").nullable(false));
+    t.add_column(
+      "project",
+      types::foreign(
+        "project",
+        "id",
+        types::ReferentialAction::Restrict,
+        types::ReferentialAction::Restrict,
+      )
+      .nullable(false),
+    );
+    t.add_column(
+      "user",
+      types::foreign(
+        "user",
+        "id",
+        types::ReferentialAction::Restrict,
+        types::ReferentialAction::Restrict,
+      )
+      .nullable(false),
+    );
     t.add_column("description", types::text().nullable(false));
     t.add_column("duration", types::integer().nullable(false));
     t.add_column("paymentdate", types::integer().nullable(false));
     t.add_column("createdate", types::integer().nullable(false));
     t.add_column("changeddate", types::integer().nullable(false));
-    t.add_column("creator", types::foreign("user", "id").nullable(false));
+    t.add_column(
+      "creator",
+      types::foreign(
+        "user",
+        "id",
+        types::ReferentialAction::Restrict,
+        types::ReferentialAction::Restrict,
+      )
+      .nullable(false),
+    );
     t.add_index(
       "payentryunq",
       types::index(vec!["user", "paymentdate"]).unique(true),
@@ -153,14 +251,41 @@ pub fn udpate2(dbfile: &Path) -> Result<(), orgauth::error::Error> {
         .increments(true)
         .nullable(false),
     );
-    t.add_column("project", types::foreign("project", "id").nullable(false));
-    t.add_column("user", types::foreign("user", "id").nullable(false));
+    t.add_column(
+      "project",
+      types::foreign(
+        "project",
+        "id",
+        types::ReferentialAction::Restrict,
+        types::ReferentialAction::Restrict,
+      )
+      .nullable(false),
+    );
+    t.add_column(
+      "user",
+      types::foreign(
+        "user",
+        "id",
+        types::ReferentialAction::Restrict,
+        types::ReferentialAction::Restrict,
+      )
+      .nullable(false),
+    );
     t.add_column("description", types::text().nullable(false));
     t.add_column("startdate", types::integer().nullable(false));
     t.add_column("enddate", types::integer().nullable(false));
     t.add_column("createdate", types::integer().nullable(false));
     t.add_column("changeddate", types::integer().nullable(false));
-    t.add_column("creator", types::foreign("user", "id").nullable(false));
+    t.add_column(
+      "creator",
+      types::foreign(
+        "user",
+        "id",
+        types::ReferentialAction::Restrict,
+        types::ReferentialAction::Restrict,
+      )
+      .nullable(false),
+    );
     // t.add_index(
     //   "timeentryunq",
     //   types::index(vec!["user", "startdate"]).unique(true),
@@ -207,15 +332,42 @@ pub fn udpate2(dbfile: &Path) -> Result<(), orgauth::error::Error> {
         .increments(true)
         .nullable(false),
     );
-    t.add_column("project", types::foreign("project", "id").nullable(false));
-    t.add_column("user", types::foreign("user", "id").nullable(false));
+    t.add_column(
+      "project",
+      types::foreign(
+        "project",
+        "id",
+        types::ReferentialAction::Restrict,
+        types::ReferentialAction::Restrict,
+      )
+      .nullable(false),
+    );
+    t.add_column(
+      "user",
+      types::foreign(
+        "user",
+        "id",
+        types::ReferentialAction::Restrict,
+        types::ReferentialAction::Restrict,
+      )
+      .nullable(false),
+    );
     t.add_column("description", types::text().nullable(false));
     t.add_column("startdate", types::integer().nullable(false));
     t.add_column("enddate", types::integer().nullable(false));
     t.add_column("ignore", types::boolean().nullable(false));
     t.add_column("createdate", types::integer().nullable(false));
     t.add_column("changeddate", types::integer().nullable(false));
-    t.add_column("creator", types::foreign("user", "id").nullable(false));
+    t.add_column(
+      "creator",
+      types::foreign(
+        "user",
+        "id",
+        types::ReferentialAction::Restrict,
+        types::ReferentialAction::Restrict,
+      )
+      .nullable(false),
+    );
     t.add_index(
       "timeentryunq",
       types::index(vec!["user", "startdate"]).unique(true),
@@ -272,13 +424,31 @@ pub fn udpate3() -> Migration {
         .increments(true)
         .nullable(false),
     );
-    t.add_column("project", types::foreign("project", "id").nullable(false));
+    t.add_column(
+      "project",
+      types::foreign(
+        "project",
+        "id",
+        types::ReferentialAction::Restrict,
+        types::ReferentialAction::Restrict,
+      )
+      .nullable(false),
+    );
     t.add_column("description", types::text().nullable(false));
     t.add_column("duration", types::integer().nullable(false));
     t.add_column("allocationdate", types::integer().nullable(false));
     t.add_column("createdate", types::integer().nullable(false));
     t.add_column("changeddate", types::integer().nullable(false));
-    t.add_column("creator", types::foreign("user", "id").nullable(false));
+    t.add_column(
+      "creator",
+      types::foreign(
+        "user",
+        "id",
+        types::ReferentialAction::Restrict,
+        types::ReferentialAction::Restrict,
+      )
+      .nullable(false),
+    );
     t.add_index(
       "allocationunq",
       types::index(vec!["user", "allocationdate"]).unique(true),
@@ -584,8 +754,26 @@ pub fn udpate6(dbfile: &Path) -> Result<(), orgauth::error::Error> {
   m2.drop_table("projectmember");
 
   m2.create_table("projectmember", |t| {
-    t.add_column("project", types::foreign("project", "id").nullable(false));
-    t.add_column("user", types::foreign("orgauth_user", "id").nullable(false));
+    t.add_column(
+      "project",
+      types::foreign(
+        "project",
+        "id",
+        types::ReferentialAction::Restrict,
+        types::ReferentialAction::Restrict,
+      )
+      .nullable(false),
+    );
+    t.add_column(
+      "user",
+      types::foreign(
+        "orgauth_user",
+        "id",
+        types::ReferentialAction::Restrict,
+        types::ReferentialAction::Restrict,
+      )
+      .nullable(false),
+    );
     t.add_column("role", types::text().nullable(false));
     t.add_index("unq", types::index(vec!["project", "user"]).unique(true));
   });
