@@ -2054,7 +2054,6 @@ dependencies = [
  "env_logger",
  "futures",
  "json",
- "lettre",
  "log",
  "orgauth",
  "rand 0.5.6",
