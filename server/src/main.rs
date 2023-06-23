@@ -361,9 +361,9 @@ async fn err_main() -> Result<(), Box<dyn Error>> {
           .wrap(
             SessionMiddleware::builder(CookieSessionStore::default(), Key::from(&[0; 64]))
               .cookie_secure(false)
-              // customize session and cookie expiration
+              // one year cookie duration
               .session_lifecycle(
-                PersistentSession::default().session_ttl(cookie::time::Duration::hours(2)),
+                PersistentSession::default().session_ttl(cookie::time::Duration::weeks(52)),
               )
               .build(),
           )
