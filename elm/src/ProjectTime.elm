@@ -1464,17 +1464,33 @@ type Entry
 distributionview : Data.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
 distributionview ld size zone model =
     let
-        paytotes =
-            model.payentries |> Dict.values |> TR.payTotes
-
         timetotes =
             getTes model.timeentries |> Dict.values |> TR.timeTotes
+
+        paytotes =
+            model.payentries |> Dict.values |> TR.payTotes
 
         unpaidtotes =
             timetotes
                 |> TDict.foldl
                     (\k v up ->
                         case TDict.get k paytotes of
+                            Just p ->
+                                TDict.insert k (v - p) up
+
+                            Nothing ->
+                                TDict.insert k v up
+                    )
+                    TR.emptyUserTimeDict
+
+        invoicetotes =
+            model.payentries |> Dict.values |> TR.invoiceTotes
+
+        uninvoicedtotes =
+            timetotes
+                |> TDict.foldl
+                    (\k v up ->
+                        case TDict.get k invoicetotes of
                             Just p ->
                                 TDict.insert k (v - p) up
 
@@ -1784,6 +1800,8 @@ distributionview ld size zone model =
     , E.table [ E.paddingXY 0 10, E.spacing TC.defaultSpacing, E.width E.fill ]
         { data =
             [ ( "hours worked", timetotes )
+            , ( "hours invoiced", invoicetotes )
+            , ( "hours uninvoiced", uninvoicedtotes )
             , ( "hours paid", paytotes )
             , ( "hours unpaid", unpaidtotes )
             ]
@@ -2012,7 +2030,30 @@ allocationview ld size zone model =
         paytote =
             model.payentries
                 |> Dict.values
-                |> List.foldl (\e t -> t + e.duration) 0
+                |> List.foldl
+                    (\e t ->
+                        case e.paytype of
+                            Data.Paid ->
+                                t + e.duration
+
+                            Data.Invoiced ->
+                                t
+                    )
+                    0
+
+        invoicetote =
+            model.payentries
+                |> Dict.values
+                |> List.foldl
+                    (\e t ->
+                        case e.paytype of
+                            Data.Paid ->
+                                t
+
+                            Data.Invoiced ->
+                                t + e.duration
+                    )
+                    0
 
         timetote =
             getTotes model.timeentries
@@ -2261,6 +2302,7 @@ allocationview ld size zone model =
     , E.table [ E.paddingXY 0 10, E.spacing TC.defaultSpacing, E.width E.fill ]
         { data =
             [ ( "hours worked", timetote )
+            , ( "hours invoiced", invoicetote )
             , ( "hours paid", paytote )
             , ( "hours unpaid", timetote - paytote )
             , ( "hours allocated", alloctote )
@@ -2307,7 +2349,30 @@ payview ld size zone model =
         paytote =
             model.payentries
                 |> Dict.values
-                |> List.foldl (\e t -> t + e.duration) 0
+                |> List.foldl
+                    (\e t ->
+                        case e.paytype of
+                            Data.Paid ->
+                                t + e.duration
+
+                            Data.Invoiced ->
+                                t
+                    )
+                    0
+
+        invoicetote =
+            model.payentries
+                |> Dict.values
+                |> List.foldl
+                    (\e t ->
+                        case e.paytype of
+                            Data.Paid ->
+                                t
+
+                            Data.Invoiced ->
+                                t + e.duration
+                    )
+                    0
 
         timetote =
             getTotes model.timeentries
@@ -2574,6 +2639,7 @@ payview ld size zone model =
     , E.table [ E.paddingXY 0 10, E.spacing TC.defaultSpacing, E.width E.fill ]
         { data =
             [ ( "hours worked", timetote )
+            , ( "hours invoiced", invoicetote )
             , ( "hours paid", paytote )
             , ( "hours unpaid", timetote - paytote )
             , ( "hours allocated", alloctote )
