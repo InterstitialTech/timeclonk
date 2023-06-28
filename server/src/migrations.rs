@@ -957,6 +957,13 @@ pub fn udpate11(dbfile: &Path) -> Result<(), orgauth::error::Error> {
     params![],
   )?;
 
+  // also create invoice records for all payments.
+  conn.execute(
+    "insert into payentry ( project, user, description, duration, type, paymentdate, createdate, changeddate, creator )
+     select  project, user, description, duration, 0, paymentdate - 1, createdate, changeddate, creator  from temppayentry",
+    params![],
+  )?;
+
   let mut m3 = Migration::new();
   // drop timeentrytemp.
   m3.drop_table("temppayentry");
