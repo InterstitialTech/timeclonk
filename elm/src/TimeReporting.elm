@@ -200,7 +200,17 @@ payTotes entries =
             (\entry sums ->
                 case TDict.get entry.user sums of
                     Just sum ->
-                        TDict.insert entry.user (sum + entry.duration) sums
+                        TDict.insert entry.user
+                            (sum
+                                + (case entry.paytype of
+                                    Data.Paid ->
+                                        entry.duration
+
+                                    Data.Invoiced ->
+                                        0
+                                  )
+                            )
+                            sums
 
                     Nothing ->
                         TDict.insert entry.user entry.duration sums
