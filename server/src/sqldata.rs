@@ -1,6 +1,6 @@
 use crate::data::{
-  Allocation, ListProject, PayEntry, Project, ProjectEdit, ProjectMember, ProjectTime, Role,
-  SaveAllocation, SavePayEntry, SaveProject, SaveProjectEdit, SaveProjectTime, SaveTimeEntry,
+  Allocation, ListProject, PayEntry, PayType, Project, ProjectEdit, ProjectMember, ProjectTime,
+  Role, SaveAllocation, SavePayEntry, SaveProject, SaveProjectEdit, SaveProjectTime, SaveTimeEntry,
   SavedProject, SavedProjectEdit, TimeEntry, User, UserInviteData,
 };
 use crate::migrations as tm;
@@ -179,6 +179,11 @@ pub fn dbinit(
     info!("udpate10");
     tm::udpate10(&dbfile)?;
     set_single_value(&conn, "migration_level", "10")?;
+  }
+  if nlevel < 11 {
+    info!("udpate11");
+    tm::udpate11(&dbfile)?;
+    set_single_value(&conn, "migration_level", "11")?;
   }
 
   info!("db up to date.");
@@ -500,7 +505,7 @@ pub fn pay_entries(
   projectid: i64,
 ) -> Result<Vec<PayEntry>, orgauth::error::Error> {
   let mut pstmt = conn.prepare(
-    "select  pe.id, pe.project, pe.user, pe.duration, pe.paymentdate, pe.description, pe.createdate, pe.changeddate, pe.creator
+    "select  pe.id, pe.project, pe.user, pe.duration, pe.type, pe.paymentdate, pe.description, pe.createdate, pe.changeddate, pe.creator
           from payentry pe where
           pe.project = ?1",
   )?;
@@ -512,11 +517,19 @@ pub fn pay_entries(
           project: row.get(1)?,
           user: row.get(2)?,
           duration: row.get(3)?,
-          paymentdate: row.get(4)?,
-          description: row.get(5)?,
-          createdate: row.get(6)?,
-          changeddate: row.get(7)?,
-          creator: row.get(8)?,
+          paytype: {
+            let pt: i64 = row.get(4)?;
+            if pt == 0 {
+              PayType::Invoiced
+            } else {
+              PayType::Paid
+            }
+          },
+          paymentdate: row.get(5)?,
+          description: row.get(6)?,
+          createdate: row.get(7)?,
+          changeddate: row.get(8)?,
+          creator: row.get(9)?,
         })
       })?
       .filter_map(|x| x.ok())
@@ -531,6 +544,10 @@ pub fn save_pay_entry(
   spe: SavePayEntry,
 ) -> Result<i64, orgauth::error::Error> {
   let now = now()?;
+  let pt = match spe.paytype {
+    PayType::Invoiced => 0,
+    PayType::Paid => 1,
+  };
   match spe.id {
     Some(id) =>
         conn.execute(
@@ -539,16 +556,17 @@ pub fn save_pay_entry(
             , user =?2
             , description =?3
             , duration =?4
-            , paymentdate =?5
-            , changeddate =?6
-              where id = ?7 ",
-          params![spe.project, spe.user, spe.description, spe.duration, spe.paymentdate, now, id],
+            , type =?5
+            , paymentdate =?6
+            , changeddate =?7
+              where id = ?8 ",
+          params![spe.project, spe.user, spe.description, spe.duration,  pt, spe.paymentdate, now, id],
         )?,
     None =>
       conn.execute(
-        "insert into payentry (project, user, description, duration, paymentdate, createdate, changeddate, creator)
-         values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-        params![spe.project, spe.user, spe.description, spe.duration, spe.paymentdate, now, now, uid],
+        "insert into payentry (project, user, description, duration, type, paymentdate, createdate, changeddate, creator)
+         values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        params![spe.project, spe.user, spe.description, spe.duration, pt, spe.paymentdate, now, now, uid],
       )?,
   };
   let id = conn.last_insert_rowid();

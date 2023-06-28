@@ -3,7 +3,7 @@ module TimeReporting exposing (..)
 import Calendar
 import Clock
 import Csv
-import Data exposing (AllocationId, PayEntryId, TimeEntryId, getProjectIdVal)
+import Data exposing (AllocationId, PayEntryId, PayType, TimeEntryId, getProjectIdVal)
 import DateTime exposing (DateTime)
 import Dict exposing (Dict)
 import Orgauth.Data as OD exposing (UserId, getUserIdVal, makeUserId)
@@ -31,6 +31,7 @@ type alias EditPayEntry =
     { id : Maybe PayEntryId
     , user : UserId
     , description : String
+    , paytype : PayType
     , paymentdate : Int
     , duration : Int
     , checked : Bool

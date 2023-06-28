@@ -435,6 +435,7 @@ toEditPayEntry te =
     , description = te.description
     , paymentdate = te.paymentdate
     , duration = te.duration
+    , paytype = te.paytype
     , checked = False
     }
 
@@ -469,6 +470,7 @@ toSavePayEntry model ete =
     , description = ete.description
     , paymentdate = ete.paymentdate
     , duration = ete.duration
+    , paytype = ete.paytype
     }
 
 
@@ -3391,6 +3393,7 @@ update msg model ld zone =
                         , description = "payment"
                         , paymentdate = paydate
                         , duration = payment
+                        , paytype = Data.Paid
                         , checked = False
                         }
                         model.payentries

@@ -171,8 +171,9 @@ toEditPayEntry te =
     { id = Just te.id
     , user = te.user
     , description = te.description
-    , paymentdate = te.paymentdate
     , duration = te.duration
+    , paytype = te.paytype
+    , paymentdate = te.paymentdate
     , checked = False
     }
 

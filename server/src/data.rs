@@ -166,11 +166,18 @@ pub struct ProjectTime {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum PayType {
+  Invoiced,
+  Paid,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PayEntry {
   pub id: i64,
   pub project: i64,
   pub user: i64,
   pub duration: i64,
+  pub paytype: PayType,
   pub paymentdate: i64,
   pub description: String,
   pub createdate: i64,
@@ -184,6 +191,7 @@ pub struct SavePayEntry {
   pub project: i64,
   pub user: i64,
   pub duration: i64,
+  pub paytype: PayType,
   pub paymentdate: i64,
   pub description: String,
 }
