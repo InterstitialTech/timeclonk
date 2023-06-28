@@ -11,7 +11,6 @@ use actix_web::{
   cookie::{self, Key},
   middleware, web, App, HttpRequest, HttpResponse, HttpServer, Result,
 };
-use chrono;
 use clap::Arg;
 use config::Config;
 use log::{error, info};
