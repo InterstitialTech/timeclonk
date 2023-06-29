@@ -3512,7 +3512,7 @@ update msg model ld zone =
                     ( update (tomsg dt) mdl ld zone
                         -- hope there's no Command!
                         |> Tuple.first
-                    , dt + 1
+                    , dt + 1000
                     )
                 )
                 ( model, date )
