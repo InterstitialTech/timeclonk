@@ -3522,10 +3522,6 @@ update msg model ld zone =
             )
 
         AddPayment member payment paytype paydate ->
-            let
-                _ =
-                    Debug.log "AddPayment" (Toop.T4 member payment paytype paydate)
-            in
             ( { model
                 | payentries =
                     Dict.insert paydate
