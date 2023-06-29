@@ -242,7 +242,7 @@ pub fn udpate2(dbfile: &Path) -> Result<(), orgauth::error::Error> {
   let conn = Connection::open(dbfile)?;
   let mut m1 = Migration::new();
 
-  // temp table to hold zknote data.
+  // temp table to hold data while we make the new table.
   m1.create_table("timeentrytemp", |t| {
     t.add_column(
       "id",
@@ -320,7 +320,6 @@ pub fn udpate2(dbfile: &Path) -> Result<(), orgauth::error::Error> {
   )?;
 
   let mut m2 = Migration::new();
-  // drop zknote.
   m2.drop_table("timeentry");
 
   // add 'ignore' bool to timeentry.
@@ -405,7 +404,7 @@ pub fn udpate2(dbfile: &Path) -> Result<(), orgauth::error::Error> {
   )?;
 
   let mut m3 = Migration::new();
-  // drop timeentrytemp.
+  // drop temp table.
   m3.drop_table("timeentrytemp");
 
   conn.execute_batch(m3.make::<Sqlite>().as_str())?;
@@ -731,7 +730,7 @@ pub fn udpate6(dbfile: &Path) -> Result<(), orgauth::error::Error> {
   let conn = Connection::open(dbfile)?;
   let mut m1 = Migration::new();
 
-  // back up the projctmember table.
+  // back up the projectmember table.
 
   // temp table to hold data while we make a new table.
   m1.create_table("pmtemp", |t| {
@@ -832,8 +831,6 @@ pub fn udpate11(dbfile: &Path) -> Result<(), orgauth::error::Error> {
   let conn = Connection::open(dbfile)?;
   let mut m1 = Migration::new();
 
-  // back up the projctmember table.
-
   // temp table to hold data while we make a new table.
   m1.create_table("temppayentry", |t| {
     t.add_column(
@@ -894,9 +891,8 @@ pub fn udpate11(dbfile: &Path) -> Result<(), orgauth::error::Error> {
   )?;
 
   let mut m2 = Migration::new();
-  // drop zknote.
-  m2.drop_table("payentry");
 
+  m2.drop_table("payentry");
   m2.create_table("payentry", |t| {
     t.add_column(
       "id",
@@ -965,7 +961,7 @@ pub fn udpate11(dbfile: &Path) -> Result<(), orgauth::error::Error> {
   )?;
 
   let mut m3 = Migration::new();
-  // drop timeentrytemp.
+  // drop temp table..
   m3.drop_table("temppayentry");
 
   conn.execute_batch(m3.make::<Sqlite>().as_str())?;
