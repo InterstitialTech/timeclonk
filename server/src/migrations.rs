@@ -242,7 +242,7 @@ pub fn udpate2(dbfile: &Path) -> Result<(), orgauth::error::Error> {
   let conn = Connection::open(dbfile)?;
   let mut m1 = Migration::new();
 
-  // temp table to hold zknote data.
+  // temp table to hold data while we make the new table.
   m1.create_table("timeentrytemp", |t| {
     t.add_column(
       "id",
@@ -320,7 +320,6 @@ pub fn udpate2(dbfile: &Path) -> Result<(), orgauth::error::Error> {
   )?;
 
   let mut m2 = Migration::new();
-  // drop zknote.
   m2.drop_table("timeentry");
 
   // add 'ignore' bool to timeentry.
@@ -405,7 +404,7 @@ pub fn udpate2(dbfile: &Path) -> Result<(), orgauth::error::Error> {
   )?;
 
   let mut m3 = Migration::new();
-  // drop timeentrytemp.
+  // drop temp table.
   m3.drop_table("timeentrytemp");
 
   conn.execute_batch(m3.make::<Sqlite>().as_str())?;
@@ -645,7 +644,7 @@ pub fn udpate5(dbfile: &Path) -> Result<(), orgauth::error::Error> {
   conn.execute("drop table allocation;", params![])?;
   conn.execute("drop table project;", params![])?;
 
-  // create tables that use orgauth_user foreighn keys and not user.
+  // create tables that use orgauth_user foreign keys and not user.
   conn.execute(
     "CREATE TABLE IF NOT EXISTS \"projectmember\" (\"project\" INTEGER REFERENCES project(id) NOT NULL, \"user\" INTEGER REFERENCES orgauth_user(id) NOT NULL);"
     ,params![],
@@ -731,7 +730,7 @@ pub fn udpate6(dbfile: &Path) -> Result<(), orgauth::error::Error> {
   let conn = Connection::open(dbfile)?;
   let mut m1 = Migration::new();
 
-  // back up the projctmember table.
+  // back up the projectmember table.
 
   // temp table to hold data while we make a new table.
   m1.create_table("pmtemp", |t| {
@@ -823,6 +822,149 @@ pub fn udpate9(dbfile: &Path) -> Result<(), orgauth::error::Error> {
 
 pub fn udpate10(dbfile: &Path) -> Result<(), orgauth::error::Error> {
   om::udpate7(dbfile)?;
+
+  Ok(())
+}
+
+pub fn udpate11(dbfile: &Path) -> Result<(), orgauth::error::Error> {
+  // db connection without foreign key checking.
+  let conn = Connection::open(dbfile)?;
+  let mut m1 = Migration::new();
+
+  // temp table to hold data while we make a new table.
+  m1.create_table("temppayentry", |t| {
+    t.add_column(
+      "id",
+      types::integer()
+        .primary(true)
+        .increments(true)
+        .nullable(false),
+    );
+    t.add_column(
+      "project",
+      types::foreign(
+        "project",
+        "id",
+        types::ReferentialAction::Restrict,
+        types::ReferentialAction::Restrict,
+      )
+      .nullable(false),
+    );
+    t.add_column(
+      "user",
+      types::foreign(
+        "orgauth_user",
+        "id",
+        types::ReferentialAction::Restrict,
+        types::ReferentialAction::Restrict,
+      )
+      .nullable(false),
+    );
+    t.add_column("description", types::text().nullable(false));
+    t.add_column("duration", types::integer().nullable(false));
+    t.add_column("paymentdate", types::integer().nullable(false));
+    t.add_column("createdate", types::integer().nullable(false));
+    t.add_column("changeddate", types::integer().nullable(false));
+    t.add_column(
+      "creator",
+      types::foreign(
+        "user",
+        "id",
+        types::ReferentialAction::Restrict,
+        types::ReferentialAction::Restrict,
+      )
+      .nullable(false),
+    );
+    t.add_index(
+      "payentryunqtemp",
+      types::index(vec!["user", "paymentdate"]).unique(true),
+    );
+  });
+
+  conn.execute_batch(m1.make::<Sqlite>().as_str())?;
+
+  // copy everything from current table..
+  conn.execute(
+    "insert into temppayentry ( id, project, user, description, duration, paymentdate, createdate, changeddate, creator )
+     select  id, project, user, description, duration, paymentdate, createdate, changeddate, creator  from payentry",
+    params![],
+  )?;
+
+  let mut m2 = Migration::new();
+
+  m2.drop_table("payentry");
+  m2.create_table("payentry", |t| {
+    t.add_column(
+      "id",
+      types::integer()
+        .primary(true)
+        .increments(true)
+        .nullable(false),
+    );
+    t.add_column(
+      "project",
+      types::foreign(
+        "project",
+        "id",
+        types::ReferentialAction::Restrict,
+        types::ReferentialAction::Restrict,
+      )
+      .nullable(false),
+    );
+    t.add_column(
+      "user",
+      types::foreign(
+        "orgauth_user",
+        "id",
+        types::ReferentialAction::Restrict,
+        types::ReferentialAction::Restrict,
+      )
+      .nullable(false),
+    );
+    t.add_column("description", types::text().nullable(false));
+    t.add_column("duration", types::integer().nullable(false));
+    t.add_column("type", types::integer().nullable(false)); // 0 = invoiced  1 = paid
+    t.add_column("paymentdate", types::integer().nullable(false));
+    t.add_column("createdate", types::integer().nullable(false));
+    t.add_column("changeddate", types::integer().nullable(false));
+    t.add_column(
+      "creator",
+      types::foreign(
+        "orgauth_user",
+        "id",
+        types::ReferentialAction::Restrict,
+        types::ReferentialAction::Restrict,
+      )
+      .nullable(false),
+    );
+    t.add_index(
+      "payentryunq",
+      types::index(vec!["user", "paymentdate"]).unique(true),
+    );
+  });
+
+  // add 'rate' to timeentry.
+  conn.execute_batch(m2.make::<Sqlite>().as_str())?;
+
+  // copy everything from the temp table.
+  conn.execute(
+    "insert into payentry ( id, project, user, description, duration, type, paymentdate, createdate, changeddate, creator )
+     select  id, project, user, description, duration, 1, paymentdate, createdate, changeddate, creator  from temppayentry",
+    params![],
+  )?;
+
+  // also create invoice records for all payments.
+  conn.execute(
+    "insert into payentry ( project, user, description, duration, type, paymentdate, createdate, changeddate, creator )
+     select  project, user, description, duration, 0, paymentdate - 1, createdate, changeddate, creator  from temppayentry",
+    params![],
+  )?;
+
+  let mut m3 = Migration::new();
+  // drop temp table..
+  m3.drop_table("temppayentry");
+
+  conn.execute_batch(m3.make::<Sqlite>().as_str())?;
 
   Ok(())
 }

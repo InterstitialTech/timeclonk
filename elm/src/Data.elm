@@ -5,6 +5,7 @@ module Data exposing
     , LoginData
     , PayEntry
     , PayEntryId(..)
+    , PayType(..)
     , Project
     , ProjectEdit
     , ProjectId(..)
@@ -254,11 +255,17 @@ type alias SaveTimeEntry =
     }
 
 
+type PayType
+    = Invoiced
+    | Paid
+
+
 type alias PayEntry =
     { id : PayEntryId
     , project : ProjectId
     , user : UserId
     , duration : Int
+    , paytype : PayType
     , paymentdate : Int
     , description : String
     , createdate : Int
@@ -272,6 +279,7 @@ type alias SavePayEntry =
     , project : ProjectId
     , user : UserId
     , duration : Int
+    , paytype : PayType
     , paymentdate : Int
     , description : String
     }
@@ -386,6 +394,33 @@ getAllocationIdVal uid =
     case uid of
         AllocationId i ->
             i
+
+
+decodePayType : JD.Decoder PayType
+decodePayType =
+    JD.string
+        |> JD.andThen
+            (\i ->
+                case i of
+                    "Invoiced" ->
+                        JD.succeed Invoiced
+
+                    "Paid" ->
+                        JD.succeed Paid
+
+                    x ->
+                        JD.fail ("invalid paytype: " ++ x)
+            )
+
+
+encodePayType : PayType -> JE.Value
+encodePayType pt =
+    case pt of
+        Invoiced ->
+            JE.string "Invoiced"
+
+        Paid ->
+            JE.string "Paid"
 
 
 
@@ -588,6 +623,7 @@ decodePayEntry =
         |> andMap (JD.field "project" JD.int |> JD.map makeProjectId)
         |> andMap (JD.field "user" JD.int |> JD.map makeUserId)
         |> andMap (JD.field "duration" JD.int)
+        |> andMap (JD.field "paytype" decodePayType)
         |> andMap (JD.field "paymentdate" JD.int)
         |> andMap (JD.field "description" JD.string)
         |> andMap (JD.field "createdate" JD.int)
@@ -605,6 +641,7 @@ encodeSavePayEntry e =
             [ ( "project", JE.int (getProjectIdVal e.project) )
             , ( "user", JE.int (getUserIdVal e.user) )
             , ( "duration", JE.int e.duration )
+            , ( "paytype", encodePayType e.paytype )
             , ( "paymentdate", JE.int e.paymentdate )
             , ( "description", JE.string e.description )
             ]

@@ -3,7 +3,7 @@ module TimeReporting exposing (..)
 import Calendar
 import Clock
 import Csv
-import Data exposing (AllocationId, PayEntryId, TimeEntryId, getProjectIdVal)
+import Data exposing (AllocationId, PayEntryId, PayType, TimeEntryId, getProjectIdVal)
 import DateTime exposing (DateTime)
 import Dict exposing (Dict)
 import Orgauth.Data as OD exposing (UserId, getUserIdVal, makeUserId)
@@ -31,6 +31,7 @@ type alias EditPayEntry =
     { id : Maybe PayEntryId
     , user : UserId
     , description : String
+    , paytype : PayType
     , paymentdate : Int
     , duration : Int
     , checked : Bool
@@ -192,6 +193,26 @@ teamMillisPerDay zone etes =
             e
 
 
+payAmount : EditPayEntry -> Int
+payAmount entry =
+    case entry.paytype of
+        Data.Paid ->
+            entry.duration
+
+        Data.Invoiced ->
+            0
+
+
+invoiceAmount : EditPayEntry -> Int
+invoiceAmount entry =
+    case entry.paytype of
+        Data.Paid ->
+            0
+
+        Data.Invoiced ->
+            entry.duration
+
+
 payTotes : List EditPayEntry -> TDict UserId Int Int
 payTotes entries =
     entries
@@ -199,10 +220,35 @@ payTotes entries =
             (\entry sums ->
                 case TDict.get entry.user sums of
                     Just sum ->
-                        TDict.insert entry.user (sum + entry.duration) sums
+                        TDict.insert entry.user
+                            (sum
+                                + payAmount entry
+                            )
+                            sums
 
                     Nothing ->
-                        TDict.insert entry.user entry.duration sums
+                        TDict.insert entry.user (payAmount entry) sums
+            )
+            emptyUserTimeDict
+
+
+invoiceTotes : List EditPayEntry -> TDict UserId Int Int
+invoiceTotes entries =
+    entries
+        |> List.foldl
+            (\entry sums ->
+                case TDict.get entry.user sums of
+                    Just sum ->
+                        TDict.insert entry.user
+                            (sum
+                                + invoiceAmount entry
+                            )
+                            sums
+
+                    Nothing ->
+                        TDict.insert entry.user
+                            (invoiceAmount entry)
+                            sums
             )
             emptyUserTimeDict
 

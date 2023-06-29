@@ -82,8 +82,9 @@ type Msg
     | CalcDistribution
     | ToClipboardMsg String
     | OnPaymentChanged UserId String
-    | AddPaymentPress UserId Int
-    | AddPayment UserId Int Int
+    | AddPaymentPress UserId Int Data.PayType
+    | AddPayment UserId Int Data.PayType Int
+    | DateMsgs (List (Int -> Msg)) Int
     | CheckAll Bool
     | CheckItem Int Bool
     | CheckPayAll Bool
@@ -92,6 +93,8 @@ type Msg
     | CheckAllocationItem Int Bool
     | DeleteChecked
     | DeletePayChecked
+    | ToPaidPayChecked
+    | ToInvoicedPayChecked
     | DeleteAllocationChecked
     | IgnoreChecked
     | TeForward
@@ -435,6 +438,7 @@ toEditPayEntry te =
     , description = te.description
     , paymentdate = te.paymentdate
     , duration = te.duration
+    , paytype = te.paytype
     , checked = False
     }
 
@@ -469,6 +473,7 @@ toSavePayEntry model ete =
     , description = ete.description
     , paymentdate = ete.paymentdate
     , duration = ete.duration
+    , paytype = ete.paytype
     }
 
 
@@ -1459,17 +1464,33 @@ type Entry
 distributionview : Data.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
 distributionview ld size zone model =
     let
-        paytotes =
-            model.payentries |> Dict.values |> TR.payTotes
-
         timetotes =
             getTes model.timeentries |> Dict.values |> TR.timeTotes
+
+        paytotes =
+            model.payentries |> Dict.values |> TR.payTotes
 
         unpaidtotes =
             timetotes
                 |> TDict.foldl
                     (\k v up ->
                         case TDict.get k paytotes of
+                            Just p ->
+                                TDict.insert k (v - p) up
+
+                            Nothing ->
+                                TDict.insert k v up
+                    )
+                    TR.emptyUserTimeDict
+
+        invoicetotes =
+            model.payentries |> Dict.values |> TR.invoiceTotes
+
+        uninvoicedtotes =
+            timetotes
+                |> TDict.foldl
+                    (\k v up ->
+                        case TDict.get k invoicetotes of
                             Just p ->
                                 TDict.insert k (v - p) up
 
@@ -1501,6 +1522,14 @@ distributionview ld size zone model =
             , EI.button Common.buttonStyle
                 { onPress = Just <| DeletePayChecked
                 , label = E.text "delete"
+                }
+            , EI.button Common.buttonStyle
+                { onPress = Just <| ToPaidPayChecked
+                , label = E.text "generate payments"
+                }
+            , EI.button Common.buttonStyle
+                { onPress = Just <| ToInvoicedPayChecked
+                , label = E.text "convert to invoiced"
                 }
             ]
 
@@ -1681,7 +1710,16 @@ distributionview ld size zone model =
                                                             millisAsHours epe.duration
 
                                                         p =
-                                                            E.el [ EF.bold ] <| E.text <| s ++ " pmt"
+                                                            E.el [ EF.bold ] <|
+                                                                E.text <|
+                                                                    s
+                                                                        ++ (case epe.paytype of
+                                                                                Data.Invoiced ->
+                                                                                    " inv"
+
+                                                                                Data.Paid ->
+                                                                                    " pmt"
+                                                                           )
                                                     in
                                                     if model.focus == Just ( date, PaymentAmount ) then
                                                         E.column cellEditStyle
@@ -1762,6 +1800,8 @@ distributionview ld size zone model =
     , E.table [ E.paddingXY 0 10, E.spacing TC.defaultSpacing, E.width E.fill ]
         { data =
             [ ( "hours worked", timetotes )
+            , ( "hours invoiced", invoicetotes )
+            , ( "hours uninvoiced", uninvoicedtotes )
             , ( "hours paid", paytotes )
             , ( "hours unpaid", unpaidtotes )
             ]
@@ -1813,19 +1853,18 @@ distributionview ld size zone model =
                                 >> millisAsHours
                                 >> E.text
                      }
-                   , { header = E.column [] [ E.el headerStyle <| E.text "allocation", E.el headerStyle <| E.text "- team" ]
-                     , width = E.fill
-                     , view =
-                        \( _, tote ) ->
-                            tote
-                                |> TDict.values
-                                |> List.foldl (+) 0
-                                |> (-) alloctote
-                                >> millisAsHours
-                                >> E.text
-                     }
                    ]
         }
+    , E.row []
+        [ E.el headerStyle <|
+            E.text "allocated hours remaining: "
+        , timetotes
+            |> TDict.values
+            |> List.foldl (+) 0
+            |> (-) alloctote
+            >> millisAsHours
+            >> E.text
+        ]
     , E.row [ E.width E.fill, E.spacing TC.defaultSpacing ]
         [ E.text "Calc Distribution:"
         , EI.text [ E.width E.fill ]
@@ -1963,9 +2002,14 @@ distributionview ld size zone model =
                                             |> Maybe.map (\f -> f * 60 * 60 * 1000 |> round)
                                       of
                                         Just millis ->
-                                            EI.button Common.buttonStyle
-                                                { onPress = Just <| AddPaymentPress user millis, label = E.text "add" }
-                                                |> E.el [ E.centerY ]
+                                            E.row [ E.spacing TC.defaultSpacing ]
+                                                [ EI.button Common.buttonStyle
+                                                    { onPress = Just <| AddPaymentPress user millis Data.Invoiced, label = E.text "invoiced" }
+                                                    |> E.el [ E.centerY ]
+                                                , EI.button Common.buttonStyle
+                                                    { onPress = Just <| AddPaymentPress user millis Data.Paid, label = E.text "paid" }
+                                                    |> E.el [ E.centerY ]
+                                                ]
 
                                         Nothing ->
                                             E.none
@@ -1985,7 +2029,30 @@ allocationview ld size zone model =
         paytote =
             model.payentries
                 |> Dict.values
-                |> List.foldl (\e t -> t + e.duration) 0
+                |> List.foldl
+                    (\e t ->
+                        case e.paytype of
+                            Data.Paid ->
+                                t + e.duration
+
+                            Data.Invoiced ->
+                                t
+                    )
+                    0
+
+        invoicetote =
+            model.payentries
+                |> Dict.values
+                |> List.foldl
+                    (\e t ->
+                        case e.paytype of
+                            Data.Paid ->
+                                t
+
+                            Data.Invoiced ->
+                                t + e.duration
+                    )
+                    0
 
         timetote =
             getTotes model.timeentries
@@ -2234,10 +2301,10 @@ allocationview ld size zone model =
     , E.table [ E.paddingXY 0 10, E.spacing TC.defaultSpacing, E.width E.fill ]
         { data =
             [ ( "hours worked", timetote )
+            , ( "hours invoiced", invoicetote )
             , ( "hours paid", paytote )
             , ( "hours unpaid", timetote - paytote )
             , ( "hours allocated", alloctote )
-            , ( "hours allocated remaining", alloctote - timetote )
             ]
         , columns =
             -- dummy checkboxes for alignment.  alpha 0 hides them.
@@ -2271,6 +2338,11 @@ allocationview ld size zone model =
               }
             ]
         }
+    , E.row []
+        [ E.el headerStyle <|
+            E.text "allocated hours remaining: "
+        , (alloctote - timetote) |> millisAsHours |> E.text
+        ]
     ]
 
 
@@ -2280,7 +2352,30 @@ payview ld size zone model =
         paytote =
             model.payentries
                 |> Dict.values
-                |> List.foldl (\e t -> t + e.duration) 0
+                |> List.foldl
+                    (\e t ->
+                        case e.paytype of
+                            Data.Paid ->
+                                t + e.duration
+
+                            Data.Invoiced ->
+                                t
+                    )
+                    0
+
+        invoicetote =
+            model.payentries
+                |> Dict.values
+                |> List.foldl
+                    (\e t ->
+                        case e.paytype of
+                            Data.Paid ->
+                                t
+
+                            Data.Invoiced ->
+                                t + e.duration
+                    )
+                    0
 
         timetote =
             getTotes model.timeentries
@@ -2300,6 +2395,14 @@ payview ld size zone model =
             , EI.button Common.buttonStyle
                 { onPress = Just <| DeletePayChecked
                 , label = E.text "delete"
+                }
+            , EI.button Common.buttonStyle
+                { onPress = Just <| ToPaidPayChecked
+                , label = E.text "generate payments"
+                }
+            , EI.button Common.buttonStyle
+                { onPress = Just <| ToInvoicedPayChecked
+                , label = E.text "convert to invoiced"
                 }
             ]
 
@@ -2431,7 +2534,16 @@ payview ld size zone model =
                                 millisAsHours a.duration
 
                             p =
-                                E.el [] <| E.text <| s
+                                E.el [] <|
+                                    E.text <|
+                                        s
+                                            ++ (case a.paytype of
+                                                    Data.Invoiced ->
+                                                        " inv"
+
+                                                    Data.Paid ->
+                                                        " pmt"
+                                               )
                         in
                         if model.focus == Just ( date, PaymentAmount ) then
                             E.column cellEditStyle
@@ -2506,8 +2618,15 @@ payview ld size zone model =
                         |> Maybe.map (\x -> x * 60 * 60 * 1000 |> round)
                     )
                   of
-                    ( Just uid, Just millis ) ->
-                        EI.button Common.buttonStyle { onPress = Just (AddPaymentPress uid millis), label = E.text "add" }
+                    ( Just user, Just millis ) ->
+                        E.row [ E.spacing TC.defaultSpacing ]
+                            [ EI.button Common.buttonStyle
+                                { onPress = Just <| AddPaymentPress user millis Data.Invoiced, label = E.text "invoiced" }
+                                |> E.el [ E.centerY ]
+                            , EI.button Common.buttonStyle
+                                { onPress = Just <| AddPaymentPress user millis Data.Paid, label = E.text "paid" }
+                                |> E.el [ E.centerY ]
+                            ]
 
                     _ ->
                         EI.button Common.disabledButtonStyle { onPress = Nothing, label = E.text "add" }
@@ -2523,10 +2642,10 @@ payview ld size zone model =
     , E.table [ E.paddingXY 0 10, E.spacing TC.defaultSpacing, E.width E.fill ]
         { data =
             [ ( "hours worked", timetote )
+            , ( "hours invoiced", invoicetote )
             , ( "hours paid", paytote )
             , ( "hours unpaid", timetote - paytote )
             , ( "hours allocated", alloctote )
-            , ( "hours allocated remaining", alloctote - timetote )
             ]
         , columns =
             [ -- dummy checkboxes for alignment.  alpha 0 hides them.
@@ -2560,6 +2679,11 @@ payview ld size zone model =
               }
             ]
         }
+    , E.row []
+        [ E.el headerStyle <|
+            E.text "allocated hours remaining: "
+        , (alloctote - timetote) |> millisAsHours |> E.text
+        ]
     ]
 
 
@@ -3379,10 +3503,25 @@ update msg model ld zone =
                 Nothing ->
                     ( model, None )
 
-        AddPaymentPress member payment ->
-            ( model, GetTime (AddPayment member payment) )
+        AddPaymentPress member payment paytype ->
+            ( model, GetTime (AddPayment member payment paytype) )
 
-        AddPayment member payment paydate ->
+        DateMsgs tomsgs date ->
+            ( List.foldl
+                (\tomsg ( mdl, dt ) ->
+                    ( update (tomsg dt) mdl ld zone
+                        -- hope there's no Command!
+                        |> Tuple.first
+                    , dt + 1
+                    )
+                )
+                ( model, date )
+                tomsgs
+                |> Tuple.first
+            , None
+            )
+
+        AddPayment member payment paytype paydate ->
             ( { model
                 | payentries =
                     Dict.insert paydate
@@ -3391,6 +3530,7 @@ update msg model ld zone =
                         , description = "payment"
                         , paymentdate = paydate
                         , duration = payment
+                        , paytype = paytype
                         , checked = False
                         }
                         model.payentries
@@ -3480,6 +3620,40 @@ update msg model ld zone =
         DeletePayChecked ->
             ( { model
                 | payentries = Dict.filter (\_ pe -> not pe.checked) model.payentries
+              }
+            , None
+            )
+
+        ToPaidPayChecked ->
+            let
+                pes =
+                    model.payentries
+                        |> Dict.values
+                        |> List.filterMap
+                            (\pe ->
+                                if pe.paytype == Data.Invoiced && pe.checked then
+                                    Just (AddPayment pe.user pe.duration Data.Paid)
+
+                                else
+                                    Nothing
+                            )
+            in
+            ( model
+            , GetTime (\t -> DateMsgs pes t)
+            )
+
+        ToInvoicedPayChecked ->
+            ( { model
+                | payentries =
+                    Dict.map
+                        (\_ pe ->
+                            if pe.checked then
+                                { pe | paytype = Data.Invoiced }
+
+                            else
+                                pe
+                        )
+                        model.payentries
               }
             , None
             )
