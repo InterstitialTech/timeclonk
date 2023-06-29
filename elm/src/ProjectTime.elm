@@ -11,6 +11,7 @@ import Element.Border as EBd
 import Element.Events as EE
 import Element.Font as EF
 import Element.Input as EI
+import Html.Attributes
 import Orgauth.Data as OD exposing (UserId, getUserIdVal, makeUserId)
 import Paginator as P
 import Round as R
@@ -1883,179 +1884,179 @@ distributionview ld size zone model =
         , EI.button Common.buttonStyle { onPress = Just CalcDistribution, label = E.text "calc" }
         , EI.button Common.buttonStyle { onPress = Just ClearDistribution, label = E.text "x" }
         ]
-    , case model.distribution of
-        Just dist ->
-            let
-                md =
-                    model.members |> List.map (\m -> ( m.id, Data.projectMemberToUser m )) |> TDict.insertList TR.emptyUmDict
+    ]
+        ++ (case model.distribution of
+                Just dist ->
+                    let
+                        md =
+                            model.members |> List.map (\m -> ( m.id, Data.projectMemberToUser m )) |> TDict.insertList TR.emptyUmDict
 
-                dl =
-                    TDict.toList dist
-            in
-            E.column []
-                [ E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
-                    { data = dl
-                    , columns =
-                        [ { header = E.el headerStyle <| E.text "User"
-                          , width = E.shrink
-                          , view =
-                                \( id, _ ) ->
-                                    case TDict.get id md of
-                                        Just m ->
-                                            E.el [ E.centerY ] <| E.text m.name
-
-                                        Nothing ->
-                                            E.none
-                          }
-                        , { header = E.el headerStyle <| E.text "Hours"
-                          , width = E.shrink
-                          , view =
-                                \( user, hours ) ->
-                                    EI.text []
-                                        { onChange = OnPaymentChanged user
-                                        , text = hours
-                                        , placeholder = Nothing
-                                        , label = EI.labelHidden "member hours"
-                                        }
-                          }
-                        , { header = E.el headerStyle <| E.text (model.project.currency |> Maybe.withDefault "")
-                          , width = E.shrink
-                          , view =
-                                \( user, hours ) ->
-                                    hours
-                                        |> String.toFloat
-                                        |> Maybe.andThen
-                                            (\h ->
-                                                model.project.rate
-                                                    |> Maybe.map
-                                                        (\r ->
-                                                            h
-                                                                * r
-                                                                |> String.fromFloat
-                                                        )
-                                            )
-                                        |> Maybe.withDefault ""
-                                        |> E.text
-                                        |> E.el [ E.centerY ]
-                          }
-                        , { header =
-                                let
-                                    textdist =
-                                        "Project: "
-                                            ++ model.project.name
-                                            ++ "\t"
-                                            ++ (model.project.rate
-                                                    |> Maybe.map
-                                                        (\r -> "rate: " ++ String.fromFloat r ++ " ")
-                                                    |> Maybe.withDefault ""
-                                               )
-                                            ++ (model.project.currency
-                                                    |> Maybe.withDefault ""
-                                               )
-                                            ++ "\n"
-                                            ++ "user\thours\t"
-                                            ++ (model.project.currency
-                                                    |> Maybe.withDefault ""
-                                               )
-                                            ++ "\n"
-                                            ++ (dist
-                                                    |> TDict.toList
-                                                    |> List.filterMap
-                                                        (\( user, hours ) ->
-                                                            String.toFloat hours
-                                                                |> Maybe.map
-                                                                    (\h ->
-                                                                        if h == 0.0 then
-                                                                            ""
-
-                                                                        else
-                                                                            (case TDict.get user md of
-                                                                                Just m ->
-                                                                                    m.name
-
-                                                                                Nothing ->
-                                                                                    ""
-                                                                            )
-                                                                                ++ "\t"
-                                                                                ++ hours
-                                                                                ++ "\t"
-                                                                                ++ (model.project.rate
-                                                                                        |> Maybe.map
-                                                                                            (\r ->
-                                                                                                h
-                                                                                                    * r
-                                                                                                    |> String.fromFloat
-                                                                                            )
-                                                                                        |> Maybe.withDefault ""
-                                                                                   )
-                                                                                ++ "\n"
-                                                                    )
-                                                        )
-                                                    |> String.concat
-                                               )
-                                in
-                                EI.button Common.buttonStyle
-                                    { onPress = Just <| ToClipboardMsg textdist, label = E.text "⧉" }
-                                    |> E.el [ E.centerY ]
-                          , width = E.shrink
-                          , view =
-                                \( user, hours ) ->
-                                    E.row [ E.spacing TC.defaultSpacing ]
-                                        [ case
-                                            hours
-                                                |> String.toFloat
-                                                |> Maybe.map (\f -> f * 60 * 60 * 1000 |> round)
-                                          of
-                                            Just millis ->
-                                                E.row [ E.spacing TC.defaultSpacing ]
-                                                    [ EI.button Common.buttonStyle
-                                                        { onPress = Just <| AddPaymentPress user millis Data.Invoiced, label = E.text "invoiced" }
-                                                        |> E.el [ E.centerY ]
-                                                    , EI.button Common.buttonStyle
-                                                        { onPress = Just <| AddPaymentPress user millis Data.Paid, label = E.text "paid" }
-                                                        |> E.el [ E.centerY ]
-                                                    ]
+                        dl =
+                            TDict.toList dist
+                    in
+                    [ E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
+                        { data = dl
+                        , columns =
+                            [ { header = E.el headerStyle <| E.text "User"
+                              , width = E.shrink
+                              , view =
+                                    \( id, _ ) ->
+                                        case TDict.get id md of
+                                            Just m ->
+                                                E.el [ E.centerY ] <| E.text m.name
 
                                             Nothing ->
                                                 E.none
-                                        ]
-                          }
+                              }
+                            , { header = E.el headerStyle <| E.text "Hours"
+                              , width = E.shrink
+                              , view =
+                                    \( user, hours ) ->
+                                        EI.text []
+                                            { onChange = OnPaymentChanged user
+                                            , text = hours
+                                            , placeholder = Nothing
+                                            , label = EI.labelHidden "member hours"
+                                            }
+                              }
+                            , { header = E.el headerStyle <| E.text (model.project.currency |> Maybe.withDefault "")
+                              , width = E.shrink
+                              , view =
+                                    \( user, hours ) ->
+                                        hours
+                                            |> String.toFloat
+                                            |> Maybe.andThen
+                                                (\h ->
+                                                    model.project.rate
+                                                        |> Maybe.map
+                                                            (\r ->
+                                                                h
+                                                                    * r
+                                                                    |> String.fromFloat
+                                                            )
+                                                )
+                                            |> Maybe.withDefault ""
+                                            |> E.text
+                                            |> E.el [ E.centerY ]
+                              }
+                            , { header =
+                                    let
+                                        textdist =
+                                            "Project: "
+                                                ++ model.project.name
+                                                ++ "\t"
+                                                ++ (model.project.rate
+                                                        |> Maybe.map
+                                                            (\r -> "rate: " ++ String.fromFloat r ++ " ")
+                                                        |> Maybe.withDefault ""
+                                                   )
+                                                ++ (model.project.currency
+                                                        |> Maybe.withDefault ""
+                                                   )
+                                                ++ "\n"
+                                                ++ "user\thours\t"
+                                                ++ (model.project.currency
+                                                        |> Maybe.withDefault ""
+                                                   )
+                                                ++ "\n"
+                                                ++ (dist
+                                                        |> TDict.toList
+                                                        |> List.filterMap
+                                                            (\( user, hours ) ->
+                                                                String.toFloat hours
+                                                                    |> Maybe.map
+                                                                        (\h ->
+                                                                            if h == 0.0 then
+                                                                                ""
+
+                                                                            else
+                                                                                (case TDict.get user md of
+                                                                                    Just m ->
+                                                                                        m.name
+
+                                                                                    Nothing ->
+                                                                                        ""
+                                                                                )
+                                                                                    ++ "\t"
+                                                                                    ++ hours
+                                                                                    ++ "\t"
+                                                                                    ++ (model.project.rate
+                                                                                            |> Maybe.map
+                                                                                                (\r ->
+                                                                                                    h
+                                                                                                        * r
+                                                                                                        |> String.fromFloat
+                                                                                                )
+                                                                                            |> Maybe.withDefault ""
+                                                                                       )
+                                                                                    ++ "\n"
+                                                                        )
+                                                            )
+                                                        |> String.concat
+                                                   )
+                                    in
+                                    EI.button Common.buttonStyle
+                                        { onPress = Just <| ToClipboardMsg textdist, label = E.text "⧉" }
+                                        |> E.el [ E.centerY ]
+                              , width = E.shrink
+                              , view =
+                                    \( user, hours ) ->
+                                        E.row [ E.spacing TC.defaultSpacing ]
+                                            [ case
+                                                hours
+                                                    |> String.toFloat
+                                                    |> Maybe.map (\f -> f * 60 * 60 * 1000 |> round)
+                                              of
+                                                Just millis ->
+                                                    E.row [ E.spacing TC.defaultSpacing ]
+                                                        [ EI.button Common.buttonStyle
+                                                            { onPress = Just <| AddPaymentPress user millis Data.Invoiced, label = E.text "invoiced" }
+                                                            |> E.el [ E.centerY ]
+                                                        , EI.button Common.buttonStyle
+                                                            { onPress = Just <| AddPaymentPress user millis Data.Paid, label = E.text "paid" }
+                                                            |> E.el [ E.centerY ]
+                                                        ]
+
+                                                Nothing ->
+                                                    E.none
+                                            ]
+                              }
+                            ]
+                        }
+                    , let
+                        makepes =
+                            \paytype ->
+                                dl
+                                    |> List.filterMap
+                                        (\( user, duration ) ->
+                                            case
+                                                duration
+                                                    |> String.toFloat
+                                                    |> Maybe.map (\f -> f * 60 * 60 * 1000 |> round)
+                                            of
+                                                Just millis ->
+                                                    Just <| AddPayment user millis paytype
+
+                                                Nothing ->
+                                                    Nothing
+                                        )
+                                    |> (\pes ->
+                                            GetTime (\t -> DateMsgs pes t)
+                                       )
+                      in
+                      E.row [ E.spacing TC.defaultSpacing, E.padding TC.defaultSpacing ]
+                        [ EI.button Common.buttonStyle
+                            { onPress = Just <| DoEet <| makepes Data.Invoiced, label = E.text "invoiced all" }
+                            |> E.el [ E.centerY ]
+                        , EI.button Common.buttonStyle
+                            { onPress = Just <| DoEet <| makepes Data.Paid, label = E.text "paid all" }
+                            |> E.el [ E.centerY ]
                         ]
-                    }
-                , let
-                    makepes =
-                        \paytype ->
-                            dl
-                                |> List.filterMap
-                                    (\( user, duration ) ->
-                                        case
-                                            duration
-                                                |> String.toFloat
-                                                |> Maybe.map (\f -> f * 60 * 60 * 1000 |> round)
-                                        of
-                                            Just millis ->
-                                                Just <| AddPayment user millis paytype
-
-                                            Nothing ->
-                                                Nothing
-                                    )
-                                |> (\pes ->
-                                        GetTime (\t -> DateMsgs pes t)
-                                   )
-                  in
-                  E.row [ E.spacing TC.defaultSpacing, E.padding TC.defaultSpacing ]
-                    [ EI.button Common.buttonStyle
-                        { onPress = Just <| DoEet <| makepes Data.Invoiced, label = E.text "invoiced all" }
-                        |> E.el [ E.centerY ]
-                    , EI.button Common.buttonStyle
-                        { onPress = Just <| DoEet <| makepes Data.Paid, label = E.text "paid all" }
-                        |> E.el [ E.centerY ]
                     ]
-                ]
 
-        Nothing ->
-            E.none
-    ]
+                Nothing ->
+                    []
+           )
 
 
 allocationview : Data.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
