@@ -1853,19 +1853,18 @@ distributionview ld size zone model =
                                 >> millisAsHours
                                 >> E.text
                      }
-                   , { header = E.column [] [ E.el headerStyle <| E.text "allocation", E.el headerStyle <| E.text "- team" ]
-                     , width = E.fill
-                     , view =
-                        \( _, tote ) ->
-                            tote
-                                |> TDict.values
-                                |> List.foldl (+) 0
-                                |> (-) alloctote
-                                >> millisAsHours
-                                >> E.text
-                     }
                    ]
         }
+    , E.row []
+        [ E.el headerStyle <|
+            E.text "allocated hours remaining: "
+        , timetotes
+            |> TDict.values
+            |> List.foldl (+) 0
+            |> (-) alloctote
+            >> millisAsHours
+            >> E.text
+        ]
     , E.row [ E.width E.fill, E.spacing TC.defaultSpacing ]
         [ E.text "Calc Distribution:"
         , EI.text [ E.width E.fill ]
@@ -2306,7 +2305,6 @@ allocationview ld size zone model =
             , ( "hours paid", paytote )
             , ( "hours unpaid", timetote - paytote )
             , ( "hours allocated", alloctote )
-            , ( "hours allocated remaining", alloctote - timetote )
             ]
         , columns =
             -- dummy checkboxes for alignment.  alpha 0 hides them.
@@ -2340,6 +2338,11 @@ allocationview ld size zone model =
               }
             ]
         }
+    , E.row []
+        [ E.el headerStyle <|
+            E.text "allocated hours remaining: "
+        , (alloctote - timetote) |> millisAsHours |> E.text
+        ]
     ]
 
 
@@ -2643,7 +2646,6 @@ payview ld size zone model =
             , ( "hours paid", paytote )
             , ( "hours unpaid", timetote - paytote )
             , ( "hours allocated", alloctote )
-            , ( "hours allocated remaining", alloctote - timetote )
             ]
         , columns =
             [ -- dummy checkboxes for alignment.  alpha 0 hides them.
@@ -2677,6 +2679,11 @@ payview ld size zone model =
               }
             ]
         }
+    , E.row []
+        [ E.el headerStyle <|
+            E.text "allocated hours remaining: "
+        , (alloctote - timetote) |> millisAsHours |> E.text
+        ]
     ]
 
 
