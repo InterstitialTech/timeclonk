@@ -1875,13 +1875,23 @@ distributionview ld size zone model =
             , placeholder = Nothing
             , label = EI.labelRight [] (E.text "hours")
             }
-        , EI.text [ E.width E.fill ]
-            { onChange = OnDistCurrencyChanged
-            , text = model.distributioncurrency
-            , placeholder = Nothing
-            , label = EI.labelRight [] (model.project.currency |> Maybe.withDefault "" |> E.text)
-            }
-        , EI.button Common.buttonStyle { onPress = Just CalcDistribution, label = E.text "calc" }
+        , case model.project.rate of
+            Just _ ->
+                EI.text [ E.width E.fill ]
+                    { onChange = OnDistCurrencyChanged
+                    , text = model.distributioncurrency
+                    , placeholder = Nothing
+                    , label = EI.labelRight [] (model.project.currency |> Maybe.withDefault "" |> E.text)
+                    }
+
+            Nothing ->
+                E.none
+        , case String.toFloat model.distributionhours of
+            Just _ ->
+                EI.button Common.buttonStyle { onPress = Just CalcDistribution, label = E.text "calc" }
+
+            Nothing ->
+                EI.button Common.disabledButtonStyle { onPress = Nothing, label = E.text "calc" }
         , EI.button Common.buttonStyle { onPress = Just ClearDistribution, label = E.text "x" }
         ]
     ]
@@ -2318,13 +2328,23 @@ allocationview ld size zone model =
                     , placeholder = Nothing
                     , label = EI.labelLeft [] <| E.text "hours"
                     }
-                , EI.text [ E.width E.fill ]
-                    { onChange = NewAllocCurrencyChanged
-                    , text = model.alloccurrency
-                    , placeholder = Nothing
-                    , label = EI.labelRight [] (model.project.currency |> Maybe.withDefault "" |> E.text)
-                    }
-                , EI.button Common.buttonStyle { onPress = Just AddAllocationPress, label = E.text "add" }
+                , case model.project.rate of
+                    Just _ ->
+                        EI.text [ E.width E.fill ]
+                            { onChange = NewAllocCurrencyChanged
+                            , text = model.alloccurrency
+                            , placeholder = Nothing
+                            , label = EI.labelRight [] (model.project.currency |> Maybe.withDefault "" |> E.text)
+                            }
+
+                    Nothing ->
+                        E.none
+                , case String.toFloat model.allochours of
+                    Just _ ->
+                        EI.button Common.buttonStyle { onPress = Just AddAllocationPress, label = E.text "add" }
+
+                    Nothing ->
+                        EI.button Common.disabledButtonStyle { onPress = Nothing, label = E.text "add" }
                 ]
             ]
 
@@ -2641,12 +2661,17 @@ payview ld size zone model =
                     , placeholder = Nothing
                     , label = EI.labelLeft [] <| E.text "hours"
                     }
-                , EI.text []
-                    { onChange = NewPaymentCurrencyChanged
-                    , text = model.paymentcurrency
-                    , placeholder = Nothing
-                    , label = EI.labelRight [] (model.project.currency |> Maybe.withDefault "" |> E.text)
-                    }
+                , case model.project.rate of
+                    Just _ ->
+                        EI.text []
+                            { onChange = NewPaymentCurrencyChanged
+                            , text = model.paymentcurrency
+                            , placeholder = Nothing
+                            , label = EI.labelRight [] (model.project.currency |> Maybe.withDefault "" |> E.text)
+                            }
+
+                    Nothing ->
+                        E.none
                 , case
                     ( model.paymentuser
                     , model.paymenthours
@@ -2665,7 +2690,14 @@ payview ld size zone model =
                             ]
 
                     _ ->
-                        EI.button Common.disabledButtonStyle { onPress = Nothing, label = E.text "add" }
+                        E.row [ E.spacing TC.defaultSpacing ]
+                            [ EI.button Common.disabledButtonStyle
+                                { onPress = Nothing, label = E.text "invoiced" }
+                                |> E.el [ E.centerY ]
+                            , EI.button Common.disabledButtonStyle
+                                { onPress = Nothing, label = E.text "paid" }
+                                |> E.el [ E.centerY ]
+                            ]
                 ]
             ]
 
