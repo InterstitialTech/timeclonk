@@ -272,12 +272,12 @@ dayTotes zone timeentries =
                                 dmils =
                                     Calendar.toMillis date
                             in
-                            case Dict.get dmils ddict of
+                            case Dict.get dmils ddicttoo of
                                 Just totemillis ->
-                                    Dict.insert dmils (totemillis + millis) ddict
+                                    Dict.insert dmils (totemillis + millis) ddicttoo
 
                                 Nothing ->
-                                    Dict.insert dmils millis ddict
+                                    Dict.insert dmils millis ddicttoo
                         )
                         ddict
             )
@@ -346,12 +346,12 @@ weekTotes zone timeentries =
                                     Calendar.toMillis
                                         (toSunday date)
                             in
-                            case Dict.get wmils ddict of
+                            case Dict.get wmils ddicttoo of
                                 Just totemillis ->
-                                    Dict.insert wmils (totemillis + millis) ddict
+                                    Dict.insert wmils (totemillis + millis) ddicttoo
 
                                 Nothing ->
-                                    Dict.insert wmils millis ddict
+                                    Dict.insert wmils millis ddicttoo
                         )
                         ddict
             )
