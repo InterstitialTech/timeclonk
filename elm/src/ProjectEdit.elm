@@ -24,6 +24,9 @@ import WindowKeys as WK
 type Msg
     = NameChanged String
     | DescriptionChanged String
+    | InvoiceSeqChanged String
+    | PayerChanged String
+    | PayeeChanged String
     | RateChanged String
     | CurrencyChanged String
     | SavePress
@@ -41,6 +44,9 @@ type alias Model =
     { id : Maybe Data.ProjectId
     , name : String
     , description : String
+    , invoiceSeq : Int
+    , payer : String
+    , payee : String
     , public : Bool
     , ratestring : String
     , currency : String
@@ -100,6 +106,9 @@ toSaveProject model =
     { id = model.id
     , name = model.name
     , description = model.description
+    , invoiceSeq = model.invoiceSeq
+    , payer = model.payer
+    , payee = model.payee
     , public = model.public
     , rate = rate
     , currency = currency
@@ -189,6 +198,9 @@ isDirty model =
                             ((model.id == Just ip.id)
                                 && (model.name == ip.name)
                                 && (model.description == ip.description)
+                                && (model.invoiceSeq == ip.invoiceSeq)
+                                && (model.payer == ip.payer)
+                                && (model.payee == ip.payee)
                                 && (model.public == ip.public)
                                 && (model.ratestring
                                         == (ip.rate |> Maybe.map String.fromFloat |> Maybe.withDefault "")
@@ -213,6 +225,9 @@ initNew ld =
     { id = Nothing
     , name = ""
     , description = ""
+    , invoiceSeq = 0
+    , payer = ""
+    , payee = ""
     , public = False
     , ratestring = ""
     , currency = ""
@@ -235,6 +250,9 @@ initEdit proj members =
     { id = Just proj.id
     , name = proj.name
     , description = proj.description
+    , invoiceSeq = proj.invoiceSeq
+    , payer = proj.payer
+    , payee = proj.payee
     , public = proj.public
     , ratestring = proj.rate |> Maybe.map String.fromFloat |> Maybe.withDefault ""
     , currency = proj.currency |> Maybe.withDefault ""
@@ -362,6 +380,56 @@ view ld size model =
                             []
                             (E.text "currency")
                     }
+                , EI.text
+                    (if isdirty then
+                        [ E.focused [ EBd.glow TC.darkYellow 3 ] ]
+
+                     else
+                        []
+                    )
+                    { onChange =
+                        InvoiceSeqChanged
+                    , text = String.fromInt model.invoiceSeq
+                    , placeholder = Nothing
+                    , label =
+                        EI.labelLeft
+                            []
+                            (E.text "invoice sequence number")
+                    }
+                , EI.multiline
+                    (if isdirty then
+                        [ E.focused [ EBd.glow TC.darkYellow 3 ] ]
+
+                     else
+                        []
+                    )
+                    { onChange =
+                        PayerChanged
+                    , text = model.payer
+                    , placeholder = Nothing
+                    , label =
+                        EI.labelLeft
+                            []
+                            (E.text "payer")
+                    , spellcheck = True
+                    }
+                , EI.multiline
+                    (if isdirty then
+                        [ E.focused [ EBd.glow TC.darkYellow 3 ] ]
+
+                     else
+                        []
+                    )
+                    { onChange =
+                        PayeeChanged
+                    , text = model.payee
+                    , placeholder = Nothing
+                    , label =
+                        EI.labelLeft
+                            []
+                            (E.text "payee")
+                    , spellcheck = True
+                    }
                 , E.row [ E.spacing 8 ]
                     [ EI.checkbox []
                         { onChange = TogglePublic
@@ -424,6 +492,20 @@ update msg model ld =
 
         DescriptionChanged t ->
             ( { model | description = t }, None )
+
+        InvoiceSeqChanged t ->
+            case String.toInt t of
+                Just i ->
+                    ( { model | invoiceSeq = i }, None )
+
+                Nothing ->
+                    ( model, None )
+
+        PayerChanged t ->
+            ( { model | payer = t }, None )
+
+        PayeeChanged t ->
+            ( { model | payee = t }, None )
 
         RateChanged t ->
             ( { model | ratestring = t }, None )

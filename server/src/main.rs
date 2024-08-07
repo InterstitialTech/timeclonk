@@ -452,7 +452,8 @@ pub fn run_invoice(
 }
 
 // write data file, *typ file.
-/* #import "../invoice-maker.typ": *
+/*
+#import "../invoice-maker.typ": *
 #import "../fixtures/example-data.typ": *
 
 #show: invoice.with(

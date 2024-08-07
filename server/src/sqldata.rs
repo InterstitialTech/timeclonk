@@ -185,6 +185,11 @@ pub fn dbinit(
     tm::udpate11(&dbfile)?;
     set_single_value(&conn, "migration_level", "11")?;
   }
+  if nlevel < 12 {
+    info!("udpate12");
+    tm::udpate12(&dbfile)?;
+    set_single_value(&conn, "migration_level", "12")?;
+  }
 
   info!("db up to date.");
 
@@ -318,9 +323,20 @@ pub fn save_project(
   let proj = match project.id {
     Some(id) => {
       conn.execute(
-        "update project set name = ?1, description = ?2, public = ?3, rate = ?4, currency = ?5, changeddate = ?6
-          where id = ?7",
-        params![project.name, project.description, project.public, project.rate, project.currency, now, id],
+        "update project set name = ?1, description = ?2 , invoice_seq = ?3, payer = ?4, payee = ?5, public = ?6, rate = ?7, currency = ?8, changeddate = ?9
+          where id = ?10",
+        params![
+          project.name,
+           project.description,
+           project.invoice_seq,
+           project.payer,
+           project.payee,
+           project.public,
+           project.rate,
+           project.currency,
+           now,
+           id],
+        
       )?;
       SavedProject {
         id: id,
@@ -329,11 +345,14 @@ pub fn save_project(
     }
     None => {
       conn.execute(
-        "insert into project (name, description, public, rate, currency, createdate, changeddate)
-         values (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        "insert into project (name, description, invoice_seq, payer, payee, public, rate, currency, createdate, changeddate)
+         values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
         params![
           project.name,
           project.description,
+          project.invoice_seq,
+          project.payer,
+          project.payee,
           project.public,
           project.rate,
           project.currency,
@@ -358,7 +377,7 @@ pub fn save_project(
 
 pub fn read_project(conn: &Connection, projectid: i64) -> Result<Project, orgauth::error::Error> {
   let mut pstmt = conn.prepare(
-    "select project.id, project.name, project.description, project.public, project.rate, project.currency, project.createdate, project.changeddate
+    "select project.id, project.name, project.description, project.invoice_seq, project.payer, project.payee, project.public, project.rate, project.currency, project.createdate, project.changeddate
       from project, projectmember where
       project.id = ?1",
   )?;
@@ -367,11 +386,14 @@ pub fn read_project(conn: &Connection, projectid: i64) -> Result<Project, orgaut
       id: row.get(0)?,
       name: row.get(1)?,
       description: row.get(2)?,
-      public: row.get(3)?,
-      rate: row.get(4)?,
-      currency: row.get(5)?,
-      createdate: row.get(6)?,
-      changeddate: row.get(7)?,
+      invoice_seq: row.get(3)?,
+      payer: row.get(4)?,
+      payee: row.get(5)?,
+      public: row.get(6)?,
+      rate: row.get(7)?,
+      currency: row.get(8)?,
+      createdate: row.get(9)?,
+      changeddate: row.get(10)?,
     })
   })?);
   r

@@ -143,6 +143,9 @@ type alias Project =
     { id : ProjectId
     , name : String
     , description : String
+    , invoiceSeq : Int
+    , payer : String
+    , payee : String
     , public : Bool
     , rate : Maybe Float
     , currency : Maybe String
@@ -155,6 +158,9 @@ type alias SaveProject =
     { id : Maybe ProjectId
     , name : String
     , description : String
+    , invoiceSeq : Int
+    , payer : String
+    , payee : String
     , public : Bool
     , rate : Maybe Float
     , currency : Maybe String
@@ -452,6 +458,9 @@ encodeSaveProject sp =
     JE.object <|
         [ ( "name", JE.string sp.name )
         , ( "description", JE.string sp.description )
+        , ( "invoice_seq", JE.int sp.invoiceSeq )
+        , ( "payer", JE.string sp.payer )
+        , ( "payee", JE.string sp.payee )
         , ( "public", JE.bool sp.public )
         ]
             ++ (sp.rate
@@ -474,6 +483,9 @@ decodeProject =
         |> andMap (JD.field "id" JD.int |> JD.map makeProjectId)
         |> andMap (JD.field "name" JD.string)
         |> andMap (JD.field "description" JD.string)
+        |> andMap (JD.field "invoice_seq" JD.int)
+        |> andMap (JD.field "payer" JD.string)
+        |> andMap (JD.field "payee" JD.string)
         |> andMap (JD.field "public" JD.bool)
         |> andMap (JD.field "rate" <| JD.maybe JD.float)
         |> andMap (JD.field "currency" <| JD.maybe JD.string)
