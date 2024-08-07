@@ -18,9 +18,3 @@ pub struct PublicMessage {
   pub what: String,
   pub data: Option<serde_json::Value>,
 }
-
-#[derive(Deserialize, Serialize, Debug)]
-pub struct Invoice {
-  pub info: String,
-}
-

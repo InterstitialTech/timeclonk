@@ -216,3 +216,8 @@ pub struct SaveAllocation {
   pub allocationdate: i64,
   pub description: String,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PrintInvoice {
+  pub info: String,
+}
