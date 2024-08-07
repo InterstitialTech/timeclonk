@@ -333,7 +333,7 @@ type alias PrintInvoice =
 
 encodePrintInvoice : PrintInvoice -> JE.Value
 encodePrintInvoice i =
-    JE.string i.info
+    JE.object [ ( "info", JE.string i.info ) ]
 
 
 

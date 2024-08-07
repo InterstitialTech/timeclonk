@@ -81,7 +81,7 @@ type Msg
     | ProjectTimeData String (Result Http.Error TI.ServerResponse)
     | ProjectViewData String (Result Http.Error PI.ServerResponse)
     | TProjectViewData String (Result Http.Error TI.ServerResponse)
-    | PrintInvoiceReplyData (Result Http.Error ())
+    | PrintInvoiceReplyData (Result Http.Error (Cmd Msg))
     | LoadUrl String
     | InternalUrl Url
     | SelectedText JD.Value
@@ -1093,6 +1093,14 @@ actualupdate msg model =
         ( WindowSize s, _ ) ->
             ( { model | size = s }, Cmd.none )
 
+        ( PrintInvoiceReplyData meh, _ ) ->
+            case meh of
+                Ok cmd ->
+                    ( model, cmd )
+
+                Err e ->
+                    ( displayMessageDialog model <| Util.httpErrorString e, Cmd.none )
+
         ( ChangePasswordDialogMsg sdmsg, ChangePasswordDialog sdmod instate ) ->
             case GD.update sdmsg sdmod of
                 GD.Dialog nmod ->
@@ -2080,9 +2088,32 @@ handleProjectTime model ( nm, cmd ) login =
             , Http.post
                 { url = model.location ++ "/invoice"
                 , body = Http.jsonBody (Data.encodePrintInvoice { info = text })
-                , expect = Http.expectWhatever PrintInvoiceReplyData
+                , expect =
+                    Http.expectBytesResponse PrintInvoiceReplyData <|
+                        resolve <|
+                            \bytes ->
+                                Ok <| FD.bytes "woot.pdf" "application/pdf" bytes
                 }
             )
+
+
+resolve : (body -> Result String a) -> Http.Response body -> Result Http.Error a
+resolve toResult response =
+    case response of
+        Http.BadUrl_ url ->
+            Err (Http.BadUrl url)
+
+        Http.Timeout_ ->
+            Err Http.Timeout
+
+        Http.NetworkError_ ->
+            Err Http.NetworkError
+
+        Http.BadStatus_ metadata _ ->
+            Err (Http.BadStatus metadata.statusCode)
+
+        Http.GoodStatus_ _ body ->
+            Result.mapError Http.BadBody (toResult body)
 
 
 handleProjectView : Model -> ( ProjectView.Model, ProjectView.Command ) -> Maybe Data.LoginData -> ( Model, Cmd Msg )

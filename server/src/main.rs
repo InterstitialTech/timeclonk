@@ -4,28 +4,32 @@ mod interfaces;
 mod messages;
 mod migrations;
 mod sqldata;
+use actix_files::NamedFile;
 use actix_session::{
   config::PersistentSession, storage::CookieSessionStore, Session, SessionMiddleware,
 };
 use actix_web::{
   cookie::{self, Key},
-  middleware, web, App, HttpRequest, HttpResponse, HttpServer, Result,
+  error::ErrorInternalServerError,
+  http::StatusCode,
+  middleware, web, App, HttpRequest, HttpResponse, HttpResponseBuilder, HttpServer, Responder,
+  ResponseError,
 };
 use clap::Arg;
 use config::Config;
+use data::PrintInvoice;
 use log::{error, info};
 use messages::{PublicMessage, ServerResponse, UserMessage};
 use orgauth::data::WhatMessage;
 use orgauth::endpoints::Callbacks;
 use serde_json;
-use std::env;
 use std::error::Error;
 use std::path::PathBuf;
+use std::process::Command;
 use std::str::FromStr;
+use std::{env, fmt::Display};
 use timer;
 use uuid::Uuid;
-use typst;
-use data::PrintInvoice;
 
 /*
 use actix_files::NamedFile;
@@ -387,141 +391,156 @@ async fn err_main() -> Result<(), Box<dyn Error>> {
     }
   }
 }
-async fn invoice(session: Session, config: web::Data<Config>, 
+
+// impl ResponseError for orgauth::error::Error {
+//   fn status_code(&self) -> StatusCode {
+//     StatusCode::INTERNAL_SERVER_ERROR
+//   }
+// }
+
+async fn invoice(
+  session: Session,
+  config: web::Data<Config>,
   item: web::Json<PrintInvoice>,
-  req: HttpRequest) -> HttpResponse {
+  req: HttpRequest,
+) -> actix_web::Result<NamedFile> {
+  info!("invoice start {:?}", item.0);
+  let path = run_invoice(item.0).map_err(|e| ErrorInternalServerError(e.to_string()))?; // .map_err(|e| actix_web::Error::fmt(, )
 
-  typst::world::SystemWorld
+  info!("invoice here {}", path.display());
+  Ok(NamedFile::open(path)?)
 
-  typst::compile("blah");
+  // match run_invoice(item) {
+  //   Ok(path) => {
+  //     Ok(NamedFile::open(path)?)
+  //   Err(e) =>
+  //     Err(
 
-  // let conn = match sqldata::connection_open(config.orgauth_config.db.as_path()) {
-  //   Ok(c) => c,
-  //   Err(e) => return HttpResponse::InternalServerError().body(format!("{:?}", e)),
-  // };
-
-  // let suser = match session_user(&conn, session, &config) {
-  //   Ok(Either::Left(user)) => Some(user),
-  //   Ok(Either::Right(_sr)) => None,
-  //   Err(e) => return HttpResponse::InternalServerError().body(format!("{:?}", e)),
-  // };
-
-  // let uid = suser.map(|user| user.id);
-
-  // match req
-  //   .match_info()
-  //   .get("id")
-  //   // .and_then(|s| s.parse::<i64>().ok())
-  // {
-  //   Some(noteid) => {
-  //     let uuid = match Uuid::parse_str(noteid) {
-  //       Ok(id) => id,
-  //       Err(e) => return HttpResponse::BadRequest().body(e.to_string())
-  //      };
-  //     let nid = match sqldata::note_id_for_uuid(&conn, &uuid) {
-  //       Ok(id) => id,
-  //       Err(e) => return HttpResponse::NotFound().body(e.to_string())
-  //      };
-  //       let hash = match sqldata::read_zknote_filehash(&conn, uid, nid) {
-  //       Ok(Some(hash)) => hash,
-  //       Ok(None) => return HttpResponse::NotFound().body("not found"),
-  //       Err(e) => return HttpResponse::InternalServerError().body(format!("{:?}", e)),
-  //     };
-
-  //     let zkln = match sqldata::read_zklistnote(&conn, &config.file_path, uid, nid) {
-  //       Ok(zkln) => zkln,
-  //       Err(e) => return HttpResponse::InternalServerError().body(format!("{:?}", e)),
-  //     };
-
-  //     let stpath = config.file_path.join(hash);
-
-  //     match File::open(stpath).and_then(|f| NamedFile::from_file(f, Path::new(zkln.title.as_str())))
-  //     {
-  //       Ok(f) => f.into_response(&req),
-  //       Err(e) => HttpResponse::NotFound().body(format!("{:?}", e)),
-  //     }
-  //   }
-  //   None => HttpResponse::BadRequest().body("file id required: /file/<id>"),
-  // }
-  HttpResponse::Ok().body("")
+  //       HttpResponse::Ok().body("")
 }
 
-pub fn invoice(
-  conn: &Connection,
-  uid: i64,
-  savedir: &Path,
-  printInvoice: PrintInvoice,
+pub fn run_invoice(
+  // conn: &Connection,
+  // uid: i64,
+  // savedir: &Path,
+  print_invoice: PrintInvoice,
 ) -> Result<PathBuf, orgauth::error::Error> {
-
-  
-
+  return Ok("./invoice-maker/meh/en.pdf".into());
   let mut child = Command::new("typst")
     .arg("compile")
-    .arg(format!("-o{}/%(title)s-%(id)s.%(ext)s", savedir.display()))
-    .arg(yeet.url.clone())
+    .arg("./invoice-maker/meh/en.typ")
     .spawn()
-    .expect("youtube-dl failed to execute");
+    .expect("typst failed to execute");
 
   match child.wait() {
     Ok(exit_code) => {
       if exit_code.success() {
-        // find the yeeted file by 'v'.
-        let file: PathBuf = match glob::glob(format!("{}/*{}*", savedir.display(), hv.v).as_str()) {
-          Ok(mut paths) => match paths.next() {
-            Some(rpb) => match rpb {
-              Ok(pb) => pb,
-              Err(e) => return Err(orgauth::error::Error::String(format!("glob error {:?}", e))),
-            },
-            None => {
-              return Err(orgauth::error::Error::String(format!(
-                "yeet file not found {:?}",
-                hv.v
-              )))
-            }
-          },
-          Err(e) => return Err(orgauth::error::Error::String(format!("glob error {:?}", e))),
-        };
-        let filename = file
-          .as_path()
-          .file_name()
-          .and_then(|x| x.to_str())
-          .unwrap_or("meh.txt")
-          .to_string();
-        let (noteid, fid) = make_file_note(&conn, uid, &filename, file.as_path())?;
-
-        // yeetfile table entry.
-        conn.execute(
-          "insert into yeetfile (yeetkey, audio, filename, fileid)
-                   values (?1, ?2, ?3, ?4)",
-          params![hv.v, true, filename, fid],
-        )?;
-
-        // return zknoteedit.
-        let zne = read_zknoteedit(&conn, uid, noteid)?;
-
-        let znew = ZkNoteEditWhat {
-          what: "yeet".to_string(),
-          zne: zne,
-        };
-
-        info!(
-          "user#yeet-new-zknote: {} - {}",
-          znew.zne.zknote.id.clone(),
-          znew.zne.zknote.title.clone()
-        );
-
-        return Ok(znew);
+        // add file to result.
+        Ok("./invoice-maker/meh/en.pdf".into())
       } else {
         Err(orgauth::error::Error::String(format!(
-          "yeet err {:?}",
+          "typst err {:?}",
           exit_code
         )))
       }
     }
-    Err(e) => Err(orgauth::error::Error::String(format!("yeet err {:?}", e))),
+    Err(e) => Err(orgauth::error::Error::String(format!(
+      "invoice err {:?}",
+      e
+    ))),
   }
 }
 
+// write data file, *typ file.
+/* #import "../invoice-maker.typ": *
+#import "../fixtures/example-data.typ": *
+
+#show: invoice.with(
+  language: "en",
+  banner-image: image("../fixtures/banner.png"),
+  invoice-id: "2024-03-10t172205",
+  // Set this to create a cancellation invoice
+  // cancellation-id: "2024-03-24t210835",
+  issuing-date: "2024-03-10",
+  delivery-date: "2024-02-29",
+  due-date: "2024-03-20",
+  biller: biller,
+  hourly-rate: 100,
+  recipient: recipient,
+  items: table-data,
+  styling: ( font: none ), // Explicitly use Typst's default font
+) */
+
+/*
+#let biller = (
+    name: "Gyro Gearloose",
+    title: "Inventor",
+    company: "Crazy Inventions Ltd.",
+    vat-id: "DL1234567",
+    iban: "DE89370400440532013000",
+    address: (
+      country: "Disneyland",
+      city: "Duckburg",
+      postal-code: "123456",
+      street: "Inventor Drive 23",
+    ),
+  )
+
+#let recipient = (
+    name: "Scrooge McDuck",
+    title: "Treasure Hunter",
+    vat-id: "DL7654321",
+    address: (
+      country: "Disneyland",
+      city: "Duckburg",
+      postal-code: "123456",
+      street: "Killmotor Hill 1",
+    )
+  )
+
+#let table-data = (
+    (
+      number: 1,
+      date: "2016-04-03",
+      description: "Arc reactor",
+      dur-min: 0,
+      quantity: 1,
+      price: 13000,
+    ),
+    (
+      number: 2,
+      date: "2016-04-05",
+      description: "Flux capacitor",
+      dur-min: 0,
+      quantity: 1,
+      price: 27000,
+    ),
+    (
+      number: 3,
+      date: "2016-04-07",
+      description: "Lightsaber",
+      dur-min: 0,
+      quantity: 2,
+      price: 3600,
+    ),
+    (
+      number: 4,
+      date: "2016-04-08",
+      description: "Sonic screwdriver",
+      dur-min: 0,
+      quantity: 10,
+      price: 800,
+    ),
+    (
+      number: 5,
+      date: "2016-04-12",
+      description: "Assembly",
+      dur-min: 160,
+      quantity: 1,
+      price: 53.33,
+     )
+  )
+  */
 // pub fn yeet(
 //   conn: &Connection,
 //   uid: i64,
@@ -567,7 +586,7 @@ pub fn invoice(
 
 //   // if there's already a file, return a new zknote that points at it.
 //   match conn.query_row(
-//     "select fileid, filename from yeetfile where 
+//     "select fileid, filename from yeetfile where
 //       yeetkey = ?1 and audio = ?2",
 //     params![hv.v, yeet.audio],
 //     |row| Ok((row.get(0)?, row.get(1)?)),
