@@ -82,6 +82,7 @@ type Msg
     | ClearDistribution
     | CalcDistribution
     | ToClipboardMsg String
+    | PrintInvoiceMsg String
     | OnPaymentChanged UserId String
     | AddPaymentPress UserId Int Data.PayType
     | AddPayment UserId Int Data.PayType Int
@@ -192,6 +193,7 @@ type Command
     | ShowError String
     | SelectMember (List Data.User)
     | ToClipboard String
+    | PrintInvoice String
     | None
 
 
@@ -2005,9 +2007,14 @@ distributionview ld size zone model =
                                                         |> String.concat
                                                    )
                                     in
-                                    EI.button Common.buttonStyle
-                                        { onPress = Just <| ToClipboardMsg textdist, label = E.text "⧉" }
-                                        |> E.el [ E.centerY ]
+                                    E.row []
+                                        [ EI.button Common.buttonStyle
+                                            { onPress = Just <| ToClipboardMsg textdist, label = E.text "⧉" }
+                                            |> E.el [ E.centerY ]
+                                        , EI.button Common.buttonStyle
+                                            { onPress = Just <| PrintInvoiceMsg textdist, label = E.text "pdf invoice" }
+                                            |> E.el [ E.centerY ]
+                                        ]
                               , width = E.shrink
                               , view =
                                     \( user, hours ) ->
@@ -3851,6 +3858,9 @@ update msg model ld zone =
 
         ToClipboardMsg text ->
             ( model, ToClipboard text )
+
+        PrintInvoiceMsg text ->
+            ( model, PrintInvoice text )
 
         DonePress ->
             ( model, Done )

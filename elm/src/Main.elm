@@ -81,6 +81,7 @@ type Msg
     | ProjectTimeData String (Result Http.Error TI.ServerResponse)
     | ProjectViewData String (Result Http.Error PI.ServerResponse)
     | TProjectViewData String (Result Http.Error TI.ServerResponse)
+    | PrintInvoiceReplyData (Result Http.Error ())
     | LoadUrl String
     | InternalUrl Url
     | SelectedText JD.Value
@@ -498,6 +499,9 @@ showMessage msg =
 
         ClockTick _ ->
             "ClockTick"
+
+        PrintInvoiceReplyData _ ->
+            "PrintInvoiceReplyData"
 
 
 showState : State -> String
@@ -2070,6 +2074,15 @@ handleProjectTime model ( nm, cmd ) login =
 
         ProjectTime.ToClipboard text ->
             ( { model | state = ProjectTime nm login }, toClipBoard text )
+
+        ProjectTime.PrintInvoice text ->
+            ( { model | state = ProjectTime nm login }
+            , Http.post
+                { url = model.location ++ "/invoice"
+                , body = Http.jsonBody (Data.encodePrintInvoice { info = text })
+                , expect = Http.expectWhatever PrintInvoiceReplyData
+                }
+            )
 
 
 handleProjectView : Model -> ( ProjectView.Model, ProjectView.Command ) -> Maybe Data.LoginData -> ( Model, Cmd Msg )

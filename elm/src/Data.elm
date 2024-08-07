@@ -38,6 +38,7 @@ module Data exposing
     , decodeSavedProjectEdit
     , decodeTimeEntry
     , decodeUser
+    , encodePrintInvoice
     , encodeRole
     , encodeSaveAllocation
     , encodeSavePayEntry
@@ -324,6 +325,15 @@ type alias ProjectTime =
     , payentries : List PayEntry
     , allocations : List Allocation
     }
+
+
+type alias PrintInvoice =
+    { info : String }
+
+
+encodePrintInvoice : PrintInvoice -> JE.Value
+encodePrintInvoice i =
+    JE.string i.info
 
 
 

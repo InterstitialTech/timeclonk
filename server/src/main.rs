@@ -14,7 +14,7 @@ use actix_web::{
 use clap::Arg;
 use config::Config;
 use log::{error, info};
-use messages::{PublicMessage, ServerResponse, UserMessage};
+use messages::{PublicMessage, ServerResponse, UserMessage, Invoice};
 use orgauth::data::WhatMessage;
 use orgauth::endpoints::Callbacks;
 use serde_json;
@@ -24,6 +24,8 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use timer;
 use uuid::Uuid;
+use typst;
+use typst::world;
 
 /*
 use actix_files::NamedFile;
@@ -254,6 +256,7 @@ fn defcon() -> Config {
     ip: "127.0.0.1".to_string(),
     port: 8000,
     static_path: None,
+    invoice_template: None,
     orgauth_config: oc,
   }
 }
@@ -372,6 +375,7 @@ async fn err_main() -> Result<(), Box<dyn Error>> {
           .service(web::resource("/admin").route(web::post().to(admin)))
           .service(web::resource(r"/register/{uid}/{key}").route(web::get().to(register)))
           .service(web::resource(r"/newemail/{uid}/{token}").route(web::get().to(new_email)))
+          .service(web::resource(r"/invoice").route(web::post().to(invoice)))
           .service(actix_files::Files::new("/static/", staticpath))
           .service(web::resource("/{tail:.*}").route(web::get().to(mainpage)))
       })
@@ -383,3 +387,62 @@ async fn err_main() -> Result<(), Box<dyn Error>> {
     }
   }
 }
+async fn invoice(session: Session, config: web::Data<Config>, 
+  item: web::Json<Invoice>,
+  req: HttpRequest) -> HttpResponse {
+
+  typst::world::SystemWorld
+
+  typst::compile("blah");
+
+  // let conn = match sqldata::connection_open(config.orgauth_config.db.as_path()) {
+  //   Ok(c) => c,
+  //   Err(e) => return HttpResponse::InternalServerError().body(format!("{:?}", e)),
+  // };
+
+  // let suser = match session_user(&conn, session, &config) {
+  //   Ok(Either::Left(user)) => Some(user),
+  //   Ok(Either::Right(_sr)) => None,
+  //   Err(e) => return HttpResponse::InternalServerError().body(format!("{:?}", e)),
+  // };
+
+  // let uid = suser.map(|user| user.id);
+
+  // match req
+  //   .match_info()
+  //   .get("id")
+  //   // .and_then(|s| s.parse::<i64>().ok())
+  // {
+  //   Some(noteid) => {
+  //     let uuid = match Uuid::parse_str(noteid) {
+  //       Ok(id) => id,
+  //       Err(e) => return HttpResponse::BadRequest().body(e.to_string())
+  //      };
+  //     let nid = match sqldata::note_id_for_uuid(&conn, &uuid) {
+  //       Ok(id) => id,
+  //       Err(e) => return HttpResponse::NotFound().body(e.to_string())
+  //      };
+  //       let hash = match sqldata::read_zknote_filehash(&conn, uid, nid) {
+  //       Ok(Some(hash)) => hash,
+  //       Ok(None) => return HttpResponse::NotFound().body("not found"),
+  //       Err(e) => return HttpResponse::InternalServerError().body(format!("{:?}", e)),
+  //     };
+
+  //     let zkln = match sqldata::read_zklistnote(&conn, &config.file_path, uid, nid) {
+  //       Ok(zkln) => zkln,
+  //       Err(e) => return HttpResponse::InternalServerError().body(format!("{:?}", e)),
+  //     };
+
+  //     let stpath = config.file_path.join(hash);
+
+  //     match File::open(stpath).and_then(|f| NamedFile::from_file(f, Path::new(zkln.title.as_str())))
+  //     {
+  //       Ok(f) => f.into_response(&req),
+  //       Err(e) => HttpResponse::NotFound().body(format!("{:?}", e)),
+  //     }
+  //   }
+  //   None => HttpResponse::BadRequest().body("file id required: /file/<id>"),
+  // }
+  HttpResponse::Ok().body("")
+}
+

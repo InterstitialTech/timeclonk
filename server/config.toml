@@ -14,5 +14,5 @@ email_token_expiration_ms = 86400000
 reset_token_expiration_ms = 86400000
 invite_token_expiration_ms = 86400000
 static_path = "./static/"
-open_registration = false
+open_registration = true
 non_admin_invite = true
