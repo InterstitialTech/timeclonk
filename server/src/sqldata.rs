@@ -326,7 +326,7 @@ pub fn save_project(
         "update project set name = ?1, description = ?2 , invoice_seq = ?3, payer = ?4, payee = ?5, public = ?6, rate = ?7, currency = ?8, changeddate = ?9
           where id = ?10",
         params![
-          project.name,
+           project.name,
            project.description,
            project.invoice_seq,
            project.payer,
@@ -336,7 +336,6 @@ pub fn save_project(
            project.currency,
            now,
            id],
-        
       )?;
       SavedProject {
         id: id,
