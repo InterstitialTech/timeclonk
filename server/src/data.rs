@@ -27,6 +27,7 @@ pub struct SaveProject {
   pub id: Option<i64>,
   pub name: String,
   pub description: Option<String>,
+  pub invoice_id_template: String,
   pub invoice_seq: i64,
   pub payer: String,
   pub payee: String,
@@ -97,6 +98,7 @@ pub struct Project {
   pub id: i64,
   pub name: String,
   pub description: String,
+  pub invoice_id_template: String,
   pub invoice_seq: i64,
   pub payer: String,
   pub payee: String,
@@ -225,5 +227,17 @@ pub struct SaveAllocation {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PrintInvoice {
-  pub info: String,
+  id: String,
+  payer: String,
+  payee: String,
+  items: Vec<InvoiceItem>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct InvoiceItem {
+  date: String,
+  description: String,
+  dur_min: i64,
+  quantity: i64,
+  price: f64,
 }

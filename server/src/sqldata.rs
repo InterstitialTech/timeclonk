@@ -323,11 +323,12 @@ pub fn save_project(
   let proj = match project.id {
     Some(id) => {
       conn.execute(
-        "update project set name = ?1, description = ?2 , invoice_seq = ?3, payer = ?4, payee = ?5, public = ?6, rate = ?7, currency = ?8, changeddate = ?9
-          where id = ?10",
+        "update project set name = ?1, description = ?2, invoice_id_template = ?3, invoice_seq = ?4, payer = ?5, payee = ?6, public = ?7, rate = ?8, currency = ?9, changeddate = ?10
+          where id = ?11",
         params![
            project.name,
            project.description,
+           project.invoice_id_template,
            project.invoice_seq,
            project.payer,
            project.payee,
@@ -344,11 +345,12 @@ pub fn save_project(
     }
     None => {
       conn.execute(
-        "insert into project (name, description, invoice_seq, payer, payee, public, rate, currency, createdate, changeddate)
-         values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+        "insert into project (name, description, invoice_id_template, invoice_seq, payer, payee, public, rate, currency, createdate, changeddate)
+         values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
         params![
           project.name,
           project.description,
+          project.invoice_id_template,
           project.invoice_seq,
           project.payer,
           project.payee,
@@ -376,7 +378,7 @@ pub fn save_project(
 
 pub fn read_project(conn: &Connection, projectid: i64) -> Result<Project, orgauth::error::Error> {
   let mut pstmt = conn.prepare(
-    "select project.id, project.name, project.description, project.invoice_seq, project.payer, project.payee, project.public, project.rate, project.currency, project.createdate, project.changeddate
+    "select project.id, project.name, project.description, project.invoice_id_template, project.invoice_seq, project.payer, project.payee, project.public, project.rate, project.currency, project.createdate, project.changeddate
       from project, projectmember where
       project.id = ?1",
   )?;
@@ -385,14 +387,15 @@ pub fn read_project(conn: &Connection, projectid: i64) -> Result<Project, orgaut
       id: row.get(0)?,
       name: row.get(1)?,
       description: row.get(2)?,
-      invoice_seq: row.get(3)?,
-      payer: row.get(4)?,
-      payee: row.get(5)?,
-      public: row.get(6)?,
-      rate: row.get(7)?,
-      currency: row.get(8)?,
-      createdate: row.get(9)?,
-      changeddate: row.get(10)?,
+      invoice_id_template: row.get(3)?,
+      invoice_seq: row.get(4)?,
+      payer: row.get(5)?,
+      payee: row.get(6)?,
+      public: row.get(7)?,
+      rate: row.get(8)?,
+      currency: row.get(9)?,
+      createdate: row.get(10)?,
+      changeddate: row.get(11)?,
     })
   })?);
   r

@@ -1017,6 +1017,7 @@ pub fn udpate12(dbfile: &Path) -> Result<(), orgauth::error::Error> {
     t.add_column("public", types::boolean().nullable(false));
     t.add_column("rate", types::float().nullable(true));
     t.add_column("currency", types::text().nullable(true));
+    t.add_column("invoice_id_template", types::text().nullable(false));
     t.add_column("invoice_seq", types::integer().nullable(false));
     t.add_column("payer", types::text().nullable(false));
     t.add_column("payee", types::text().nullable(false));
@@ -1028,8 +1029,8 @@ pub fn udpate12(dbfile: &Path) -> Result<(), orgauth::error::Error> {
 
   // copy everything from current table..
   conn.execute(
-    "insert into project (id, name, description, public, rate, currency, invoice_seq, payer, payee, createdate, changeddate)
-     select id, name, description, public, rate, currency, 0, '', '', createdate, changeddate from projecttemp ",
+    "insert into project (id, name, description, public, rate, currency, invoice_id_template ,invoice_seq, payer, payee, createdate, changeddate)
+     select id, name, description, public, rate, currency, '', 0, '', '', createdate, changeddate from projecttemp ",
     params![],
   )?;
 

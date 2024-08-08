@@ -2083,11 +2083,11 @@ handleProjectTime model ( nm, cmd ) login =
         ProjectTime.ToClipboard text ->
             ( { model | state = ProjectTime nm login }, toClipBoard text )
 
-        ProjectTime.PrintInvoice text ->
+        ProjectTime.PrintInvoice pi ->
             ( { model | state = ProjectTime nm login }
             , Http.post
                 { url = model.location ++ "/invoice"
-                , body = Http.jsonBody (Data.encodePrintInvoice { info = text })
+                , body = Http.jsonBody (Data.encodePrintInvoice pi)
                 , expect =
                     Http.expectBytesResponse PrintInvoiceReplyData <|
                         resolve <|

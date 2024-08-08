@@ -1,11 +1,13 @@
 module Data exposing
     ( Allocation
     , AllocationId(..)
+    , InvoiceItem
     , ListProject
     , LoginData
     , PayEntry
     , PayEntryId(..)
     , PayType(..)
+    , PrintInvoice
     , Project
     , ProjectEdit
     , ProjectId(..)
@@ -143,6 +145,7 @@ type alias Project =
     { id : ProjectId
     , name : String
     , description : String
+    , invoiceIdTemplate : String
     , invoiceSeq : Int
     , payer : String
     , payee : String
@@ -158,6 +161,7 @@ type alias SaveProject =
     { id : Maybe ProjectId
     , name : String
     , description : String
+    , invoiceIdTemplate : String
     , invoiceSeq : Int
     , payer : String
     , payee : String
@@ -333,13 +337,42 @@ type alias ProjectTime =
     }
 
 
+type alias InvoiceItem =
+    { date : String
+    , description : String
+    , dur_min : Float
+    , quantity : Float
+    , price : Float
+    }
+
+
 type alias PrintInvoice =
-    { info : String }
+    { id : String
+    , payer : String
+    , payee : String
+    , items : List InvoiceItem
+    }
+
+
+encodeInvoiceItem : InvoiceItem -> JE.Value
+encodeInvoiceItem ii =
+    JE.object
+        [ ( "date", JE.string ii.date )
+        , ( "description", JE.string ii.description )
+        , ( "dur_min", JE.float ii.dur_min )
+        , ( "quantity", JE.float ii.quantity )
+        , ( "price", JE.float ii.price )
+        ]
 
 
 encodePrintInvoice : PrintInvoice -> JE.Value
-encodePrintInvoice i =
-    JE.object [ ( "info", JE.string i.info ) ]
+encodePrintInvoice pi =
+    JE.object
+        [ ( "id", JE.string pi.id )
+        , ( "payer", JE.string pi.payer )
+        , ( "payee", JE.string pi.payee )
+        , ( "items", JE.list encodeInvoiceItem pi.items )
+        ]
 
 
 
@@ -458,6 +491,7 @@ encodeSaveProject sp =
     JE.object <|
         [ ( "name", JE.string sp.name )
         , ( "description", JE.string sp.description )
+        , ( "invoice_id_template", JE.string sp.invoiceIdTemplate )
         , ( "invoice_seq", JE.int sp.invoiceSeq )
         , ( "payer", JE.string sp.payer )
         , ( "payee", JE.string sp.payee )
@@ -483,6 +517,7 @@ decodeProject =
         |> andMap (JD.field "id" JD.int |> JD.map makeProjectId)
         |> andMap (JD.field "name" JD.string)
         |> andMap (JD.field "description" JD.string)
+        |> andMap (JD.field "invoice_id_template" JD.string)
         |> andMap (JD.field "invoice_seq" JD.int)
         |> andMap (JD.field "payer" JD.string)
         |> andMap (JD.field "payee" JD.string)

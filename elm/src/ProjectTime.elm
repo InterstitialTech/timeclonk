@@ -3,7 +3,7 @@ module ProjectTime exposing (..)
 import Calendar
 import Common
 import Csv
-import Data
+import Data exposing (InvoiceItem)
 import Dict exposing (Dict)
 import Element as E exposing (Element)
 import Element.Background as EBk
@@ -82,7 +82,7 @@ type Msg
     | ClearDistribution
     | CalcDistribution
     | ToClipboardMsg String
-    | PrintInvoiceMsg String
+    | PrintInvoiceMsg (List InvoiceItem)
     | OnPaymentChanged UserId String
     | AddPaymentPress UserId Int Data.PayType
     | AddPayment UserId Int Data.PayType Int
@@ -193,7 +193,7 @@ type Command
     | ShowError String
     | SelectMember (List Data.User)
     | ToClipboard String
-    | PrintInvoice String
+    | PrintInvoice Data.PrintInvoice
     | None
 
 
@@ -2006,13 +2006,33 @@ distributionview ld size zone model =
                                                             )
                                                         |> String.concat
                                                    )
+
+                                        totehours =
+                                            dl
+                                                |> List.foldl (\( _, hours ) t -> t + (Maybe.withDefault 0 <| String.toFloat hours)) 0
                                     in
                                     E.row []
                                         [ EI.button Common.buttonStyle
                                             { onPress = Just <| ToClipboardMsg textdist, label = E.text "⧉" }
                                             |> E.el [ E.centerY ]
                                         , EI.button Common.buttonStyle
-                                            { onPress = Just <| PrintInvoiceMsg textdist, label = E.text "pdf invoice" }
+                                            { onPress =
+                                                case model.project.rate of
+                                                    Just rate ->
+                                                        Just <|
+                                                            PrintInvoiceMsg
+                                                                [ { date = "niaow"
+                                                                  , description = "hours"
+                                                                  , dur_min = 0
+                                                                  , quantity = totehours
+                                                                  , price = rate
+                                                                  }
+                                                                ]
+
+                                                    Nothing ->
+                                                        Nothing
+                                            , label = E.text "pdf invoice"
+                                            }
                                             |> E.el [ E.centerY ]
                                         ]
                               , width = E.shrink
@@ -3859,8 +3879,15 @@ update msg model ld zone =
         ToClipboardMsg text ->
             ( model, ToClipboard text )
 
-        PrintInvoiceMsg text ->
-            ( model, PrintInvoice text )
+        PrintInvoiceMsg items ->
+            ( model
+            , PrintInvoice
+                { id = String.replace "<seq>" (String.fromInt model.project.invoiceSeq) model.project.invoiceIdTemplate
+                , payer = model.project.payer
+                , payee = model.project.payee
+                , items = items
+                }
+            )
 
         DonePress ->
             ( model, Done )

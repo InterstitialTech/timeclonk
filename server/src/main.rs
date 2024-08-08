@@ -451,6 +451,25 @@ pub fn run_invoice(
   }
 }
 
+/*
+
+add to project:
+
+invoice id template <date> <time> <seq>
+invoice sequence number
+due date interval ?
+recipient []
+biller []
+items [(
+      date: "2016-04-03",
+      description: "Arc reactor",
+      dur-min: 0,
+      quantity: 1,
+      price: 13000,
+    )]
+
+*/
+
 // write data file, *typ file.
 /*
 #import "../invoice-maker.typ": *

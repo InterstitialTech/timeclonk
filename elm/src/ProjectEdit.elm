@@ -44,6 +44,7 @@ type alias Model =
     { id : Maybe Data.ProjectId
     , name : String
     , description : String
+    , invoiceIdTemplate : String
     , invoiceSeq : Int
     , payer : String
     , payee : String
@@ -106,6 +107,7 @@ toSaveProject model =
     { id = model.id
     , name = model.name
     , description = model.description
+    , invoiceIdTemplate = model.invoiceIdTemplate
     , invoiceSeq = model.invoiceSeq
     , payer = model.payer
     , payee = model.payee
@@ -225,6 +227,7 @@ initNew ld =
     { id = Nothing
     , name = ""
     , description = ""
+    , invoiceIdTemplate = "example<seq>"
     , invoiceSeq = 0
     , payer = ""
     , payee = ""
@@ -250,6 +253,7 @@ initEdit proj members =
     { id = Just proj.id
     , name = proj.name
     , description = proj.description
+    , invoiceIdTemplate = proj.invoiceIdTemplate
     , invoiceSeq = proj.invoiceSeq
     , payer = proj.payer
     , payee = proj.payee
