@@ -336,7 +336,7 @@
           // row.at("number", default: index + 1),
           // row.date,
           row.item,
-          str(if dur-min == 0 { "" } else { dur-min }),
+          // str(if dur-min == 0 { "" } else { dur-min }),
           str(row.at("hours", default: if dur-min == 0 { "1" } else { "" })),
           str(add-zeros(cancel-neg *
            row.at("rate", default: calc.round(hourly-rate * dur-hour, digits: 2))

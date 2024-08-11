@@ -2021,11 +2021,9 @@ distributionview ld size zone model =
                                                     Just rate ->
                                                         Just <|
                                                             PrintInvoiceMsg
-                                                                [ { date = "niaow"
-                                                                  , description = "hours"
-                                                                  , dur_min = 0
-                                                                  , quantity = totehours
-                                                                  , price = rate
+                                                                [ { description = "hours"
+                                                                  , duration = totehours
+                                                                  , rate = rate
                                                                   }
                                                                 ]
 

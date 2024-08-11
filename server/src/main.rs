@@ -433,7 +433,7 @@ pub fn invoice_str(number: usize, item: &InvoiceItem) -> String {
       rate: {},
     ),
     ",
-    item.description, item.quantity, item.price
+    item.description, item.duration, item.rate
   )
 }
 

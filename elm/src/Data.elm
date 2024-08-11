@@ -341,11 +341,9 @@ type alias ProjectTime =
 
 
 type alias InvoiceItem =
-    { date : String
-    , description : String
-    , dur_min : Float
-    , quantity : Float
-    , price : Float
+    { description : String
+    , duration : Float
+    , rate : Float
     }
 
 
@@ -391,11 +389,9 @@ type alias PrintInvoice =
 encodeInvoiceItem : InvoiceItem -> JE.Value
 encodeInvoiceItem ii =
     JE.object
-        [ ( "date", JE.string ii.date )
-        , ( "description", JE.string ii.description )
-        , ( "dur_min", JE.float ii.dur_min )
-        , ( "quantity", JE.float ii.quantity )
-        , ( "price", JE.float ii.price )
+        [ ( "description", JE.string ii.description )
+        , ( "duration", JE.float ii.duration )
+        , ( "rate", JE.float ii.rate )
         ]
 
 

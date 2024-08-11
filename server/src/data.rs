@@ -236,9 +236,7 @@ pub struct PrintInvoice {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InvoiceItem {
-  pub date: String,
   pub description: String,
-  pub dur_min: i64,
-  pub quantity: i64,
-  pub price: f64,
+  pub duration: f64,
+  pub rate: f64,
 }
