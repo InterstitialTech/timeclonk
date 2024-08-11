@@ -435,7 +435,7 @@
               .display("[year]-[month]-[day]")
           }
 
-    (t.due-text)(due-date)
+    // (t.due-text)(due-date)
 
     v(1em)
     align(center)[
@@ -462,7 +462,7 @@
     ]
     v(1em)
 
-    t.closing
+    // t.closing
   }
   else {
     v(1em)
