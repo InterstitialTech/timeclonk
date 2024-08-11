@@ -94,7 +94,7 @@
       due-date: "Due Date",
       item: "Item",
       hours: "Hours",
-      price: "Price",
+      rate: "Rate",
       total-time: "Total working time",
       subtotal: "Subtotal",
       discount-of: "Discount of",
@@ -126,7 +126,7 @@
       due-date: "Due-Date",
       item: "Beschreibung",
       hours: "Menge",
-      price: "Preis",
+      rate: "Preis",
       total-time: "Gesamtarbeitszeit",
       subtotal: "Zwischensumme",
       discount-of: "Rabatt von",
@@ -298,7 +298,7 @@
 
   let getRowTotal = row => {
     if row.at("dur-min", default: 0) == 0 {
-      row.price * row.at("hours", default: 1)
+      row.rate * row.at("hours", default: 1)
     }
     else {
       calc.round(hourly-rate * (row.dur-min / 60), digits: 2)
@@ -323,8 +323,8 @@
       table.hline(stroke: 0.5pt),
       [*#t.item*],
       [*#t.hours*],
-      [*#t.price*\ #text(size: 0.8em)[( € )]],
-      [*#t.total*\ #text(size: 0.8em)[( € )]],
+      [*#t.rate*\ #text(size: 0.8em)[( \$ )]],
+      [*#t.total*\ #text(size: 0.8em)[( \$ )]],
       table.hline(stroke: 0.5pt),
     ),
     ..items
@@ -339,7 +339,7 @@
           str(if dur-min == 0 { "" } else { dur-min }),
           str(row.at("hours", default: if dur-min == 0 { "1" } else { "" })),
           str(add-zeros(cancel-neg *
-           row.at("price", default: calc.round(hourly-rate * dur-hour, digits: 2))
+           row.at("rate", default: calc.round(hourly-rate * dur-hour, digits: 2))
           )),
           str(add-zeros(cancel-neg * getRowTotal(row))),
         )
@@ -367,7 +367,7 @@
     }
   let discount-label = if discount == none { 0 }
     else {
-      if (discount.type == "fixed") { str(discount.value) + " €" }
+      if (discount.type == "fixed") { str(discount.value) + " \$" }
       else if discount.type == "proportionate" {
         str(discount.value * 100) + " %"
       }
@@ -386,18 +386,18 @@
     },
     if (discount-value != 0) or (vat != 0) {
       ([#t.subtotal:],
-      [#{add-zeros(cancel-neg * sub-total)} €])
+      [#{add-zeros(cancel-neg * sub-total)} \$])
     },
     if discount-value != 0 {
       (
         [#t.discount-of #discount-label
           #{if discount.reason != "" { "(" + discount.reason + ")" }}],
-        [-#add-zeros(cancel-neg * discount-value) €]
+        [-#add-zeros(cancel-neg * discount-value) \$]
       )
     },
     if not has-reverse-charge and (vat != 0) {
       ([#t.vat #{vat * 100} %:],
-        [#{add-zeros(cancel-neg * tax)} €]
+        [#{add-zeros(cancel-neg * tax)} \$]
       )
     },
     if (has-reverse-charge) {
@@ -405,7 +405,7 @@
     },
     (
       [*#t.total*:],
-      [*#add-zeros(cancel-neg * total) €*]
+      [*#add-zeros(cancel-neg * total) \$*]
     ),
   )
   .filter(entry => entry != none)
