@@ -17,7 +17,7 @@ use actix_web::{
 };
 use clap::Arg;
 use config::Config;
-use data::PrintInvoice;
+use data::{InvoiceItem, PrintInvoice};
 use log::{error, info};
 use messages::{PublicMessage, ServerResponse, UserMessage};
 use orgauth::data::WhatMessage;
@@ -419,16 +419,84 @@ async fn invoice(
   //       HttpResponse::Ok().body("")
 }
 
+pub fn invoice_str(number: usize, item: &InvoiceItem) -> String {
+  format!(
+    "
+    (
+      number: {},
+      date: \"{}\",
+      description: \"{}\",
+      dur-min: 0,
+      quantity: {},
+      price: {},
+    ),
+    ",
+    number, item.date, item.description, item.quantity, item.price
+  )
+}
+
 pub fn run_invoice(
   // conn: &Connection,
   // uid: i64,
   // savedir: &Path,
   print_invoice: PrintInvoice,
 ) -> Result<PathBuf, orgauth::error::Error> {
-  return Ok("./invoice-maker/meh/en.pdf".into());
+  let items = print_invoice
+    .items
+    .iter()
+    .enumerate()
+    .map(|(idx, item)| invoice_str(idx, item))
+    .collect::<Vec<String>>()
+    .concat();
+
+  let typ = format!(
+    "
+#import \"./benvoice.typ\": *
+
+
+#let biller = \"{}\"
+#let recipient = \"{}\"
+
+
+#let table-data = ( {} )
+
+#show: invoice.with(
+  language: \"en\",
+  banner-image: none,
+  invoice-id: \"{}\",
+  // Set this to create a cancellation invoice
+  // cancellation-id: \"2024-03-24t210835\",
+  issuing-date: \"2024-03-10\",
+  delivery-date: \"2024-02-29\",
+  due-date: \"2024-03-20\",
+  biller: biller,
+  hourly-rate: 100,
+  recipient: recipient,
+  items: table-data,
+  styling: ( font: none ), // Explicitly use Typst's default font
+)",
+    print_invoice.payee, print_invoice.payer, items, print_invoice.id
+  );
+
+  orgauth::util::write_string("wat.typ", typ.as_str())?;
+
+  // id: String,
+  // payer: String,
+  // payee: String,
+  // items: Vec<InvoiceItem>,
+
+  // pub struct InvoiceItem {
+  //   date: String,
+  //   description: String,
+  //   dur_min: i64,
+  //   quantity: i64,
+  //   price: f64,
+  // }
+
+  // return Ok("./invoice-maker/meh/en.pdf".into());
   let mut child = Command::new("typst")
     .arg("compile")
-    .arg("./invoice-maker/meh/en.typ")
+    .arg("./wat.typ")
     .spawn()
     .expect("typst failed to execute");
 
@@ -436,7 +504,7 @@ pub fn run_invoice(
     Ok(exit_code) => {
       if exit_code.success() {
         // add file to result.
-        Ok("./invoice-maker/meh/en.pdf".into())
+        Ok("./wat.pdf".into())
       } else {
         Err(orgauth::error::Error::String(format!(
           "typst err {:?}",

@@ -227,17 +227,17 @@ pub struct SaveAllocation {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PrintInvoice {
-  id: String,
-  payer: String,
-  payee: String,
-  items: Vec<InvoiceItem>,
+  pub id: String,
+  pub payer: String,
+  pub payee: String,
+  pub items: Vec<InvoiceItem>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InvoiceItem {
-  date: String,
-  description: String,
-  dur_min: i64,
-  quantity: i64,
-  price: f64,
+  pub date: String,
+  pub description: String,
+  pub dur_min: i64,
+  pub quantity: i64,
+  pub price: f64,
 }
