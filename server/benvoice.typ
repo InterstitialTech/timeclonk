@@ -92,9 +92,8 @@
       number: "№",
       date: "Date",
       due-date: "Due Date",
-      description: "Description",
-      duration: "Duration",
-      quantity: "Quantity",
+      item: "Item",
+      hours: "Hours",
       price: "Price",
       total-time: "Total working time",
       subtotal: "Subtotal",
@@ -125,9 +124,8 @@
       number: "Nr",
       date: "Datum",
       due-date: "Due-Date",
-      description: "Beschreibung",
-      duration: "Dauer",
-      quantity: "Menge",
+      item: "Beschreibung",
+      hours: "Menge",
       price: "Preis",
       total-time: "Gesamtarbeitszeit",
       subtotal: "Zwischensumme",
@@ -300,7 +298,7 @@
 
   let getRowTotal = row => {
     if row.at("dur-min", default: 0) == 0 {
-      row.price * row.at("quantity", default: 1)
+      row.price * row.at("hours", default: 1)
     }
     else {
       calc.round(hourly-rate * (row.dur-min / 60), digits: 2)
@@ -323,11 +321,8 @@
       // TODO: Add after https://github.com/typst/typst/issues/3734
       // align: (right,left,left,center,center,center,center,),
       table.hline(stroke: 0.5pt),
-      [*#t.number*],
-      [*#t.date*],
-      [*#t.description*],
-      [*#t.duration*\ #text(size: 0.8em)[( min )]],
-      [*#t.quantity*],
+      [*#t.item*],
+      [*#t.hours*],
       [*#t.price*\ #text(size: 0.8em)[( € )]],
       [*#t.total*\ #text(size: 0.8em)[( € )]],
       table.hline(stroke: 0.5pt),
@@ -337,13 +332,12 @@
       .map(((index, row)) => {
         let dur-min = row.at("dur-min", default: 0)
         let dur-hour = dur-min / 60
-
         (
-          row.at("number", default: index + 1),
-          row.date,
-          row.description,
+          // row.at("number", default: index + 1),
+          // row.date,
+          row.item,
           str(if dur-min == 0 { "" } else { dur-min }),
-          str(row.at("quantity", default: if dur-min == 0 { "1" } else { "" })),
+          str(row.at("hours", default: if dur-min == 0 { "1" } else { "" })),
           str(add-zeros(cancel-neg *
            row.at("price", default: calc.round(hourly-rate * dur-hour, digits: 2))
           )),

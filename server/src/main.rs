@@ -427,15 +427,13 @@ pub fn invoice_str(number: usize, item: &InvoiceItem) -> String {
   format!(
     "
     (
-      number: {},
-      date: \"{}\",
-      description: \"{}\",
+      item: \"{}\",
       dur-min: 0,
-      quantity: {},
+      hours: {},
       price: {},
     ),
     ",
-    number, item.date, item.description, item.quantity, item.price
+    item.description, item.quantity, item.price
   )
 }
 
