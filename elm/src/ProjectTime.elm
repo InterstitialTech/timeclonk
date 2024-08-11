@@ -193,7 +193,7 @@ type Command
     | ShowError String
     | SelectMember (List Data.User)
     | ToClipboard String
-    | PrintInvoice Data.PrintInvoice
+    | PrintInvoice Data.PrintInvoiceInternal
     | None
 
 

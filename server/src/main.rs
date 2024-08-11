@@ -9,7 +9,11 @@ use actix_session::{
   config::PersistentSession, storage::CookieSessionStore, Session, SessionMiddleware,
 };
 use actix_web::{
-  cookie::{self, Key},
+  cookie::{
+    self,
+    time::{OffsetDateTime, UtcOffset},
+    Key,
+  },
   error::ErrorInternalServerError,
   http::StatusCode,
   middleware, web, App, HttpRequest, HttpResponse, HttpResponseBuilder, HttpServer, Responder,
@@ -449,6 +453,22 @@ pub fn run_invoice(
     .collect::<Vec<String>>()
     .concat();
 
+  // let offdate = OffsetDateTime::from_unix_timestamp(print_invoice.now)
+  //   .map_err(|e| orgauth::error::Error::String(format!("timestamp error {:?}", e)))?
+  //   .to_offset(
+  //     UtcOffset::from_whole_seconds(print_invoice.tz_offset / 1000)
+  //       .map_err(|e| orgauth::error::Error::String(format!("time zone offset error {:?}", e)))?,
+  //   );
+
+  // let datef = time::format_description::parse!("[year]-[month]-[day]")
+  //   .map_err(|e| orgauth::error::Error::String(format!("time zone format error {:?}", e)))?;
+
+  // let date = offdate
+  //   .format(datef)
+  //   .map_err(|e| orgauth::error::Error::String(format!("time formatting error {:?}", e)))?;
+
+  // let date = format!("{}-{}-{}", offdate.year(), offdate.month(), offdate.day());
+
   let typ = format!(
     "
 #import \"./benvoice.typ\": *
@@ -466,8 +486,7 @@ pub fn run_invoice(
   invoice-id: \"{}\",
   // Set this to create a cancellation invoice
   // cancellation-id: \"2024-03-24t210835\",
-  issuing-date: \"2024-03-10\",
-  delivery-date: \"2024-02-29\",
+  issuing-date: \"{}\",
   due-date: \"2024-03-20\",
   biller: biller,
   hourly-rate: 100,
@@ -475,7 +494,7 @@ pub fn run_invoice(
   items: table-data,
   styling: ( font: none ), // Explicitly use Typst's default font
 )",
-    print_invoice.payee, print_invoice.payer, items, print_invoice.id
+    print_invoice.payee, print_invoice.payer, items, print_invoice.id, print_invoice.date
   );
 
   orgauth::util::write_string("wat.typ", typ.as_str())?;

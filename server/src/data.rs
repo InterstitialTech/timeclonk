@@ -231,6 +231,7 @@ pub struct PrintInvoice {
   pub payer: String,
   pub payee: String,
   pub items: Vec<InvoiceItem>,
+  pub date: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

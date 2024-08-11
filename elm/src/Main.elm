@@ -2085,15 +2085,21 @@ handleProjectTime model ( nm, cmd ) login =
 
         ProjectTime.PrintInvoice pi ->
             ( { model | state = ProjectTime nm login }
-            , Http.post
-                { url = model.location ++ "/invoice"
-                , body = Http.jsonBody (Data.encodePrintInvoice pi)
-                , expect =
-                    Http.expectBytesResponse PrintInvoiceReplyData <|
-                        resolve <|
-                            \bytes ->
-                                Ok <| FD.bytes "woot.pdf" "application/pdf" bytes
-                }
+            , Time.now
+                |> Task.perform
+                    (TimeCmd
+                        (\now ->
+                            Http.post
+                                { url = model.location ++ "/invoice"
+                                , body = Http.jsonBody (Data.encodePrintInvoice (Data.toPrintInvoice pi now model.timezone))
+                                , expect =
+                                    Http.expectBytesResponse PrintInvoiceReplyData <|
+                                        resolve <|
+                                            \bytes ->
+                                                Ok <| FD.bytes "woot.pdf" "application/pdf" bytes
+                                }
+                        )
+                    )
             )
 
 

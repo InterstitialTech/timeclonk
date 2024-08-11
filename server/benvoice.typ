@@ -86,12 +86,12 @@
         for the invoice *#id* dated *#issuing-date*.
       ],
       invoice-id: "Invoice ID",
-      issuing-date: "Issuing Date",
-      delivery-date: "Delivery Date",
+      issuing-date: "Date",
       items: "Items",
       closing: "Thank you for the good cooperation!",
       number: "№",
       date: "Date",
+      due-date: "Due Date",
       description: "Description",
       duration: "Duration",
       quantity: "Quantity",
@@ -120,11 +120,11 @@
       ],
       invoice-id: "Rechnungsnummer",
       issuing-date: "Ausstellungsdatum",
-      delivery-date: "Lieferdatum",
       items: "Leistungen",
       closing: "Vielen Dank für die gute Zusammenarbeit!",
       number: "Nr",
       date: "Datum",
+      due-date: "Due-Date",
       description: "Beschreibung",
       duration: "Dauer",
       quantity: "Menge",
@@ -150,7 +150,6 @@
   invoice-id: none,
   cancellation-id: none,
   issuing-date: none,
-  delivery-date: none,
   due-date: none,
   biller: (:),
   recipient: (:),
@@ -190,7 +189,6 @@
     invoice-id = data.at("invoice-id", default: invoice-id)
     cancellation-id = data.at("cancellation-id", default: cancellation-id)
     issuing-date = data.at("issuing-date", default: issuing-date)
-    delivery-date = data.at("delivery-date", default: delivery-date)
     due-date = data.at("due-date", default: due-date)
     biller = data.at("biller", default: biller)
     recipient = data.at("recipient", default: recipient)
@@ -253,9 +251,6 @@
           //   .display("[year]-[month]-[day]t[hour][minute][second]")
         }
 
-  let delivery-date = if delivery-date != none { delivery-date }
-        else { TODO }
-
   align(center,
     table(
       columns: 2,
@@ -263,7 +258,8 @@
       inset: 4pt,
       [#t.invoice-id:], [*#invoice-id-norm*],
       [#t.issuing-date:], [*#issuing-date*],
-      [#t.delivery-date:], [*#delivery-date*],
+      // [#t.delivery-date:], [*#delivery-date*],
+      [#t.due-date:], [*#due-date*],
     )
   )
 

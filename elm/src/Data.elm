@@ -8,6 +8,7 @@ module Data exposing
     , PayEntryId(..)
     , PayType(..)
     , PrintInvoice
+    , PrintInvoiceInternal
     , Project
     , ProjectEdit
     , ProjectId(..)
@@ -65,11 +66,13 @@ module Data exposing
     , roleToString
     , showRole
     , stringToRole
+    , toPrintInvoice
     )
 
 import Json.Decode as JD
 import Json.Encode as JE
 import Orgauth.Data as OD exposing (UserId, getUserIdVal, makeUserId)
+import Time
 import UUID exposing (UUID)
 import Url.Builder as UB
 import Util exposing (andMap)
@@ -346,12 +349,43 @@ type alias InvoiceItem =
     }
 
 
-type alias PrintInvoice =
+type alias PrintInvoiceInternal =
     { id : String
     , payer : String
     , payee : String
     , items : List InvoiceItem
     }
+
+
+toPrintInvoice : PrintInvoiceInternal -> Time.Posix -> Time.Zone -> PrintInvoice
+toPrintInvoice pii time zone =
+    { id = pii.id
+    , payer = pii.payer
+    , payee = pii.payee
+    , items = pii.items
+    , date =
+        (String.fromInt <| Time.toYear zone time)
+            ++ "-"
+            ++ (String.fromInt <| Util.monthInt <| Time.toMonth zone time)
+            ++ "-"
+            ++ (String.fromInt <| Time.toDay zone time)
+    }
+
+
+type alias PrintInvoice =
+    { id : String
+    , payer : String
+    , payee : String
+    , items : List InvoiceItem
+    , date : String
+    }
+
+
+
+-- tzOffset : Time.Posix -> Time.Zone -> Int
+-- tzOffset time zone =
+--     -- in millis
+--     Debug.log "zone time" (Time.posixToMillis zone time) - Debug.log " time" (Time.posixToMillis time)
 
 
 encodeInvoiceItem : InvoiceItem -> JE.Value
@@ -371,6 +405,7 @@ encodePrintInvoice pi =
         [ ( "id", JE.string pi.id )
         , ( "payer", JE.string pi.payer )
         , ( "payee", JE.string pi.payee )
+        , ( "date", JE.string pi.date )
         , ( "items", JE.list encodeInvoiceItem pi.items )
         ]
 

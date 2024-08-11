@@ -24,6 +24,7 @@ import WindowKeys as WK
 type Msg
     = NameChanged String
     | DescriptionChanged String
+    | InvoiceIdTemplateChanged String
     | InvoiceSeqChanged String
     | PayerChanged String
     | PayeeChanged String
@@ -200,6 +201,7 @@ isDirty model =
                             ((model.id == Just ip.id)
                                 && (model.name == ip.name)
                                 && (model.description == ip.description)
+                                && (model.invoiceIdTemplate == ip.invoiceIdTemplate)
                                 && (model.invoiceSeq == ip.invoiceSeq)
                                 && (model.payer == ip.payer)
                                 && (model.payee == ip.payee)
@@ -392,6 +394,23 @@ view ld size model =
                         []
                     )
                     { onChange =
+                        InvoiceIdTemplateChanged
+                    , text = model.invoiceIdTemplate
+                    , placeholder = Nothing
+                    , label =
+                        EI.labelLeft
+                            []
+                            (E.text "invoice id template")
+                    }
+                , E.row [ E.alignRight ] [ E.text "Use <date> or <seq>, ex: ", E.el [ EF.italic ] <| E.text "example<date><seq>" ]
+                , EI.text
+                    (if isdirty then
+                        [ E.focused [ EBd.glow TC.darkYellow 3 ] ]
+
+                     else
+                        []
+                    )
+                    { onChange =
                         InvoiceSeqChanged
                     , text = String.fromInt model.invoiceSeq
                     , placeholder = Nothing
@@ -496,6 +515,9 @@ update msg model ld =
 
         DescriptionChanged t ->
             ( { model | description = t }, None )
+
+        InvoiceIdTemplateChanged t ->
+            ( { model | invoiceIdTemplate = t }, None )
 
         InvoiceSeqChanged t ->
             case String.toInt t of
