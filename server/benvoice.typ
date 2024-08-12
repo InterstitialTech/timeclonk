@@ -305,12 +305,6 @@
   table(
     columns: (auto, 1fr, auto, auto, auto, auto, auto),
     align: (col, row) => right,
-        // if row == 0 {
-        //   (left,right,right,center,center,center,center,).at(col)
-        // }
-        // else {
-        //   (right,right,right,right,right,right,right,).at(col)
-        // ,
     inset: 6pt,
     table.header(
       // TODO: Add after https://github.com/typst/typst/issues/3734

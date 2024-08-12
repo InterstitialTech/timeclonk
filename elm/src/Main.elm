@@ -857,8 +857,7 @@ view model =
             PrintInvoiceDialog cdm _ ->
                 Html.map PrintInvoiceDialogMsg <|
                     GD.layout
-                        -- Nothing
-                        (Just { width = min 600 model.size.width, height = min 400 model.size.height })
+                        (Just { width = min 600 model.size.width, height = min 600 model.size.height })
                         cdm
 
             _ ->
@@ -2465,6 +2464,7 @@ port receiveKeyMsg : (JD.Value -> msg) -> Sub msg
 port toClipBoard : String -> Cmd msg
 
 
+keyreceive : Sub Msg
 keyreceive =
     receiveKeyMsg <| WindowKeys.receive WkMsg
 
@@ -2472,5 +2472,6 @@ keyreceive =
 port sendKeyCommand : JE.Value -> Cmd msg
 
 
+skcommand : WindowKeys.WindowKeyCmd -> Cmd Msg
 skcommand =
     WindowKeys.send sendKeyCommand
