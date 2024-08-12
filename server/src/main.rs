@@ -14,7 +14,7 @@ use actix_web::{
     time::{OffsetDateTime, UtcOffset},
     Key,
   },
-  error::ErrorInternalServerError,
+  error::{ErrorInternalServerError, ErrorUnauthorized},
   http::StatusCode,
   middleware, web, App, HttpRequest, HttpResponse, HttpResponseBuilder, HttpServer, Responder,
   ResponseError,
@@ -409,21 +409,39 @@ async fn invoice(
   req: HttpRequest,
 ) -> actix_web::Result<NamedFile> {
   info!("invoice start {:?}", item.0);
+  // we logged in?  to prevent randos from making invoices
+  let token = match session.get::<Uuid>("token")? {
+    None => {
+      return Err(ErrorUnauthorized(orgauth::error::Error::String(
+        "not logged in".to_string(),
+      )))
+    }
+    Some(t) => t,
+  };
+
+  let conn = match sqldata::connection_open(config.orgauth_config.db.as_path()) {
+    Err(e) => return Err(ErrorInternalServerError(e)),
+    Ok(c) => c,
+  };
+  let _user = match orgauth::dbfun::read_user_by_token_api(
+    &conn,
+    token,
+    config.orgauth_config.login_token_expiration_ms,
+    config.orgauth_config.regen_login_tokens,
+  ) {
+    Err(e) => {
+      return Err(ErrorUnauthorized(e));
+    }
+    Ok(u) => u,
+  };
+
   let path = run_invoice(item.0).map_err(|e| ErrorInternalServerError(e.to_string()))?; // .map_err(|e| actix_web::Error::fmt(, )
 
   info!("invoice here {}", path.display());
   Ok(NamedFile::open(path)?)
-
-  // match run_invoice(item) {
-  //   Ok(path) => {
-  //     Ok(NamedFile::open(path)?)
-  //   Err(e) =>
-  //     Err(
-
-  //       HttpResponse::Ok().body("")
 }
 
-pub fn invoice_str(number: usize, item: &InvoiceItem) -> String {
+pub fn invoice_str(item: &InvoiceItem) -> String {
   format!(
     "
     (
@@ -437,35 +455,39 @@ pub fn invoice_str(number: usize, item: &InvoiceItem) -> String {
   )
 }
 
-pub fn run_invoice(
-  // conn: &Connection,
-  // uid: i64,
-  // savedir: &Path,
-  print_invoice: PrintInvoice,
-) -> Result<PathBuf, orgauth::error::Error> {
+pub fn run_invoice(print_invoice: PrintInvoice) -> Result<PathBuf, orgauth::error::Error> {
   let items = print_invoice
     .items
     .iter()
-    .enumerate()
-    .map(|(idx, item)| invoice_str(idx, item))
+    .map(|item| invoice_str(item))
     .collect::<Vec<String>>()
     .concat();
 
-  // let offdate = OffsetDateTime::from_unix_timestamp(print_invoice.now)
-  //   .map_err(|e| orgauth::error::Error::String(format!("timestamp error {:?}", e)))?
-  //   .to_offset(
-  //     UtcOffset::from_whole_seconds(print_invoice.tz_offset / 1000)
-  //       .map_err(|e| orgauth::error::Error::String(format!("time zone offset error {:?}", e)))?,
-  //   );
+  let eelines = print_invoice.payee.split('\n').count();
+  let erlines = print_invoice.payer.split('\n').count();
 
-  // let datef = time::format_description::parse!("[year]-[month]-[day]")
-  //   .map_err(|e| orgauth::error::Error::String(format!("time zone format error {:?}", e)))?;
+  let (payee, payer) = match eelines.cmp(&erlines) {
+    std::cmp::Ordering::Less => (
+      format!(
+        "{}{}",
+        print_invoice.payee,
+        "\n".to_string().repeat(erlines - eelines)
+      ),
+      print_invoice.payer,
+    ),
+    std::cmp::Ordering::Equal => (print_invoice.payee, print_invoice.payer),
+    std::cmp::Ordering::Greater => (
+      print_invoice.payee,
+      format!(
+        "{}{}",
+        print_invoice.payer,
+        "\n".to_string().repeat(eelines - erlines)
+      ),
+    ),
+  };
 
-  // let date = offdate
-  //   .format(datef)
-  //   .map_err(|e| orgauth::error::Error::String(format!("time formatting error {:?}", e)))?;
-
-  // let date = format!("{}-{}-{}", offdate.year(), offdate.month(), offdate.day());
+  println!("payee {}", payee);
+  println!("payer {}", payer);
 
   let typ = format!(
     "
@@ -493,23 +515,10 @@ pub fn run_invoice(
   items: table-data,
   styling: ( font: none ), // Explicitly use Typst's default font
 )",
-    print_invoice.payee, print_invoice.payer, items, print_invoice.id, print_invoice.date
+    payee, payer, items, print_invoice.id, print_invoice.date
   );
 
   orgauth::util::write_string("wat.typ", typ.as_str())?;
-
-  // id: String,
-  // payer: String,
-  // payee: String,
-  // items: Vec<InvoiceItem>,
-
-  // pub struct InvoiceItem {
-  //   date: String,
-  //   description: String,
-  //   dur_min: i64,
-  //   quantity: i64,
-  //   price: f64,
-  // }
 
   // return Ok("./invoice-maker/meh/en.pdf".into());
   let mut child = Command::new("typst")
