@@ -322,7 +322,9 @@ view ld size model =
                 , EBk.color TC.white
                 , E.spacing TC.defaultSpacing
                 ]
-                [ EI.text
+                [ E.row [ EF.bold, E.centerX, EF.size 20 ]
+                    [ E.text "All Projects" ]
+                , EI.text
                     (if isdirty then
                         [ E.focused [ EBd.glow TC.darkYellow 3 ] ]
 
@@ -355,6 +357,29 @@ view ld size model =
                             (E.text "description")
                     , spellcheck = True
                     }
+                , E.row [ E.spacing 8 ]
+                    [ EI.checkbox []
+                        { onChange = TogglePublic
+                        , icon = EI.defaultCheckbox
+                        , checked = model.public
+                        , label = EI.labelLeft [] (E.text "public")
+                        }
+                    , case ( model.public, model.id ) of
+                        ( True, Just id ) ->
+                            let
+                                u =
+                                    Route.routeUrl <| Route.ProjectViewR (Data.getProjectIdVal id) "team"
+                            in
+                            E.link Common.linkStyle
+                                { url = u
+                                , label = E.text u
+                                }
+
+                        _ ->
+                            E.none
+                    ]
+                , E.row [ EF.bold, E.centerX, EF.size 20 ]
+                    [ E.text "For Distributions" ]
                 , EI.text
                     (if isdirty then
                         [ E.focused [ EBd.glow TC.darkYellow 3 ] ]
@@ -387,6 +412,8 @@ view ld size model =
                             []
                             (E.text "currency")
                     }
+                , E.row [ EF.bold, E.centerX, EF.size 20 ]
+                    [ E.text "For Invoices" ]
                 , EI.text
                     (if isdirty then
                         [ E.focused [ EBd.glow TC.darkYellow 3 ] ]
@@ -470,27 +497,6 @@ view ld size model =
                             (E.text "payee")
                     , spellcheck = True
                     }
-                , E.row [ E.spacing 8 ]
-                    [ EI.checkbox []
-                        { onChange = TogglePublic
-                        , icon = EI.defaultCheckbox
-                        , checked = model.public
-                        , label = EI.labelLeft [] (E.text "public")
-                        }
-                    , case ( model.public, model.id ) of
-                        ( True, Just id ) ->
-                            let
-                                u =
-                                    Route.routeUrl <| Route.ProjectViewR (Data.getProjectIdVal id) "team"
-                            in
-                            E.link Common.linkStyle
-                                { url = u
-                                , label = E.text u
-                                }
-
-                        _ ->
-                            E.none
-                    ]
                 ]
             , E.column
                 [ E.padding 8
