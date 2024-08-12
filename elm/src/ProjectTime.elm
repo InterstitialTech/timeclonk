@@ -11,8 +11,7 @@ import Element.Border as EBd
 import Element.Events as EE
 import Element.Font as EF
 import Element.Input as EI
-import Html.Attributes
-import Orgauth.Data as OD exposing (UserId, getUserIdVal, makeUserId)
+import Orgauth.Data exposing (UserId, getUserIdVal)
 import Paginator as P
 import Round as R
 import Set
@@ -728,7 +727,7 @@ dateTimeWidth =
 
 
 clonkview : Data.LoginData -> Util.Size -> Time.Zone -> Bool -> Model -> List (Element Msg)
-clonkview ld size zone isdirty model =
+clonkview ld _ zone isdirty model =
     let
         ttotes =
             getTotes model.timeentries
@@ -1226,12 +1225,12 @@ clonkview ld size zone isdirty model =
             [ { header = E.none
               , width = E.shrink
               , view =
-                    \( title, entry ) -> E.el headerStyle <| E.text title
+                    \( title, _ ) -> E.el headerStyle <| E.text title
               }
             , { header = E.none
               , width = E.shrink
               , view =
-                    \( title, entry ) -> E.text entry
+                    \( _, entry ) -> E.text entry
               }
             ]
         }
@@ -1273,7 +1272,7 @@ clonkview ld size zone isdirty model =
 
 
 teamview : Data.LoginData -> Util.Size -> Time.Zone -> Bool -> Model -> List (Element Msg)
-teamview ld size zone isdirty model =
+teamview _ _ zone isdirty model =
     let
         ttotes =
             getTotes model.teamentries
@@ -1447,12 +1446,12 @@ teamview ld size zone isdirty model =
             [ { header = E.none
               , width = E.shrink
               , view =
-                    \( title, entry ) -> E.el headerStyle <| E.text title
+                    \( title, _ ) -> E.el headerStyle <| E.text title
               }
             , { header = E.none
               , width = E.shrink
               , view =
-                    \( title, entry ) -> E.text entry
+                    \( _, entry ) -> E.text entry
               }
             ]
         }
@@ -1466,7 +1465,7 @@ type Entry
 
 
 distributionview : Data.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
-distributionview ld size zone model =
+distributionview _ _ zone model =
     let
         timetotes =
             getTes model.timeentries |> Dict.values |> TR.timeTotes
@@ -3847,7 +3846,7 @@ update msg model ld zone =
         PeToStart ->
             ( { model | pepaginator = P.onToStart model.pepaginator }, None )
 
-        PeToEnd c ->
+        PeToEnd _ ->
             ( { model | pepaginator = P.onToEnd (Dict.size model.payentries) model.pepaginator }, None )
 
         AForward ->

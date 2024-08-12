@@ -37,6 +37,7 @@ import Orgauth.ShowUrl as ShowUrl
 import Orgauth.UserEdit as UserEdit
 import Orgauth.UserInterface as UI
 import Orgauth.UserListing as UserListing
+import PrintInvoice as PI
 import ProjectEdit
 import ProjectListing
 import ProjectTime
@@ -87,6 +88,7 @@ type Msg
     | SelectedText JD.Value
     | UrlChanged Url
     | WindowSize Util.Size
+    | PrintInvoiceDialogMsg (GD.Msg PI.Msg)
     | DisplayMessageMsg (GD.Msg DisplayMessage.Msg)
     | SelectUserDialogMsg (GD.Msg (SS.Msg Data.User))
     | SelectRoleDialogMsg (GD.Msg (SS.Msg ( UserId, Data.Role )))
@@ -103,6 +105,7 @@ type Msg
     | ProjectTimeMsg ProjectTime.Msg
     | FileLoaded (String -> Msg) F.File
     | TimeCmd (Time.Posix -> Cmd Msg) Time.Posix
+    | PrintInvoiceInit Data.PrintInvoice
     | Noop
 
 
@@ -118,6 +121,7 @@ type State
     | ShowMessage ShowMessage.Model Data.LoginData (Maybe State)
     | PubShowMessage ShowMessage.Model (Maybe State)
     | LoginShowMessage ShowMessage.Model Data.LoginData Url
+    | PrintInvoiceDialog PI.GDModel State
     | SelectUserDialog (SS.GDModel Data.User) State
     | SelectRoleDialog (SS.GDModel ( UserId, Data.Role )) State
     | ChangePasswordDialog CP.GDModel State
@@ -467,6 +471,9 @@ showMessage msg =
         ReceiveLocalVal _ ->
             "ReceiveLocalVal"
 
+        PrintInvoiceDialogMsg _ ->
+            "PrintInvoiceDialogMsg"
+
         SelectUserDialogMsg _ ->
             "SelectUserDialogMsg"
 
@@ -502,6 +509,9 @@ showMessage msg =
 
         PrintInvoiceReplyData _ ->
             "PrintInvoiceReplyData"
+
+        PrintInvoiceInit _ ->
+            "PrintInvoiceInit "
 
 
 showState : State -> String
@@ -545,6 +555,9 @@ showState state =
 
         Wait _ _ ->
             "Wait"
+
+        PrintInvoiceDialog _ _ ->
+            "PrintInvoiceDialog"
 
         SelectUserDialog _ _ ->
             "SelectDialog"
@@ -628,6 +641,10 @@ viewState size state model =
         Wait innerState _ ->
             E.map (\_ -> Noop) (viewState size innerState model)
 
+        PrintInvoiceDialog _ _ ->
+            -- render is at the layout level, not here.
+            E.none
+
         SelectUserDialog _ _ ->
             -- render is at the layout level, not here.
             E.none
@@ -698,6 +715,9 @@ stateLogin state =
 
         Wait wstate _ ->
             stateLogin wstate
+
+        PrintInvoiceDialog _ instate ->
+            stateLogin instate
 
         SelectUserDialog _ instate ->
             stateLogin instate
@@ -830,6 +850,12 @@ view model =
 
             ChangeEmailDialog cdm _ ->
                 Html.map ChangeEmailDialogMsg <|
+                    GD.layout
+                        (Just { width = min 600 model.size.width, height = min 200 model.size.height })
+                        cdm
+
+            PrintInvoiceDialog cdm _ ->
+                Html.map PrintInvoiceDialogMsg <|
                     GD.layout
                         (Just { width = min 600 model.size.width, height = min 200 model.size.height })
                         cdm
@@ -1141,6 +1167,44 @@ actualupdate msg model =
 
                 ResetPassword.None ->
                     ( { model | state = ResetPassword nst }, Cmd.none )
+
+        ( PrintInvoiceInit pi, state ) ->
+            ( { model
+                | state =
+                    PrintInvoiceDialog
+                        (PI.init pi
+                            0
+                            []
+                            Common.buttonStyle
+                            (E.map (\_ -> ()) (viewState model.size model.state model))
+                        )
+                        state
+              }
+            , Cmd.none
+            )
+
+        -- (view { model | state = state } |> E.map (always ()))) }, Cmd.none )
+        -- (UserSettings.view numod |> E.map (always ())))
+        ( PrintInvoiceDialogMsg sdmsg, PrintInvoiceDialog sdmod instate ) ->
+            case GD.update sdmsg sdmod of
+                GD.Dialog nmod ->
+                    ( { model | state = PrintInvoiceDialog nmod instate }, Cmd.none )
+
+                GD.Ok return ->
+                    ( { model | state = instate }
+                    , Http.post
+                        { url = model.location ++ "/invoice"
+                        , body = Http.jsonBody (Data.encodePrintInvoice return)
+                        , expect =
+                            Http.expectBytesResponse PrintInvoiceReplyData <|
+                                resolve <|
+                                    \bytes ->
+                                        Ok <| FD.bytes "woot.pdf" "application/pdf" bytes
+                        }
+                    )
+
+                GD.Cancel ->
+                    ( { model | state = instate }, Cmd.none )
 
         ( UserSettingsMsg umsg, UserSettings umod login prevstate ) ->
             let
@@ -2087,19 +2151,7 @@ handleProjectTime model ( nm, cmd ) login =
             ( { model | state = ProjectTime nm login }
             , Time.now
                 |> Task.perform
-                    (TimeCmd
-                        (\now ->
-                            Http.post
-                                { url = model.location ++ "/invoice"
-                                , body = Http.jsonBody (Data.encodePrintInvoice (Data.toPrintInvoice pi now model.timezone))
-                                , expect =
-                                    Http.expectBytesResponse PrintInvoiceReplyData <|
-                                        resolve <|
-                                            \bytes ->
-                                                Ok <| FD.bytes "woot.pdf" "application/pdf" bytes
-                                }
-                        )
-                    )
+                    (\now -> PrintInvoiceInit (Data.toPrintInvoice pi now model.timezone))
             )
 
 
