@@ -1515,10 +1515,10 @@ distributionview ld size zone model =
             Dict.foldl (\_ pe c -> c || pe.checked) False model.payentries
 
         data =
-            Dict.union (Dict.map (\i v -> TimeDay v) tmpd) <|
+            Dict.union (Dict.map (\_ v -> TimeDay v) tmpd) <|
                 Dict.union
-                    (Dict.map (\i v -> PayEntry v) model.payentries)
-                    (Dict.map (\i v -> Allocation v) model.allocations)
+                    (Dict.map (\_ v -> PayEntry v) model.payentries)
+                    (Dict.map (\_ v -> Allocation v) model.allocations)
     in
     [ if anychecked then
         E.row [ E.spacing TC.defaultSpacing ]
@@ -1571,7 +1571,7 @@ distributionview ld size zone model =
                                 , label = EI.labelHidden "check item"
                                 }
 
-                        Allocation e ->
+                        Allocation _ ->
                             E.none
 
                         TimeDay _ ->
@@ -1582,7 +1582,7 @@ distributionview ld size zone model =
                    , view =
                         \( date, entry ) ->
                             case entry of
-                                TimeDay td ->
+                                TimeDay _ ->
                                     date
                                         |> Time.millisToPosix
                                         |> Calendar.fromPosix
@@ -1668,7 +1668,7 @@ distributionview ld size zone model =
                                                     row
                                            )
 
-                                Allocation a ->
+                                Allocation _ ->
                                     date
                                         |> Time.millisToPosix
                                         |> Calendar.fromPosix
@@ -1781,7 +1781,7 @@ distributionview ld size zone model =
                                         |> E.text
                                         << millisAsHours
 
-                                PayEntry epe ->
+                                PayEntry _ ->
                                     E.none
                      }
                    , { header = E.el [] <| E.el headerStyle <| E.text "allocations"
