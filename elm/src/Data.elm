@@ -58,14 +58,17 @@ module Data exposing
     , getTimeEntryIdVal
     , ldToOdLd
     , makeAllocationId
+    , makeInvoiceId
     , makePayEntryId
     , makeProjectId
     , makeTimeEntryId
     , odLdToLd
+    , piDate
     , projectMemberToUser
     , roleToString
     , showRole
     , stringToRole
+    , toPi
     , toPrintInvoice
     )
 
@@ -350,25 +353,49 @@ type alias InvoiceItem =
 
 
 type alias PrintInvoiceInternal =
-    { id : String
+    { seq : Int
+    , idtemplate : String
     , payer : String
     , payee : String
     , items : List InvoiceItem
     }
 
 
-toPrintInvoice : PrintInvoiceInternal -> Time.Posix -> Time.Zone -> PrintInvoice
+makeInvoiceId : String -> String -> Int -> String
+makeInvoiceId template date seq =
+    template
+        |> String.replace "<seq>" (String.fromInt seq)
+        |> String.replace "<date>" date
+
+
+piDate : Time.Posix -> Time.Zone -> String
+piDate time zone =
+    (String.fromInt <| Time.toYear zone time)
+        ++ "-"
+        ++ (String.fromInt <| Util.monthInt <| Time.toMonth zone time)
+        ++ "-"
+        ++ (String.fromInt <| Time.toDay zone time)
+
+
+toPrintInvoice :
+    PrintInvoiceInternal
+    -> Time.Posix
+    -> Time.Zone
+    -> PrintInvoice
 toPrintInvoice pii time zone =
-    { id = pii.id
+    toPi pii (piDate time zone)
+
+
+toPi :
+    PrintInvoiceInternal
+    -> String
+    -> PrintInvoice
+toPi pii date =
+    { id = makeInvoiceId pii.idtemplate date pii.seq
     , payer = pii.payer
     , payee = pii.payee
     , items = pii.items
-    , date =
-        (String.fromInt <| Time.toYear zone time)
-            ++ "-"
-            ++ (String.fromInt <| Util.monthInt <| Time.toMonth zone time)
-            ++ "-"
-            ++ (String.fromInt <| Time.toDay zone time)
+    , date = date
     }
 
 

@@ -3879,7 +3879,8 @@ update msg model ld zone =
         PrintInvoiceMsg items ->
             ( model
             , PrintInvoice
-                { id = String.replace "<seq>" (String.fromInt model.project.invoiceSeq) model.project.invoiceIdTemplate
+                { seq = model.project.invoiceSeq
+                , idtemplate = model.project.invoiceIdTemplate
                 , payer = model.project.payer
                 , payee = model.project.payee
                 , items = items

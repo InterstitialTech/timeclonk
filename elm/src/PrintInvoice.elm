@@ -14,7 +14,7 @@ type alias Model =
     , duedate : String
     , sequence : Int
     , extravalues : Dict String String
-    , printInvoice : Data.PrintInvoice
+    , printInvoiceInternal : Data.PrintInvoiceInternal
     }
 
 
@@ -31,16 +31,16 @@ type alias GDModel =
     GD.Model Model Msg Data.PrintInvoice
 
 
-init : Data.PrintInvoice -> Int -> List ( String, String ) -> List (E.Attribute Msg) -> Element () -> GDModel
-init pi sequence extravalues buttonStyle underLay =
+init : Data.PrintInvoiceInternal -> String -> List ( String, String ) -> List (E.Attribute Msg) -> Element () -> GDModel
+init pi date extravalues buttonStyle underLay =
     { view = view buttonStyle
     , update = update
     , model =
-        { date = pi.date
+        { date = date
         , duedate = ""
-        , sequence = sequence
+        , sequence = pi.seq
         , extravalues = Dict.fromList extravalues
-        , printInvoice = pi
+        , printInvoiceInternal = pi
         }
     , underLay = underLay
     }
@@ -86,6 +86,10 @@ view buttonStyle mbsize model =
                     []
                     (E.text "invoice sequence number")
             }
+        , E.row []
+            [ E.text "invoice id: "
+            , E.text (Data.makeInvoiceId model.printInvoiceInternal.idtemplate model.date model.sequence)
+            ]
         , E.row [ E.width E.fill, E.spacing 10 ]
             [ EI.button buttonStyle
                 { onPress = Just OkClick, label = E.text "Ok" }
@@ -118,13 +122,10 @@ update msg model =
 
         OkClick ->
             let
-                pi =
-                    model.printInvoice
+                mpii =
+                    model.printInvoiceInternal
             in
-            GD.Ok
-                { pi
-                    | date = model.date
-                }
+            GD.Ok (Data.toPi { mpii | seq = model.sequence } model.date)
 
         Noop ->
             GD.Dialog model

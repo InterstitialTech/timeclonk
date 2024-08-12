@@ -105,7 +105,7 @@ type Msg
     | ProjectTimeMsg ProjectTime.Msg
     | FileLoaded (String -> Msg) F.File
     | TimeCmd (Time.Posix -> Cmd Msg) Time.Posix
-    | PrintInvoiceInit Data.PrintInvoice
+    | PrintInvoiceInit Data.PrintInvoiceInternal String
     | Noop
 
 
@@ -510,7 +510,7 @@ showMessage msg =
         PrintInvoiceReplyData _ ->
             "PrintInvoiceReplyData"
 
-        PrintInvoiceInit _ ->
+        PrintInvoiceInit _ _ ->
             "PrintInvoiceInit "
 
 
@@ -634,7 +634,7 @@ viewState size state model =
         UserSettings em _ _ ->
             E.map UserSettingsMsg <| UserSettings.view em
 
-        DisplayMessage em _ ->
+        DisplayMessage _ _ ->
             -- render is at the layout level, not here.
             E.none
 
@@ -857,7 +857,8 @@ view model =
             PrintInvoiceDialog cdm _ ->
                 Html.map PrintInvoiceDialogMsg <|
                     GD.layout
-                        (Just { width = min 600 model.size.width, height = min 200 model.size.height })
+                        -- Nothing
+                        (Just { width = min 600 model.size.width, height = min 400 model.size.height })
                         cdm
 
             _ ->
@@ -1168,12 +1169,12 @@ actualupdate msg model =
                 ResetPassword.None ->
                     ( { model | state = ResetPassword nst }, Cmd.none )
 
-        ( PrintInvoiceInit pi, state ) ->
+        ( PrintInvoiceInit pi date, state ) ->
             ( { model
                 | state =
                     PrintInvoiceDialog
                         (PI.init pi
-                            0
+                            date
                             []
                             Common.buttonStyle
                             (E.map (\_ -> ()) (viewState model.size model.state model))
@@ -1199,7 +1200,7 @@ actualupdate msg model =
                             Http.expectBytesResponse PrintInvoiceReplyData <|
                                 resolve <|
                                     \bytes ->
-                                        Ok <| FD.bytes "woot.pdf" "application/pdf" bytes
+                                        Ok <| FD.bytes (return.id ++ ".pdf") "application/pdf" bytes
                         }
                     )
 
@@ -1936,6 +1937,9 @@ actualupdate msg model =
         ( DisplayMessageMsg GD.Noop, _ ) ->
             ( model, Cmd.none )
 
+        ( PrintInvoiceDialogMsg GD.Noop, _ ) ->
+            ( model, Cmd.none )
+
         ( ProjectListingMsg ms, ProjectListing st login ) ->
             let
                 ( nm, cmd ) =
@@ -2017,7 +2021,7 @@ actualupdate msg model =
         ( ProjectViewMsg ms, ProjectView st mblogin ) ->
             handleProjectView model (ProjectView.update ms st model.timezone) mblogin
 
-        ( x, y ) ->
+        ( x, _ ) ->
             ( unexpectedMsg model x
             , Cmd.none
             )
@@ -2151,7 +2155,7 @@ handleProjectTime model ( nm, cmd ) login =
             ( { model | state = ProjectTime nm login }
             , Time.now
                 |> Task.perform
-                    (\now -> PrintInvoiceInit (Data.toPrintInvoice pi now model.timezone))
+                    (\now -> PrintInvoiceInit pi (Data.piDate now model.timezone))
             )
 
 
