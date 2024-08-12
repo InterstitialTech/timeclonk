@@ -2011,7 +2011,7 @@ distributionview ld size zone model =
                                             dl
                                                 |> List.foldl (\( _, hours ) t -> t + (Maybe.withDefault 0 <| String.toFloat hours)) 0
                                     in
-                                    E.row []
+                                    E.row [ E.spacing TC.defaultSpacing ]
                                         [ EI.button Common.buttonStyle
                                             { onPress = Just <| ToClipboardMsg textdist, label = E.text "⧉" }
                                             |> E.el [ E.centerY ]
