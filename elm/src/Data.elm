@@ -152,6 +152,7 @@ type alias Project =
     , invoiceSeq : Int
     , payer : String
     , payee : String
+    , genericTask : String
     , public : Bool
     , rate : Maybe Float
     , currency : Maybe String
@@ -168,6 +169,7 @@ type alias SaveProject =
     , invoiceSeq : Int
     , payer : String
     , payee : String
+    , genericTask : String
     , public : Bool
     , rate : Maybe Float
     , currency : Maybe String
@@ -526,6 +528,7 @@ encodeSaveProject sp =
         , ( "invoice_seq", JE.int sp.invoiceSeq )
         , ( "payer", JE.string sp.payer )
         , ( "payee", JE.string sp.payee )
+        , ( "generic_task", JE.string sp.genericTask )
         , ( "public", JE.bool sp.public )
         ]
             ++ (sp.rate
@@ -552,6 +555,7 @@ decodeProject =
         |> andMap (JD.field "invoice_seq" JD.int)
         |> andMap (JD.field "payer" JD.string)
         |> andMap (JD.field "payee" JD.string)
+        |> andMap (JD.field "generic_task" JD.string)
         |> andMap (JD.field "public" JD.bool)
         |> andMap (JD.field "rate" <| JD.maybe JD.float)
         |> andMap (JD.field "currency" <| JD.maybe JD.string)

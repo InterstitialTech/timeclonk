@@ -2,17 +2,13 @@ module ProjectEdit exposing (..)
 
 import Common
 import Data
-import Dialog as D
-import Dict exposing (Dict)
 import Element as E exposing (Element)
 import Element.Background as EBk
 import Element.Border as EBd
 import Element.Font as EF
 import Element.Input as EI
-import Element.Region
-import Orgauth.Data as OD exposing (UserId, getUserIdVal, makeUserId)
+import Orgauth.Data exposing (UserId, getUserIdVal, makeUserId)
 import Route
-import SelectString
 import TDict exposing (TDict)
 import TangoColors as TC
 import TcCommon as TC
@@ -29,6 +25,7 @@ type Msg
     | PayerChanged String
     | PayeeChanged String
     | RateChanged String
+    | GenericTaskChanged String
     | CurrencyChanged String
     | SavePress
     | RevertPress
@@ -49,6 +46,7 @@ type alias Model =
     , invoiceSeq : Int
     , payer : String
     , payee : String
+    , genericTask : String
     , public : Bool
     , ratestring : String
     , currency : String
@@ -112,6 +110,7 @@ toSaveProject model =
     , invoiceSeq = model.invoiceSeq
     , payer = model.payer
     , payee = model.payee
+    , genericTask = model.genericTask
     , public = model.public
     , rate = rate
     , currency = currency
@@ -233,6 +232,7 @@ initNew ld =
     , invoiceSeq = 0
     , payer = ""
     , payee = ""
+    , genericTask = ""
     , public = False
     , ratestring = ""
     , currency = ""
@@ -259,6 +259,7 @@ initEdit proj members =
     , invoiceSeq = proj.invoiceSeq
     , payer = proj.payer
     , payee = proj.payee
+    , genericTask = proj.genericTask
     , public = proj.public
     , ratestring = proj.rate |> Maybe.map String.fromFloat |> Maybe.withDefault ""
     , currency = proj.currency |> Maybe.withDefault ""
@@ -419,6 +420,22 @@ view ld size model =
                             []
                             (E.text "invoice sequence number")
                     }
+                , EI.text
+                    (if isdirty then
+                        [ E.focused [ EBd.glow TC.darkYellow 3 ] ]
+
+                     else
+                        []
+                    )
+                    { onChange =
+                        GenericTaskChanged
+                    , text = model.genericTask
+                    , placeholder = Nothing
+                    , label =
+                        EI.labelLeft
+                            []
+                            (E.text "generic task description")
+                    }
                 , EI.multiline
                     (if isdirty then
                         [ E.focused [ EBd.glow TC.darkYellow 3 ] ]
@@ -532,6 +549,9 @@ update msg model ld =
 
         PayeeChanged t ->
             ( { model | payee = t }, None )
+
+        GenericTaskChanged t ->
+            ( { model | genericTask = t }, None )
 
         RateChanged t ->
             ( { model | ratestring = t }, None )

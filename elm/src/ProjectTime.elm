@@ -2021,7 +2021,7 @@ distributionview ld size zone model =
                                                     Just rate ->
                                                         Just <|
                                                             PrintInvoiceMsg
-                                                                [ { description = "hours"
+                                                                [ { description = model.project.genericTask
                                                                   , duration = totehours
                                                                   , rate = rate
                                                                   }
