@@ -485,10 +485,11 @@ pub fn run_invoice(
   // Set this to create a cancellation invoice
   // cancellation-id: \"2024-03-24t210835\",
   issuing-date: \"{}\",
-  due-date: \"2024-03-20\",
+  due-date: none,
   biller: biller,
   hourly-rate: 100,
   recipient: recipient,
+  tax: 0,
   items: table-data,
   styling: ( font: none ), // Explicitly use Typst's default font
 )",

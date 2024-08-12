@@ -98,7 +98,7 @@
       total-time: "Total working time",
       subtotal: "Subtotal",
       discount-of: "Discount of",
-      vat: "VAT of",
+      tax: "tax of",
       reverse-charge: "Reverse Charge",
       total: "Total",
       due-text: val =>
@@ -130,7 +130,7 @@
       total-time: "Gesamtarbeitszeit",
       subtotal: "Zwischensumme",
       discount-of: "Rabatt von",
-      vat: "Umsatzsteuer von",
+      tax: "Umsatzsteuer von",
       reverse-charge: "Steuerschuldnerschaft des\nLeistungsempfängers",
       total: "Gesamt",
       due-text: val =>
@@ -156,7 +156,7 @@
   styling: (:), // font, font-size, margin (sets defaults below)
   items: (),
   discount: none,
-  vat: 0.19,
+  tax: 0.19,
   data: none,
   doc,
 ) = {
@@ -195,7 +195,7 @@
     styling = data.at("styling", default: styling)
     items = data.at("items", default: items)
     discount = data.at("discount", default: discount)
-    vat = data.at("vat", default: vat)
+    tax = data.at("tax", default: tax)
   }
 
   // Verify inputs
@@ -243,7 +243,7 @@
         }
         else {
           TODO
-          // TODO: Reactivate after Typst supports hour, minute, and second
+          // TODO: Reactitaxe after Typst supports hour, minute, and second
           // datetime
           //   .today()
           //   .display("[year]-[month]-[day]t[hour][minute][second]")
@@ -272,8 +272,8 @@
       // #{if "title" in recipient { [#recipient.title \ ] }}
       // #recipient.address.city #recipient.address.postal-code \
       // #recipient.address.street \
-      // #{if recipient.vat-id.starts-with("DE"){"USt-IdNr.:"}}
-      //   #recipient.vat-id
+      // #{if recipient.tax-id.starts-with("DE"){"USt-IdNr.:"}}
+      //   #recipient.tax-id
 
 
       === #t.biller
@@ -283,8 +283,8 @@
       // #{if "title" in biller { [#biller.title \ ] }}
       // #biller.address.city #biller.address.postal-code \
       // #biller.address.street \
-      // #{if biller.vat-id.starts-with("DE"){"USt-IdNr.:"}}
-      //   #biller.vat-id
+      // #{if biller.tax-id.starts-with("DE"){"USt-IdNr.:"}}
+      //   #biller.tax-id
     ]
   ]
 
@@ -297,25 +297,20 @@
   v(1em)
 
   let getRowTotal = row => {
-    if row.at("dur-min", default: 0) == 0 {
-      row.rate * row.at("hours", default: 1)
-    }
-    else {
-      calc.round(hourly-rate * (row.dur-min / 60), digits: 2)
-    }
+    row.rate * row.at("hours", default: 1)
   }
 
   let cancel-neg = if cancellation-id != none { -1 } else { 1 }
 
   table(
-    columns: (auto, auto, 1fr, auto, auto, auto, auto),
-    align: (col, row) =>
-        if row == 0 {
-          (right,left,left,center,center,center,center,).at(col)
-        }
-        else {
-          (right,left,left,right,right,right,right,).at(col)
-        },
+    columns: (auto, 1fr, auto, auto, auto, auto, auto),
+    align: (col, row) => right,
+        // if row == 0 {
+        //   (left,right,right,center,center,center,center,).at(col)
+        // }
+        // else {
+        //   (right,right,right,right,right,right,right,).at(col)
+        // ,
     inset: 6pt,
     table.header(
       // TODO: Add after https://github.com/typst/typst/issues/3734
@@ -375,16 +370,16 @@
     }
   let has-reverse-charge = false
   // {
-  //       biller.vat-id.slice(0, 2) != recipient.vat-id.slice(0, 2)
+  //       biller.tax-id.slice(0, 2) != recipient.tax-id.slice(0, 2)
   //     }
-  let tax = if has-reverse-charge { 0 } else { sub-total * vat }
-  let total = sub-total - discount-value + tax
+  let taxamt = if has-reverse-charge { 0 } else { sub-total * tax }
+  let total = sub-total - discount-value + taxamt
 
   let table-entries = (
     if total-duration != 0 {
       ([#t.total-time:], [*#total-duration min*])
     },
-    if (discount-value != 0) or (vat != 0) {
+    if (discount-value != 0) or (tax != 0) {
       ([#t.subtotal:],
       [#{add-zeros(cancel-neg * sub-total)} \$])
     },
@@ -395,13 +390,13 @@
         [-#add-zeros(cancel-neg * discount-value) \$]
       )
     },
-    if not has-reverse-charge and (vat != 0) {
-      ([#t.vat #{vat * 100} %:],
-        [#{add-zeros(cancel-neg * tax)} \$]
+    if not has-reverse-charge and (tax != 0) {
+      ([#t.tax #{tax * 100} %:],
+        [#{add-zeros(cancel-neg * taxamt)} \$]
       )
     },
     if (has-reverse-charge) {
-      ([#t.vat:], text(0.9em)[#t.reverse-charge])
+      ([#t.tax:], text(0.9em)[#t.reverse-charge])
     },
     (
       [*#t.total*:],
