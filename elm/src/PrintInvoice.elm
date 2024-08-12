@@ -125,7 +125,7 @@ update msg model =
                 mpii =
                     model.printInvoiceInternal
             in
-            GD.Ok (Data.toPi { mpii | seq = model.sequence } model.date)
+            GD.Ok (Data.toPi { mpii | seq = model.sequence } model.date model.duedate)
 
         Noop ->
             GD.Dialog model

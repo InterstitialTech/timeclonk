@@ -486,9 +486,6 @@ pub fn run_invoice(print_invoice: PrintInvoice) -> Result<PathBuf, orgauth::erro
     ),
   };
 
-  println!("payee {}", payee);
-  println!("payer {}", payer);
-
   let typ = format!(
     "
 #import \"./benvoice.typ\": *
@@ -507,7 +504,7 @@ pub fn run_invoice(print_invoice: PrintInvoice) -> Result<PathBuf, orgauth::erro
   // Set this to create a cancellation invoice
   // cancellation-id: \"2024-03-24t210835\",
   issuing-date: \"{}\",
-  due-date: none,
+  due-date: \"{}\",
   biller: biller,
   hourly-rate: 100,
   recipient: recipient,
@@ -515,7 +512,7 @@ pub fn run_invoice(print_invoice: PrintInvoice) -> Result<PathBuf, orgauth::erro
   items: table-data,
   styling: ( font: none ), // Explicitly use Typst's default font
 )",
-    payee, payer, items, print_invoice.id, print_invoice.date
+    payee, payer, items, print_invoice.id, print_invoice.date, print_invoice.due_date
   );
 
   orgauth::util::write_string("wat.typ", typ.as_str())?;

@@ -292,7 +292,7 @@
     (t.cancellation-notice)(invoice-id, issuing-date)
   }
 
-  [== #t.items]
+  // [== #t.items]
 
   v(1em)
 

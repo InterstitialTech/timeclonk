@@ -69,7 +69,7 @@ module Data exposing
     , showRole
     , stringToRole
     , toPi
-    , toPrintInvoice
+      -- , toPrintInvoice
     )
 
 import Json.Decode as JD
@@ -377,25 +377,18 @@ piDate time zone =
         ++ (String.fromInt <| Time.toDay zone time)
 
 
-toPrintInvoice :
-    PrintInvoiceInternal
-    -> Time.Posix
-    -> Time.Zone
-    -> PrintInvoice
-toPrintInvoice pii time zone =
-    toPi pii (piDate time zone)
-
-
 toPi :
     PrintInvoiceInternal
     -> String
+    -> String
     -> PrintInvoice
-toPi pii date =
+toPi pii date duedate =
     { id = makeInvoiceId pii.idtemplate date pii.seq
     , payer = pii.payer
     , payee = pii.payee
     , items = pii.items
     , date = date
+    , dueDate = duedate
     }
 
 
@@ -405,14 +398,8 @@ type alias PrintInvoice =
     , payee : String
     , items : List InvoiceItem
     , date : String
+    , dueDate : String
     }
-
-
-
--- tzOffset : Time.Posix -> Time.Zone -> Int
--- tzOffset time zone =
---     -- in millis
---     Debug.log "zone time" (Time.posixToMillis zone time) - Debug.log " time" (Time.posixToMillis time)
 
 
 encodeInvoiceItem : InvoiceItem -> JE.Value
@@ -431,6 +418,7 @@ encodePrintInvoice pi =
         , ( "payer", JE.string pi.payer )
         , ( "payee", JE.string pi.payee )
         , ( "date", JE.string pi.date )
+        , ( "due_date", JE.string pi.dueDate )
         , ( "items", JE.list encodeInvoiceItem pi.items )
         ]
 
