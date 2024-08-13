@@ -1174,7 +1174,6 @@ actualupdate msg model =
                     PrintInvoiceDialog
                         (PI.init pi
                             date
-                            []
                             Common.buttonStyle
                             (E.map (\_ -> ()) (viewState model.size model.state model))
                         )
