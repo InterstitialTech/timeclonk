@@ -10,6 +10,7 @@ type SendMsg
     = GetProjectList UserId
     | GetProjectEdit Int
     | SaveProjectEdit Data.SaveProjectEdit
+    | SaveProjectInvoice Data.SaveProjectInvoice
     | GetProjectTime Int
     | SaveProjectTime Data.SaveProjectTime
     | GetUserTime
@@ -21,6 +22,7 @@ type ServerResponse
     | ProjectList (List Data.ListProject)
     | ProjectEdit Data.ProjectEdit
     | SavedProjectEdit Data.SavedProjectEdit
+    | SavedProjectInvoice Data.Project
     | AllUsers (List Data.User)
     | ProjectTime Data.ProjectTime
     | UserTime (List Data.TimeEntry)
@@ -48,6 +50,9 @@ showServerResponse sr =
 
         SavedProjectEdit _ ->
             "SavedProjectEdit"
+
+        SavedProjectInvoice _ ->
+            "SavedProjectInvoice"
 
         AllUsers _ ->
             "AllMembers"
@@ -83,6 +88,12 @@ encodeSendMsg sm =
         GetUserTime ->
             JE.object
                 [ ( "what", JE.string "GetUserTime" )
+                ]
+
+        SaveProjectInvoice p ->
+            JE.object
+                [ ( "what", JE.string "SaveProjectInvoice" )
+                , ( "data", Data.encodeSaveProjectInvoice p )
                 ]
 
         SaveProjectEdit p ->
@@ -122,6 +133,9 @@ serverResponseDecoder =
 
                     "projectlist" ->
                         JD.map ProjectList (JD.at [ "content" ] (JD.list Data.decodeListProject))
+
+                    "savedprojectinvoice" ->
+                        JD.map SavedProjectInvoice (JD.at [ "content" ] Data.decodeProject)
 
                     "savedprojectedit" ->
                         JD.map SavedProjectEdit (JD.at [ "content" ] Data.decodeSavedProjectEdit)

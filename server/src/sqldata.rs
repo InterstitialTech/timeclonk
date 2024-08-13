@@ -1,7 +1,7 @@
 use crate::data::{
   Allocation, ListProject, PayEntry, PayType, Project, ProjectEdit, ProjectMember, ProjectTime,
-  Role, SaveAllocation, SavePayEntry, SaveProject, SaveProjectEdit, SaveProjectTime, SaveTimeEntry,
-  SavedProject, SavedProjectEdit, TimeEntry, User, UserInviteData,
+  Role, SaveAllocation, SavePayEntry, SaveProject, SaveProjectEdit, SaveProjectInvoice,
+  SaveProjectTime, SaveTimeEntry, SavedProject, SavedProjectEdit, TimeEntry, User, UserInviteData,
 };
 use crate::migrations as tm;
 use barrel::backend::Sqlite;
@@ -9,6 +9,7 @@ use log::info;
 use orgauth::data::RegistrationData;
 use orgauth::util::now;
 use rusqlite::{params, Connection};
+use std::collections::HashMap;
 use std::path::Path;
 use std::str::FromStr;
 use std::time::Duration;
@@ -313,6 +314,30 @@ pub fn save_project_edit(
   })
 }
 
+pub fn save_project_invoice(
+  conn: &Connection,
+  user: i64,
+  project: SaveProjectInvoice,
+) -> Result<Project, orgauth::error::Error> {
+  let now = orgauth::util::now()?;
+  conn.execute(
+    "update project set invoice_seq = ?1,
+                            extra_fields = ?2,
+                            changeddate = ?3
+          where id = ?4",
+    params![
+      project.invoice_seq,
+      serde_json::to_value(project.extra_fields)?.to_string(),
+      now,
+      project.id
+    ],
+  )?;
+
+  let proj = read_project(conn, project.id)?;
+
+  Ok(proj)
+}
+
 pub fn save_project(
   conn: &Connection,
   user: i64,
@@ -323,21 +348,36 @@ pub fn save_project(
   let proj = match project.id {
     Some(id) => {
       conn.execute(
-        "update project set name = ?1, description = ?2, invoice_id_template = ?3, invoice_seq = ?4, payer = ?5, payee = ?6, generic_task = ?7, public = ?8, rate = ?9, currency = ?10, changeddate = ?11
-          where id = ?12",
+        "update project set name = ?1,
+                            description = ?2,
+                            due_days = ?3,
+                            extra_fields = ?4,
+                            invoice_id_template = ?5,
+                            invoice_seq = ?6,
+                            payer = ?7,
+                            payee = ?8,
+                            generic_task = ?9,
+                            public = ?10,
+                            rate = ?11,
+                            currency = ?12,
+                            changeddate = ?13
+          where id = ?14",
         params![
-           project.name,
-           project.description,
-           project.invoice_id_template,
-           project.invoice_seq,
-           project.payer,
-           project.payee,
-           project.generic_task,
-           project.public,
-           project.rate,
-           project.currency,
-           now,
-           id],
+          project.name,
+          project.description,
+          project.due_days,
+          serde_json::to_value(project.extra_fields)?.to_string(),
+          project.invoice_id_template,
+          project.invoice_seq,
+          project.payer,
+          project.payee,
+          project.generic_task,
+          project.public,
+          project.rate,
+          project.currency,
+          now,
+          id
+        ],
       )?;
       SavedProject {
         id: id,
@@ -346,11 +386,13 @@ pub fn save_project(
     }
     None => {
       conn.execute(
-        "insert into project (name, description, invoice_id_template, invoice_seq, payer, payee, generic_task, public, rate, currency, createdate, changeddate)
-         values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+        "insert into project (name, description, due_days, extra_fields, invoice_id_template, invoice_seq, payer, payee, generic_task, public, rate, currency, createdate, changeddate)
+         values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
         params![
           project.name,
           project.description,
+          project.due_days,
+          serde_json::to_value(project.extra_fields)?.to_string(),
           project.invoice_id_template,
           project.invoice_seq,
           project.payer,
@@ -380,7 +422,21 @@ pub fn save_project(
 
 pub fn read_project(conn: &Connection, projectid: i64) -> Result<Project, orgauth::error::Error> {
   let mut pstmt = conn.prepare(
-    "select project.id, project.name, project.description, project.invoice_id_template, project.invoice_seq, project.payer, project.payee, project.generic_task, project.public, project.rate, project.currency, project.createdate, project.changeddate
+    "select project.id,
+            project.name,
+            project.description,
+            project.due_days,
+            project.extra_fields,
+            project.invoice_id_template,
+            project.invoice_seq,
+            project.payer,
+            project.payee,
+            project.generic_task,
+            project.public,
+            project.rate,
+            project.currency,
+            project.createdate,
+            project.changeddate
       from project, projectmember where
       project.id = ?1",
   )?;
@@ -389,16 +445,19 @@ pub fn read_project(conn: &Connection, projectid: i64) -> Result<Project, orgaut
       id: row.get(0)?,
       name: row.get(1)?,
       description: row.get(2)?,
-      invoice_id_template: row.get(3)?,
-      invoice_seq: row.get(4)?,
-      payer: row.get(5)?,
-      payee: row.get(6)?,
-      generic_task: row.get(7)?,
-      public: row.get(8)?,
-      rate: row.get(9)?,
-      currency: row.get(10)?,
-      createdate: row.get(11)?,
-      changeddate: row.get(12)?,
+      due_days: row.get(3)?,
+      extra_fields: serde_json::from_str(row.get::<usize, String>(4)?.as_str())
+        .unwrap_or(HashMap::new()),
+      invoice_id_template: row.get(5)?,
+      invoice_seq: row.get(6)?,
+      payer: row.get(7)?,
+      payee: row.get(8)?,
+      generic_task: row.get(9)?,
+      public: row.get(10)?,
+      rate: row.get(11)?,
+      currency: row.get(12)?,
+      createdate: row.get(13)?,
+      changeddate: row.get(14)?,
     })
   })?);
   r

@@ -19,6 +19,7 @@ module Data exposing
     , SavePayEntry
     , SaveProject
     , SaveProjectEdit
+    , SaveProjectInvoice
     , SaveProjectMember
     , SaveProjectTime
     , SaveTimeEntry
@@ -47,6 +48,7 @@ module Data exposing
     , encodeSavePayEntry
     , encodeSaveProject
     , encodeSaveProjectEdit
+    , encodeSaveProjectInvoice
     , encodeSaveProjectMember
     , encodeSaveProjectTime
     , encodeSaveTimeEntry
@@ -70,6 +72,7 @@ module Data exposing
     , stringToRole
     , toPi
       -- , toPrintInvoice
+    , toSaveProjectInvoice
     )
 
 import Json.Decode as JD
@@ -151,6 +154,8 @@ type alias Project =
     { id : ProjectId
     , name : String
     , description : String
+    , dueDays : Maybe Int
+    , extraFields : List ( String, String )
     , invoiceIdTemplate : String
     , invoiceSeq : Int
     , payer : String
@@ -164,10 +169,19 @@ type alias Project =
     }
 
 
+type alias SaveProjectInvoice =
+    { id : ProjectId
+    , extraFields : List ( String, String )
+    , invoiceSeq : Int
+    }
+
+
 type alias SaveProject =
     { id : Maybe ProjectId
     , name : String
     , description : String
+    , dueDays : Maybe Int
+    , extraFields : List ( String, String )
     , invoiceIdTemplate : String
     , invoiceSeq : Int
     , payer : String
@@ -353,11 +367,13 @@ type alias InvoiceItem =
 
 
 type alias PrintInvoiceInternal =
-    { seq : Int
+    { projectid : ProjectId
+    , seq : Int
     , idtemplate : String
     , payer : String
     , payee : String
     , items : List InvoiceItem
+    , extraFields : List ( String, String )
     }
 
 
@@ -389,6 +405,7 @@ toPi pii date duedate =
     , items = pii.items
     , date = date
     , dueDate = duedate
+    , extraFields = pii.extraFields
     }
 
 
@@ -399,6 +416,15 @@ type alias PrintInvoice =
     , items : List InvoiceItem
     , date : String
     , dueDate : String
+    , extraFields : List ( String, String )
+    }
+
+
+toSaveProjectInvoice : PrintInvoiceInternal -> SaveProjectInvoice
+toSaveProjectInvoice pi =
+    { id = pi.projectid
+    , extraFields = pi.extraFields
+    , invoiceSeq = pi.seq
     }
 
 
@@ -534,30 +560,48 @@ decodeListProject =
         |> andMap (JD.field "role" decodeRole)
 
 
+encodeSaveProjectInvoice : SaveProjectInvoice -> JE.Value
+encodeSaveProjectInvoice sp =
+    JE.object <|
+        [ ( "id", JE.int (getProjectIdVal sp.id) )
+        , ( "extra_fields", encodeExtraFields sp.extraFields )
+        , ( "invoice_seq", JE.int sp.invoiceSeq )
+        ]
+
+
 encodeSaveProject : SaveProject -> JE.Value
 encodeSaveProject sp =
     JE.object <|
-        [ ( "name", JE.string sp.name )
-        , ( "description", JE.string sp.description )
-        , ( "invoice_id_template", JE.string sp.invoiceIdTemplate )
-        , ( "invoice_seq", JE.int sp.invoiceSeq )
-        , ( "payer", JE.string sp.payer )
-        , ( "payee", JE.string sp.payee )
-        , ( "generic_task", JE.string sp.genericTask )
-        , ( "public", JE.bool sp.public )
-        ]
-            ++ (sp.rate
-                    |> Maybe.map (\rate -> [ ( "rate", JE.float rate ) ])
-                    |> Maybe.withDefault []
-               )
-            ++ (sp.currency
-                    |> Maybe.map (\currency -> [ ( "currency", JE.string currency ) ])
-                    |> Maybe.withDefault []
-               )
-            ++ (sp.id
-                    |> Maybe.map (\id -> [ ( "id", JE.int (getProjectIdVal id) ) ])
-                    |> Maybe.withDefault []
-               )
+        List.filterMap identity
+            [ Just ( "name", JE.string sp.name )
+            , Just ( "description", JE.string sp.description )
+            , sp.dueDays |> Maybe.map (\dd -> ( "due_days", JE.int dd ))
+            , Just ( "extra_fields", encodeExtraFields sp.extraFields )
+            , Just ( "invoice_id_template", JE.string sp.invoiceIdTemplate )
+            , Just ( "invoice_seq", JE.int sp.invoiceSeq )
+            , Just ( "payer", JE.string sp.payer )
+            , Just ( "payee", JE.string sp.payee )
+            , Just ( "generic_task", JE.string sp.genericTask )
+            , Just ( "public", JE.bool sp.public )
+            , sp.rate |> Maybe.map (\rate -> ( "rate", JE.float rate ))
+            , sp.currency |> Maybe.map (\currency -> ( "currency", JE.string currency ))
+            , sp.id |> Maybe.map (\id -> ( "id", JE.int (getProjectIdVal id) ))
+            ]
+
+
+encodeExtraField : ( String, String ) -> JE.Value
+encodeExtraField ( n, v ) =
+    JE.object [ ( "name", JE.string n ), ( "value", JE.string v ) ]
+
+
+encodeExtraFields : List ( String, String ) -> JE.Value
+encodeExtraFields fields =
+    JE.object <| (fields |> List.map (\( n, v ) -> ( n, JE.string v )))
+
+
+decodeExtraFields : JD.Decoder (List ( String, String ))
+decodeExtraFields =
+    JD.keyValuePairs JD.string
 
 
 decodeProject : JD.Decoder Project
@@ -566,6 +610,8 @@ decodeProject =
         |> andMap (JD.field "id" JD.int |> JD.map makeProjectId)
         |> andMap (JD.field "name" JD.string)
         |> andMap (JD.field "description" JD.string)
+        |> andMap (JD.field "due_days" (JD.maybe JD.int))
+        |> andMap (JD.field "extra_fields" decodeExtraFields)
         |> andMap (JD.field "invoice_id_template" JD.string)
         |> andMap (JD.field "invoice_seq" JD.int)
         |> andMap (JD.field "payer" JD.string)

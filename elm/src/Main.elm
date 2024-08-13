@@ -1190,17 +1190,20 @@ actualupdate msg model =
                 GD.Dialog nmod ->
                     ( { model | state = PrintInvoiceDialog nmod instate }, Cmd.none )
 
-                GD.Ok return ->
+                GD.Ok ( pi, spi ) ->
                     ( { model | state = instate }
-                    , Http.post
-                        { url = model.location ++ "/invoice"
-                        , body = Http.jsonBody (Data.encodePrintInvoice return)
-                        , expect =
-                            Http.expectBytesResponse PrintInvoiceReplyData <|
-                                resolve <|
-                                    \bytes ->
-                                        Ok <| FD.bytes (return.id ++ ".pdf") "application/pdf" bytes
-                        }
+                    , Cmd.batch
+                        [ Http.post
+                            { url = model.location ++ "/invoice"
+                            , body = Http.jsonBody (Data.encodePrintInvoice pi)
+                            , expect =
+                                Http.expectBytesResponse PrintInvoiceReplyData <|
+                                    resolve <|
+                                        \bytes ->
+                                            Ok <| FD.bytes (pi.id ++ ".pdf") "application/pdf" bytes
+                            }
+                        , sendTIMsg model.location (TI.SaveProjectInvoice spi)
+                        ]
                     )
 
                 GD.Cancel ->
@@ -1794,6 +1797,17 @@ actualupdate msg model =
                                       }
                                     , Cmd.none
                                     )
+
+                                _ ->
+                                    ( model, Cmd.none )
+
+                        TI.SavedProjectInvoice p ->
+                            case state of
+                                ProjectEdit s l ->
+                                    ( { model | state = ProjectEdit (ProjectEdit.onSavedProjectInvoice p s) l }, Cmd.none )
+
+                                ProjectTime s l ->
+                                    ( { model | state = ProjectTime (ProjectTime.onSavedProjectInvoice p s) l }, Cmd.none )
 
                                 _ ->
                                     ( model, Cmd.none )

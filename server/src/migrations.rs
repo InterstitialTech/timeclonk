@@ -1017,6 +1017,8 @@ pub fn udpate12(dbfile: &Path) -> Result<(), orgauth::error::Error> {
     t.add_column("public", types::boolean().nullable(false));
     t.add_column("rate", types::float().nullable(true));
     t.add_column("currency", types::text().nullable(true));
+    t.add_column("due_days", types::integer().nullable(true));
+    t.add_column("extra_fields", types::text().nullable(true));
     t.add_column("invoice_id_template", types::text().nullable(false));
     t.add_column("invoice_seq", types::integer().nullable(false));
     t.add_column("payer", types::text().nullable(false));

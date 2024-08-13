@@ -20,6 +20,7 @@ import WindowKeys as WK
 type Msg
     = NameChanged String
     | DescriptionChanged String
+    | DueDaysChanged String
     | InvoiceIdTemplateChanged String
     | InvoiceSeqChanged String
     | PayerChanged String
@@ -42,6 +43,8 @@ type alias Model =
     { id : Maybe Data.ProjectId
     , name : String
     , description : String
+    , dueDays : Maybe Int
+    , extraFields : List ( String, String )
     , invoiceIdTemplate : String
     , invoiceSeq : Int
     , payer : String
@@ -106,6 +109,8 @@ toSaveProject model =
     { id = model.id
     , name = model.name
     , description = model.description
+    , dueDays = model.dueDays
+    , extraFields = model.extraFields
     , invoiceIdTemplate = model.invoiceIdTemplate
     , invoiceSeq = model.invoiceSeq
     , payer = model.payer
@@ -151,6 +156,15 @@ toSaveProjectEdit model =
 emptyUmDict : TDict UserId Int Data.ProjectMember
 emptyUmDict =
     TDict.empty getUserIdVal makeUserId
+
+
+onSavedProjectInvoice : Data.Project -> Model -> Model
+onSavedProjectInvoice project model =
+    let
+        members =
+            TDict.values model.members
+    in
+    initEdit project members
 
 
 onSavedProjectEdit : Data.SavedProjectEdit -> Model -> Model
@@ -200,6 +214,8 @@ isDirty model =
                             ((model.id == Just ip.id)
                                 && (model.name == ip.name)
                                 && (model.description == ip.description)
+                                && (model.dueDays == ip.dueDays)
+                                && (model.extraFields == ip.extraFields)
                                 && (model.invoiceIdTemplate == ip.invoiceIdTemplate)
                                 && (model.invoiceSeq == ip.invoiceSeq)
                                 && (model.payer == ip.payer)
@@ -228,6 +244,8 @@ initNew ld =
     { id = Nothing
     , name = ""
     , description = ""
+    , dueDays = Nothing
+    , extraFields = []
     , invoiceIdTemplate = "example<seq>"
     , invoiceSeq = 0
     , payer = ""
@@ -255,6 +273,8 @@ initEdit proj members =
     { id = Just proj.id
     , name = proj.name
     , description = proj.description
+    , dueDays = proj.dueDays
+    , extraFields = proj.extraFields
     , invoiceIdTemplate = proj.invoiceIdTemplate
     , invoiceSeq = proj.invoiceSeq
     , payer = proj.payer
@@ -497,6 +517,22 @@ view ld size model =
                             (E.text "payee")
                     , spellcheck = True
                     }
+                , EI.text
+                    (if isdirty then
+                        [ E.focused [ EBd.glow TC.darkYellow 3 ] ]
+
+                     else
+                        []
+                    )
+                    { onChange =
+                        DueDaysChanged
+                    , text = model.dueDays |> Maybe.map (\d -> String.fromInt d) |> Maybe.withDefault ""
+                    , placeholder = Nothing
+                    , label =
+                        EI.labelLeft
+                            []
+                            (E.text "due date (days)")
+                    }
                 ]
             , E.column
                 [ E.padding 8
@@ -538,6 +574,9 @@ update msg model ld =
 
         DescriptionChanged t ->
             ( { model | description = t }, None )
+
+        DueDaysChanged days ->
+            ( { model | dueDays = String.toInt days }, None )
 
         InvoiceIdTemplateChanged t ->
             ( { model | invoiceIdTemplate = t }, None )

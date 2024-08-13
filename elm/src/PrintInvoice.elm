@@ -3,6 +3,7 @@ module PrintInvoice exposing (GDModel, Model, Msg(..), init, update, view)
 import Data
 import Dict exposing (Dict)
 import Element as E exposing (Element)
+import Element.Font as EF
 import Element.Input as EI
 import GenDialog as GD
 import Orgauth.Data as Data
@@ -28,7 +29,7 @@ type Msg
 
 
 type alias GDModel =
-    GD.Model Model Msg Data.PrintInvoice
+    GD.Model Model Msg ( Data.PrintInvoice, Data.SaveProjectInvoice )
 
 
 init : Data.PrintInvoiceInternal -> String -> List ( String, String ) -> List (E.Attribute Msg) -> Element () -> GDModel
@@ -38,7 +39,7 @@ init pi date extravalues buttonStyle underLay =
     , model =
         { date = date
         , duedate = ""
-        , sequence = pi.seq
+        , sequence = pi.seq + 1
         , extravalues = Dict.fromList extravalues
         , printInvoiceInternal = pi
         }
@@ -53,7 +54,8 @@ view buttonStyle mbsize model =
         , E.height E.shrink
         , E.spacing 10
         ]
-        [ EI.text
+        [ E.el [ EF.size 20, EF.bold, E.centerX ] <| E.text "Print Invoice"
+        , EI.text
             []
             { onChange =
                 DateChanged
@@ -100,7 +102,7 @@ view buttonStyle mbsize model =
         ]
 
 
-update : Msg -> Model -> GD.Transition Model Data.PrintInvoice
+update : Msg -> Model -> GD.Transition Model ( Data.PrintInvoice, Data.SaveProjectInvoice )
 update msg model =
     case msg of
         DateChanged s ->
@@ -124,8 +126,11 @@ update msg model =
             let
                 mpii =
                     model.printInvoiceInternal
+
+                mpiis =
+                    { mpii | seq = model.sequence }
             in
-            GD.Ok (Data.toPi { mpii | seq = model.sequence } model.date model.duedate)
+            GD.Ok ( Data.toPi mpiis model.date model.duedate, Data.toSaveProjectInvoice mpiis )
 
         Noop ->
             GD.Dialog model

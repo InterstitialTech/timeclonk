@@ -3,7 +3,7 @@ module ProjectTime exposing (..)
 import Calendar
 import Common
 import Csv
-import Data exposing (InvoiceItem)
+import Data exposing (InvoiceItem, SaveProjectInvoice)
 import Dict exposing (Dict)
 import Element as E exposing (Element)
 import Element.Background as EBk
@@ -206,6 +206,11 @@ onClockTick time model =
     { model
         | clonkOutDisplay = Just time
     }
+
+
+onSavedProjectInvoice : Data.Project -> Model -> Model
+onSavedProjectInvoice project model =
+    { model | project = project }
 
 
 onMemberSelected : UserId -> Model -> Model
@@ -3879,11 +3884,13 @@ update msg model ld zone =
         PrintInvoiceMsg items ->
             ( model
             , PrintInvoice
-                { seq = model.project.invoiceSeq
+                { projectid = model.project.id
+                , seq = model.project.invoiceSeq
                 , idtemplate = model.project.invoiceIdTemplate
                 , payer = model.project.payer
                 , payee = model.project.payee
                 , items = items
+                , extraFields = model.project.extraFields
                 }
             )
 
