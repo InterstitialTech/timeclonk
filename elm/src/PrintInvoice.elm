@@ -3,11 +3,8 @@ module PrintInvoice exposing (GDModel, Model, Msg(..), init, update, view)
 import Data
 import Dict exposing (Dict)
 import Element as E exposing (Element)
-<<<<<<< HEAD
-=======
 import Element.Background as EBk
 import Element.Border as EBd
->>>>>>> 12ebbd0948771e57d056bbc4eb5c2206ad633a33
 import Element.Font as EF
 import Element.Input as EI
 import GenDialog as GD
