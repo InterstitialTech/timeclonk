@@ -17,7 +17,7 @@ type alias Model =
     { date : String
     , duedate : String
     , sequence : Int
-    , extravalues : List ( String, String )
+    , extraFields : List ( String, String )
     , printInvoiceInternal : Data.PrintInvoiceInternal
     }
 
@@ -47,7 +47,7 @@ init pi date buttonStyle underLay =
         { date = date
         , duedate = ""
         , sequence = pi.seq + 1
-        , extravalues = pi.extraFields
+        , extraFields = pi.extraFields
         , printInvoiceInternal = pi
         }
     , underLay = underLay
@@ -102,7 +102,7 @@ view buttonStyle mbsize model =
         , E.column [ E.spacing TC.defaultSpacing, E.padding TC.defaultSpacing, EBd.width 1, E.width E.fill ]
             [ E.el [ EF.bold ] <| E.text "extra values"
             , E.table []
-                { data = List.indexedMap (\i ( a, b ) -> ( i, a, b )) model.extravalues
+                { data = List.indexedMap (\i ( a, b ) -> ( i, a, b )) model.extraFields
                 , columns =
                     [ { header = E.text "Name"
                       , width = E.fill
@@ -174,7 +174,7 @@ update msg model =
         NameChanged idx s ->
             GD.Dialog
                 { model
-                    | extravalues =
+                    | extraFields =
                         List.indexedMap
                             (\i ( n, v ) ->
                                 if i == idx then
@@ -183,13 +183,13 @@ update msg model =
                                 else
                                     ( n, v )
                             )
-                            model.extravalues
+                            model.extraFields
                 }
 
         ValueChanged idx s ->
             GD.Dialog
                 { model
-                    | extravalues =
+                    | extraFields =
                         List.indexedMap
                             (\i ( n, v ) ->
                                 if i == idx then
@@ -198,17 +198,17 @@ update msg model =
                                 else
                                     ( n, v )
                             )
-                            model.extravalues
+                            model.extraFields
                 }
 
         AddItem ->
-            GD.Dialog { model | extravalues = List.append model.extravalues [ ( "", "" ) ] }
+            GD.Dialog { model | extraFields = List.append model.extraFields [ ( "", "" ) ] }
 
         RemoveItem idx ->
             GD.Dialog
                 { model
-                    | extravalues =
-                        model.extravalues
+                    | extraFields =
+                        model.extraFields
                             |> List.indexedMap (\i v -> ( i, v ))
                             |> List.filterMap
                                 (\( i, v ) ->
@@ -229,7 +229,7 @@ update msg model =
                     model.printInvoiceInternal
 
                 mpiis =
-                    { mpii | seq = model.sequence, extraFields = model.extravalues }
+                    { mpii | seq = model.sequence, extraFields = model.extraFields }
             in
             GD.Ok ( Data.toPi mpiis model.date model.duedate, Data.toSaveProjectInvoice mpiis )
 
