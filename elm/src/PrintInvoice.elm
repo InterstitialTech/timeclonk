@@ -39,13 +39,13 @@ type alias GDModel =
     GD.Model Model Msg ( Data.PrintInvoice, Data.SaveProjectInvoice )
 
 
-init : Data.PrintInvoiceInternal -> String -> List (E.Attribute Msg) -> Element () -> GDModel
-init pi date buttonStyle underLay =
+init : Data.PrintInvoiceInternal -> String -> String -> List (E.Attribute Msg) -> Element () -> GDModel
+init pi date duedate buttonStyle underLay =
     { view = view buttonStyle
     , update = update
     , model =
         { date = date
-        , duedate = ""
+        , duedate = duedate
         , sequence = pi.seq + 1
         , extraFields = pi.extraFields
         , printInvoiceInternal = pi

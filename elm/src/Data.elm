@@ -369,6 +369,7 @@ type alias InvoiceItem =
 type alias PrintInvoiceInternal =
     { projectid : ProjectId
     , seq : Int
+    , duedays : Maybe Int
     , idtemplate : String
     , payer : String
     , payee : String
@@ -404,7 +405,12 @@ toPi pii date duedate =
     , payee = pii.payee
     , items = pii.items
     , date = date
-    , dueDate = duedate
+    , dueDate =
+        if duedate == "" then
+            Nothing
+
+        else
+            Just duedate
     , extraFields = pii.extraFields
     }
 
@@ -415,7 +421,7 @@ type alias PrintInvoice =
     , payee : String
     , items : List InvoiceItem
     , date : String
-    , dueDate : String
+    , dueDate : Maybe String
     , extraFields : List ( String, String )
     }
 
@@ -439,15 +445,16 @@ encodeInvoiceItem ii =
 
 encodePrintInvoice : PrintInvoice -> JE.Value
 encodePrintInvoice pi =
-    JE.object
-        [ ( "id", JE.string pi.id )
-        , ( "payer", JE.string pi.payer )
-        , ( "payee", JE.string pi.payee )
-        , ( "date", JE.string pi.date )
-        , ( "due_date", JE.string pi.dueDate )
-        , ( "items", JE.list encodeInvoiceItem pi.items )
-        , ( "extra_fields", encodeExtraFields pi.extraFields )
-        ]
+    JE.object <|
+        List.filterMap identity
+            [ Just ( "id", JE.string pi.id )
+            , Just ( "payer", JE.string pi.payer )
+            , Just ( "payee", JE.string pi.payee )
+            , Just ( "date", JE.string pi.date )
+            , pi.dueDate |> Maybe.map (\dd -> ( "due_date", JE.string dd ))
+            , Just ( "items", JE.list encodeInvoiceItem pi.items )
+            , Just ( "extra_fields", encodeExtraFields pi.extraFields )
+            ]
 
 
 

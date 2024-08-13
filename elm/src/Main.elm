@@ -105,7 +105,7 @@ type Msg
     | ProjectTimeMsg ProjectTime.Msg
     | FileLoaded (String -> Msg) F.File
     | TimeCmd (Time.Posix -> Cmd Msg) Time.Posix
-    | PrintInvoiceInit Data.PrintInvoiceInternal String
+    | PrintInvoiceInit Data.PrintInvoiceInternal String String
     | Noop
 
 
@@ -510,7 +510,7 @@ showMessage msg =
         PrintInvoiceReplyData _ ->
             "PrintInvoiceReplyData"
 
-        PrintInvoiceInit _ _ ->
+        PrintInvoiceInit _ _ _ ->
             "PrintInvoiceInit "
 
 
@@ -1168,12 +1168,13 @@ actualupdate msg model =
                 ResetPassword.None ->
                     ( { model | state = ResetPassword nst }, Cmd.none )
 
-        ( PrintInvoiceInit pi date, state ) ->
+        ( PrintInvoiceInit pi date duedate, state ) ->
             ( { model
                 | state =
                     PrintInvoiceDialog
                         (PI.init pi
                             date
+                            duedate
                             Common.buttonStyle
                             (E.map (\_ -> ()) (viewState model.size model.state model))
                         )
@@ -2167,7 +2168,23 @@ handleProjectTime model ( nm, cmd ) login =
             ( { model | state = ProjectTime nm login }
             , Time.now
                 |> Task.perform
-                    (\now -> PrintInvoiceInit pi (Data.piDate now model.timezone))
+                    (\now ->
+                        PrintInvoiceInit pi
+                            (Data.piDate now model.timezone)
+                            (pi.duedays
+                                |> Maybe.map
+                                    (\dd ->
+                                        Data.piDate
+                                            (now
+                                                |> Time.posixToMillis
+                                                |> (+) (dd * 24 * 60 * 60 * 1000)
+                                                |> Time.millisToPosix
+                                            )
+                                            model.timezone
+                                    )
+                                |> Maybe.withDefault ""
+                            )
+                    )
             )
 
 

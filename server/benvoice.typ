@@ -251,6 +251,10 @@
           //   .display("[year]-[month]-[day]t[hour][minute][second]")
         }
 
+  let ddt = if due-date != none {
+    (      [#t.due-date:], [*#due-date*])
+    } else { () }
+
   align(center,
     table(
       columns: 2,
@@ -258,7 +262,7 @@
       inset: 4pt,
       [#t.invoice-id:], [*#invoice-id-norm*],
       [#t.issuing-date:], [*#issuing-date*],
-      [#t.due-date:], [*#due-date*],
+      ..ddt,
       ..extraFields
         .map((row) => {
           (row.at(0),  row.at(1))

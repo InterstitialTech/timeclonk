@@ -498,7 +498,7 @@ pub fn run_invoice(print_invoice: PrintInvoice) -> Result<PathBuf, orgauth::erro
   // Set this to create a cancellation invoice
   // cancellation-id: \"2024-03-24t210835\",
   issuing-date: \"{}\",
-  due-date: \"{}\",
+  due-date: {},
   extraFields: {},
   biller: biller,
   hourly-rate: 100,
@@ -512,7 +512,10 @@ pub fn run_invoice(print_invoice: PrintInvoice) -> Result<PathBuf, orgauth::erro
     items,
     print_invoice.id,
     print_invoice.date,
-    print_invoice.due_date,
+    print_invoice
+      .due_date
+      .map(|dd| format!("\"{}\"", dd))
+      .unwrap_or("none".to_string()),
     format!(
       "( {} )",
       print_invoice

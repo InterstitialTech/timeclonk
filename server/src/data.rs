@@ -246,7 +246,7 @@ pub struct PrintInvoice {
   pub payee: String,
   pub items: Vec<InvoiceItem>,
   pub date: String,
-  pub due_date: String,
+  pub due_date: Option<String>,
   pub extra_fields: HashMap<String, String>,
 }
 

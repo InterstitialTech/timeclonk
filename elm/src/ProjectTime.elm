@@ -3886,6 +3886,7 @@ update msg model ld zone =
             , PrintInvoice
                 { projectid = model.project.id
                 , seq = model.project.invoiceSeq
+                , duedays = model.project.dueDays
                 , idtemplate = model.project.invoiceIdTemplate
                 , payer = model.project.payer
                 , payee = model.project.payee
