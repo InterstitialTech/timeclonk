@@ -446,6 +446,7 @@ encodePrintInvoice pi =
         , ( "date", JE.string pi.date )
         , ( "due_date", JE.string pi.dueDate )
         , ( "items", JE.list encodeInvoiceItem pi.items )
+        , ( "extra_fields", encodeExtraFields pi.extraFields )
         ]
 
 

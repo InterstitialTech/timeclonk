@@ -155,6 +155,7 @@
   hourly-rate: none,
   styling: (:), // font, font-size, margin (sets defaults below)
   items: (),
+  extraFields: (),
   discount: none,
   tax: 0.19,
   data: none,
@@ -194,6 +195,7 @@
     hourly-rate = data.at("hourly-rate", default: hourly-rate)
     styling = data.at("styling", default: styling)
     items = data.at("items", default: items)
+    extraFields = data.at("extraFields", default: extraFields)
     discount = data.at("discount", default: discount)
     tax = data.at("tax", default: tax)
   }
@@ -256,8 +258,12 @@
       inset: 4pt,
       [#t.invoice-id:], [*#invoice-id-norm*],
       [#t.issuing-date:], [*#issuing-date*],
-      // [#t.delivery-date:], [*#delivery-date*],
       [#t.due-date:], [*#due-date*],
+      ..extraFields
+        .map((row) => {
+          (row.at(0),  row.at(1))
+        }
+        ).flatten()
     )
   )
 

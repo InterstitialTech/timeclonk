@@ -499,6 +499,7 @@ pub fn run_invoice(print_invoice: PrintInvoice) -> Result<PathBuf, orgauth::erro
   // cancellation-id: \"2024-03-24t210835\",
   issuing-date: \"{}\",
   due-date: \"{}\",
+  extraFields: {},
   biller: biller,
   hourly-rate: 100,
   recipient: recipient,
@@ -506,7 +507,21 @@ pub fn run_invoice(print_invoice: PrintInvoice) -> Result<PathBuf, orgauth::erro
   items: table-data,
   styling: ( font: none ), // Explicitly use Typst's default font
 )",
-    payee, payer, items, print_invoice.id, print_invoice.date, print_invoice.due_date
+    payee,
+    payer,
+    items,
+    print_invoice.id,
+    print_invoice.date,
+    print_invoice.due_date,
+    format!(
+      "( {} )",
+      print_invoice
+        .extra_fields
+        .iter()
+        .map(|(n, v)| -> String { format!("(\"{}\", \"{}\")", n, v) })
+        .collect::<Vec<String>>()
+        .join(", ")
+    ),
   );
 
   orgauth::util::write_string("wat.typ", typ.as_str())?;
