@@ -45,7 +45,7 @@
               cargo
               rustc
               sqlite
-              pkgconfig
+              pkg-config
               openssl.dev 
               ];
           };
@@ -79,13 +79,14 @@
           # `nix develop`
           devShell = pkgs.mkShell {
             nativeBuildInputs = with pkgs; [
+              typst
               cargo
               cargo-watch
               rustc
               rustfmt
               rust-analyzer
               sqlite
-              pkgconfig
+              pkg-config
               openssl.dev
               elm2nix
               elmPackages.elm

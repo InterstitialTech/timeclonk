@@ -4,24 +4,34 @@ mod interfaces;
 mod messages;
 mod migrations;
 mod sqldata;
+use actix_files::NamedFile;
 use actix_session::{
   config::PersistentSession, storage::CookieSessionStore, Session, SessionMiddleware,
 };
 use actix_web::{
-  cookie::{self, Key},
-  middleware, web, App, HttpRequest, HttpResponse, HttpServer, Result,
+  cookie::{
+    self,
+    time::{OffsetDateTime, UtcOffset},
+    Key,
+  },
+  error::{ErrorInternalServerError, ErrorUnauthorized},
+  http::StatusCode,
+  middleware, web, App, HttpRequest, HttpResponse, HttpResponseBuilder, HttpServer, Responder,
+  ResponseError,
 };
 use clap::Arg;
 use config::Config;
+use data::{InvoiceItem, PrintInvoice};
 use log::{error, info};
 use messages::{PublicMessage, ServerResponse, UserMessage};
 use orgauth::data::WhatMessage;
 use orgauth::endpoints::Callbacks;
 use serde_json;
-use std::env;
 use std::error::Error;
 use std::path::PathBuf;
+use std::process::Command;
 use std::str::FromStr;
+use std::{env, fmt::Display};
 use timer;
 use uuid::Uuid;
 
@@ -254,6 +264,7 @@ fn defcon() -> Config {
     ip: "127.0.0.1".to_string(),
     port: 8000,
     static_path: None,
+    invoice_template: None,
     orgauth_config: oc,
   }
 }
@@ -372,6 +383,7 @@ async fn err_main() -> Result<(), Box<dyn Error>> {
           .service(web::resource("/admin").route(web::post().to(admin)))
           .service(web::resource(r"/register/{uid}/{key}").route(web::get().to(register)))
           .service(web::resource(r"/newemail/{uid}/{token}").route(web::get().to(new_email)))
+          .service(web::resource(r"/invoice").route(web::post().to(invoice)))
           .service(actix_files::Files::new("/static/", staticpath))
           .service(web::resource("/{tail:.*}").route(web::get().to(mainpage)))
       })
@@ -381,5 +393,164 @@ async fn err_main() -> Result<(), Box<dyn Error>> {
 
       Ok(())
     }
+  }
+}
+
+async fn invoice(
+  session: Session,
+  config: web::Data<Config>,
+  item: web::Json<PrintInvoice>,
+  _req: HttpRequest,
+) -> actix_web::Result<NamedFile> {
+  info!("invoice start {:?}", item.0);
+  // we logged in?  to prevent randos from making invoices
+  let token = match session.get::<Uuid>("token")? {
+    None => {
+      return Err(ErrorUnauthorized(orgauth::error::Error::String(
+        "not logged in".to_string(),
+      )))
+    }
+    Some(t) => t,
+  };
+
+  let conn = match sqldata::connection_open(config.orgauth_config.db.as_path()) {
+    Err(e) => return Err(ErrorInternalServerError(e)),
+    Ok(c) => c,
+  };
+  let _user = match orgauth::dbfun::read_user_by_token_api(
+    &conn,
+    token,
+    config.orgauth_config.login_token_expiration_ms,
+    config.orgauth_config.regen_login_tokens,
+  ) {
+    Err(e) => {
+      return Err(ErrorUnauthorized(e));
+    }
+    Ok(u) => u,
+  };
+
+  let path = run_invoice(item.0).map_err(|e| ErrorInternalServerError(e.to_string()))?; // .map_err(|e| actix_web::Error::fmt(, )
+
+  info!("invoice here {}", path.display());
+  Ok(NamedFile::open(path)?)
+}
+
+pub fn invoice_str(item: &InvoiceItem) -> String {
+  format!(
+    "
+    (
+      item: \"{}\",
+      dur-min: 0,
+      hours: {},
+      rate: {},
+    ),
+    ",
+    item.description, item.duration, item.rate
+  )
+}
+
+pub fn run_invoice(print_invoice: PrintInvoice) -> Result<PathBuf, orgauth::error::Error> {
+  let items = print_invoice
+    .items
+    .iter()
+    .map(|item| invoice_str(item))
+    .collect::<Vec<String>>()
+    .concat();
+
+  let eelines = print_invoice.payee.split('\n').count();
+  let erlines = print_invoice.payer.split('\n').count();
+
+  let (payee, payer) = match eelines.cmp(&erlines) {
+    std::cmp::Ordering::Less => (
+      format!(
+        "{}{}",
+        print_invoice.payee,
+        "\n".to_string().repeat(erlines - eelines)
+      ),
+      print_invoice.payer,
+    ),
+    std::cmp::Ordering::Equal => (print_invoice.payee, print_invoice.payer),
+    std::cmp::Ordering::Greater => (
+      print_invoice.payee,
+      format!(
+        "{}{}",
+        print_invoice.payer,
+        "\n".to_string().repeat(eelines - erlines)
+      ),
+    ),
+  };
+
+  let typ = format!(
+    "
+#import \"./benvoice.typ\": *
+
+
+#let biller = \"{}\"
+#let recipient = \"{}\"
+
+
+#let table-data = ( {} )
+
+#show: invoice.with(
+  language: \"en\",
+  banner-image: none,
+  invoice-id: \"{}\",
+  // Set this to create a cancellation invoice
+  // cancellation-id: \"2024-03-24t210835\",
+  issuing-date: \"{}\",
+  due-date: {},
+  extraFields: {},
+  biller: biller,
+  hourly-rate: 100,
+  recipient: recipient,
+  tax: 0,
+  items: table-data,
+  styling: ( font: none ), // Explicitly use Typst's default font
+)",
+    payee,
+    payer,
+    items,
+    print_invoice.id,
+    print_invoice.date,
+    print_invoice
+      .due_date
+      .map(|dd| format!("\"{}\"", dd))
+      .unwrap_or("none".to_string()),
+    format!(
+      "( {} )",
+      print_invoice
+        .extra_fields
+        .iter()
+        .map(|(n, v)| -> String { format!("(\"{}\", \"{}\")", n, v) })
+        .collect::<Vec<String>>()
+        .join(", ")
+    ),
+  );
+
+  orgauth::util::write_string("wat.typ", typ.as_str())?;
+
+  // return Ok("./invoice-maker/meh/en.pdf".into());
+  let mut child = Command::new("typst")
+    .arg("compile")
+    .arg("./wat.typ")
+    .spawn()
+    .expect("typst failed to execute");
+
+  match child.wait() {
+    Ok(exit_code) => {
+      if exit_code.success() {
+        // add file to result.
+        Ok("./wat.pdf".into())
+      } else {
+        Err(orgauth::error::Error::String(format!(
+          "typst err {:?}",
+          exit_code
+        )))
+      }
+    }
+    Err(e) => Err(orgauth::error::Error::String(format!(
+      "invoice err {:?}",
+      e
+    ))),
   }
 }

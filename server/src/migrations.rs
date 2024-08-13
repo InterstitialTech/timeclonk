@@ -968,3 +968,74 @@ pub fn udpate11(dbfile: &Path) -> Result<(), orgauth::error::Error> {
 
   Ok(())
 }
+
+pub fn udpate12(dbfile: &Path) -> Result<(), orgauth::error::Error> {
+  // db connection without foreign key checking.
+  let conn = Connection::open(dbfile)?;
+  let mut m1 = Migration::new();
+
+  // add 'rate' to timeentry.
+  m1.create_table("projecttemp", |t| {
+    t.add_column(
+      "id",
+      types::integer()
+        .primary(true)
+        .increments(true)
+        .nullable(false),
+    );
+    t.add_column("name", types::text().nullable(false));
+    t.add_column("description", types::text().nullable(false));
+    t.add_column("public", types::boolean().nullable(false));
+    t.add_column("rate", types::float().nullable(true));
+    t.add_column("currency", types::text().nullable(true));
+    t.add_column("createdate", types::integer().nullable(false));
+    t.add_column("changeddate", types::integer().nullable(false));
+  });
+
+  conn.execute_batch(m1.make::<Sqlite>().as_str())?;
+
+  // copy everything from current table..
+  conn.execute(
+    "insert into projecttemp (  id, name, description, public, rate, currency, createdate, changeddate)
+     select id, name, description, public, rate, currency, createdate, changeddate from project ",
+    params![],
+  )?;
+
+  let mut m2 = Migration::new();
+  m2.drop_table("project");
+  // timeclonk specific tables.
+  m2.create_table("project", |t| {
+    t.add_column(
+      "id",
+      types::integer()
+        .primary(true)
+        .increments(true)
+        .nullable(false),
+    );
+    t.add_column("name", types::text().nullable(false));
+    t.add_column("description", types::text().nullable(false));
+    t.add_column("public", types::boolean().nullable(false));
+    t.add_column("rate", types::float().nullable(true));
+    t.add_column("currency", types::text().nullable(true));
+    t.add_column("due_days", types::integer().nullable(true));
+    t.add_column("extra_fields", types::text().nullable(true));
+    t.add_column("invoice_id_template", types::text().nullable(false));
+    t.add_column("invoice_seq", types::integer().nullable(false));
+    t.add_column("payer", types::text().nullable(false));
+    t.add_column("payee", types::text().nullable(false));
+    t.add_column("generic_task", types::text().nullable(false));
+    t.add_column("createdate", types::integer().nullable(false));
+    t.add_column("changeddate", types::integer().nullable(false));
+  });
+
+  conn.execute_batch(m2.make::<Sqlite>().as_str())?;
+
+  // copy everything from current table..
+  conn.execute(
+    "insert into project (id, name, description, public, rate, currency, invoice_id_template ,invoice_seq, payer, payee, generic_task, createdate, changeddate)
+     select id, name, description, public, rate, currency, '', 0, '', '', '', createdate, changeddate from projecttemp ",
+    params![],
+  )?;
+
+  Ok(())
+}

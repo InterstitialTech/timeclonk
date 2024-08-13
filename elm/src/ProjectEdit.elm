@@ -2,17 +2,13 @@ module ProjectEdit exposing (..)
 
 import Common
 import Data
-import Dialog as D
-import Dict exposing (Dict)
 import Element as E exposing (Element)
 import Element.Background as EBk
 import Element.Border as EBd
 import Element.Font as EF
 import Element.Input as EI
-import Element.Region
-import Orgauth.Data as OD exposing (UserId, getUserIdVal, makeUserId)
+import Orgauth.Data exposing (UserId, getUserIdVal, makeUserId)
 import Route
-import SelectString
 import TDict exposing (TDict)
 import TangoColors as TC
 import TcCommon as TC
@@ -24,7 +20,13 @@ import WindowKeys as WK
 type Msg
     = NameChanged String
     | DescriptionChanged String
+    | DueDaysChanged String
+    | InvoiceIdTemplateChanged String
+    | InvoiceSeqChanged String
+    | PayerChanged String
+    | PayeeChanged String
     | RateChanged String
+    | GenericTaskChanged String
     | CurrencyChanged String
     | SavePress
     | RevertPress
@@ -41,6 +43,13 @@ type alias Model =
     { id : Maybe Data.ProjectId
     , name : String
     , description : String
+    , dueDays : Maybe Int
+    , extraFields : List ( String, String )
+    , invoiceIdTemplate : String
+    , invoiceSeq : Int
+    , payer : String
+    , payee : String
+    , genericTask : String
     , public : Bool
     , ratestring : String
     , currency : String
@@ -100,6 +109,13 @@ toSaveProject model =
     { id = model.id
     , name = model.name
     , description = model.description
+    , dueDays = model.dueDays
+    , extraFields = model.extraFields
+    , invoiceIdTemplate = model.invoiceIdTemplate
+    , invoiceSeq = model.invoiceSeq
+    , payer = model.payer
+    , payee = model.payee
+    , genericTask = model.genericTask
     , public = model.public
     , rate = rate
     , currency = currency
@@ -140,6 +156,15 @@ toSaveProjectEdit model =
 emptyUmDict : TDict UserId Int Data.ProjectMember
 emptyUmDict =
     TDict.empty getUserIdVal makeUserId
+
+
+onSavedProjectInvoice : Data.Project -> Model -> Model
+onSavedProjectInvoice project model =
+    let
+        members =
+            TDict.values model.members
+    in
+    initEdit project members
 
 
 onSavedProjectEdit : Data.SavedProjectEdit -> Model -> Model
@@ -189,6 +214,12 @@ isDirty model =
                             ((model.id == Just ip.id)
                                 && (model.name == ip.name)
                                 && (model.description == ip.description)
+                                && (model.dueDays == ip.dueDays)
+                                && (model.extraFields == ip.extraFields)
+                                && (model.invoiceIdTemplate == ip.invoiceIdTemplate)
+                                && (model.invoiceSeq == ip.invoiceSeq)
+                                && (model.payer == ip.payer)
+                                && (model.payee == ip.payee)
                                 && (model.public == ip.public)
                                 && (model.ratestring
                                         == (ip.rate |> Maybe.map String.fromFloat |> Maybe.withDefault "")
@@ -213,6 +244,13 @@ initNew ld =
     { id = Nothing
     , name = ""
     , description = ""
+    , dueDays = Nothing
+    , extraFields = []
+    , invoiceIdTemplate = "example<seq>"
+    , invoiceSeq = 0
+    , payer = ""
+    , payee = ""
+    , genericTask = ""
     , public = False
     , ratestring = ""
     , currency = ""
@@ -235,6 +273,13 @@ initEdit proj members =
     { id = Just proj.id
     , name = proj.name
     , description = proj.description
+    , dueDays = proj.dueDays
+    , extraFields = proj.extraFields
+    , invoiceIdTemplate = proj.invoiceIdTemplate
+    , invoiceSeq = proj.invoiceSeq
+    , payer = proj.payer
+    , payee = proj.payee
+    , genericTask = proj.genericTask
     , public = proj.public
     , ratestring = proj.rate |> Maybe.map String.fromFloat |> Maybe.withDefault ""
     , currency = proj.currency |> Maybe.withDefault ""
@@ -297,7 +342,9 @@ view ld size model =
                 , EBk.color TC.white
                 , E.spacing TC.defaultSpacing
                 ]
-                [ EI.text
+                [ E.row [ EF.bold, E.centerX, EF.size 20 ]
+                    [ E.text "All Projects" ]
+                , EI.text
                     (if isdirty then
                         [ E.focused [ EBd.glow TC.darkYellow 3 ] ]
 
@@ -330,6 +377,29 @@ view ld size model =
                             (E.text "description")
                     , spellcheck = True
                     }
+                , E.row [ E.spacing 8 ]
+                    [ EI.checkbox []
+                        { onChange = TogglePublic
+                        , icon = EI.defaultCheckbox
+                        , checked = model.public
+                        , label = EI.labelLeft [] (E.text "public")
+                        }
+                    , case ( model.public, model.id ) of
+                        ( True, Just id ) ->
+                            let
+                                u =
+                                    Route.routeUrl <| Route.ProjectViewR (Data.getProjectIdVal id) "team"
+                            in
+                            E.link Common.linkStyle
+                                { url = u
+                                , label = E.text u
+                                }
+
+                        _ ->
+                            E.none
+                    ]
+                , E.row [ EF.bold, E.centerX, EF.size 20 ]
+                    [ E.text "For Distributions" ]
                 , EI.text
                     (if isdirty then
                         [ E.focused [ EBd.glow TC.darkYellow 3 ] ]
@@ -362,27 +432,107 @@ view ld size model =
                             []
                             (E.text "currency")
                     }
-                , E.row [ E.spacing 8 ]
-                    [ EI.checkbox []
-                        { onChange = TogglePublic
-                        , icon = EI.defaultCheckbox
-                        , checked = model.public
-                        , label = EI.labelLeft [] (E.text "public")
-                        }
-                    , case ( model.public, model.id ) of
-                        ( True, Just id ) ->
-                            let
-                                u =
-                                    Route.routeUrl <| Route.ProjectViewR (Data.getProjectIdVal id) "team"
-                            in
-                            E.link Common.linkStyle
-                                { url = u
-                                , label = E.text u
-                                }
+                , E.row [ EF.bold, E.centerX, EF.size 20 ]
+                    [ E.text "For Invoices" ]
+                , EI.text
+                    (if isdirty then
+                        [ E.focused [ EBd.glow TC.darkYellow 3 ] ]
 
-                        _ ->
-                            E.none
-                    ]
+                     else
+                        []
+                    )
+                    { onChange =
+                        InvoiceIdTemplateChanged
+                    , text = model.invoiceIdTemplate
+                    , placeholder = Nothing
+                    , label =
+                        EI.labelLeft
+                            []
+                            (E.text "invoice id template")
+                    }
+                , E.row [ E.alignRight ] [ E.text "Use <date> or <seq>, ex: ", E.el [ EF.italic ] <| E.text "example<date><seq>" ]
+                , EI.text
+                    (if isdirty then
+                        [ E.focused [ EBd.glow TC.darkYellow 3 ] ]
+
+                     else
+                        []
+                    )
+                    { onChange =
+                        InvoiceSeqChanged
+                    , text = String.fromInt model.invoiceSeq
+                    , placeholder = Nothing
+                    , label =
+                        EI.labelLeft
+                            []
+                            (E.text "invoice sequence number")
+                    }
+                , EI.text
+                    (if isdirty then
+                        [ E.focused [ EBd.glow TC.darkYellow 3 ] ]
+
+                     else
+                        []
+                    )
+                    { onChange =
+                        GenericTaskChanged
+                    , text = model.genericTask
+                    , placeholder = Nothing
+                    , label =
+                        EI.labelLeft
+                            []
+                            (E.text "generic task description")
+                    }
+                , EI.multiline
+                    (if isdirty then
+                        [ E.focused [ EBd.glow TC.darkYellow 3 ] ]
+
+                     else
+                        []
+                    )
+                    { onChange =
+                        PayerChanged
+                    , text = model.payer
+                    , placeholder = Nothing
+                    , label =
+                        EI.labelLeft
+                            []
+                            (E.text "payer")
+                    , spellcheck = True
+                    }
+                , EI.multiline
+                    (if isdirty then
+                        [ E.focused [ EBd.glow TC.darkYellow 3 ] ]
+
+                     else
+                        []
+                    )
+                    { onChange =
+                        PayeeChanged
+                    , text = model.payee
+                    , placeholder = Nothing
+                    , label =
+                        EI.labelLeft
+                            []
+                            (E.text "payee")
+                    , spellcheck = True
+                    }
+                , EI.text
+                    (if isdirty then
+                        [ E.focused [ EBd.glow TC.darkYellow 3 ] ]
+
+                     else
+                        []
+                    )
+                    { onChange =
+                        DueDaysChanged
+                    , text = model.dueDays |> Maybe.map (\d -> String.fromInt d) |> Maybe.withDefault ""
+                    , placeholder = Nothing
+                    , label =
+                        EI.labelLeft
+                            []
+                            (E.text "due date (days)")
+                    }
                 ]
             , E.column
                 [ E.padding 8
@@ -424,6 +574,29 @@ update msg model ld =
 
         DescriptionChanged t ->
             ( { model | description = t }, None )
+
+        DueDaysChanged days ->
+            ( { model | dueDays = String.toInt days }, None )
+
+        InvoiceIdTemplateChanged t ->
+            ( { model | invoiceIdTemplate = t }, None )
+
+        InvoiceSeqChanged t ->
+            case String.toInt t of
+                Just i ->
+                    ( { model | invoiceSeq = i }, None )
+
+                Nothing ->
+                    ( model, None )
+
+        PayerChanged t ->
+            ( { model | payer = t }, None )
+
+        PayeeChanged t ->
+            ( { model | payee = t }, None )
+
+        GenericTaskChanged t ->
+            ( { model | genericTask = t }, None )
 
         RateChanged t ->
             ( { model | ratestring = t }, None )
