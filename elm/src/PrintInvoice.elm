@@ -17,7 +17,7 @@ type alias Model =
     { date : String
     , duedate : String
     , sequence : Int
-    , extraFields : List ( String, String )
+    , extraFields : List Data.ExtraField
     , printInvoiceInternal : Data.PrintInvoiceInternal
     }
 
@@ -102,16 +102,16 @@ view buttonStyle mbsize model =
         , E.column [ E.spacing TC.defaultSpacing, E.padding TC.defaultSpacing, EBd.width 1, E.width E.fill ]
             [ E.el [ EF.bold ] <| E.text "extra values"
             , E.table []
-                { data = List.indexedMap (\i ( a, b ) -> ( i, a, b )) model.extraFields
+                { data = List.indexedMap (\i ef -> ( i, ef )) model.extraFields
                 , columns =
                     [ { header = E.text "Name"
                       , width = E.fill
                       , view =
-                            \( i, n, _ ) ->
+                            \( i, ef ) ->
                                 EI.text
                                     []
                                     { onChange = NameChanged i
-                                    , text = n
+                                    , text = ef.n
                                     , placeholder = Nothing
                                     , label = EI.labelHidden "name"
                                     }
@@ -119,11 +119,11 @@ view buttonStyle mbsize model =
                     , { header = E.text "Value"
                       , width = E.fill
                       , view =
-                            \( i, _, v ) ->
+                            \( i, ef ) ->
                                 EI.text
                                     []
                                     { onChange = ValueChanged i
-                                    , text = v
+                                    , text = ef.v
                                     , placeholder = Nothing
                                     , label = EI.labelHidden "value"
                                     }
@@ -131,7 +131,7 @@ view buttonStyle mbsize model =
                     , { header = E.text "Delete"
                       , width = E.shrink
                       , view =
-                            \( i, _, _ ) ->
+                            \( i, _ ) ->
                                 EI.button
                                     buttonStyle
                                     { onPress = Just (RemoveItem i), label = E.text "x" }
@@ -176,12 +176,12 @@ update msg model =
                 { model
                     | extraFields =
                         List.indexedMap
-                            (\i ( n, v ) ->
+                            (\i ef ->
                                 if i == idx then
-                                    ( s, v )
+                                    { ef | n = s }
 
                                 else
-                                    ( n, v )
+                                    ef
                             )
                             model.extraFields
                 }
@@ -191,18 +191,18 @@ update msg model =
                 { model
                     | extraFields =
                         List.indexedMap
-                            (\i ( n, v ) ->
+                            (\i ef ->
                                 if i == idx then
-                                    ( n, s )
+                                    { ef | v = s }
 
                                 else
-                                    ( n, v )
+                                    ef
                             )
                             model.extraFields
                 }
 
         AddItem ->
-            GD.Dialog { model | extraFields = List.append model.extraFields [ ( "", "" ) ] }
+            GD.Dialog { model | extraFields = List.append model.extraFields [ { n = "", v = "" } ] }
 
         RemoveItem idx ->
             GD.Dialog

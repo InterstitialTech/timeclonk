@@ -446,8 +446,13 @@ pub fn read_project(conn: &Connection, projectid: i64) -> Result<Project, orgaut
       name: row.get(1)?,
       description: row.get(2)?,
       due_days: row.get(3)?,
-      extra_fields: serde_json::from_str(row.get::<usize, String>(4)?.as_str())
-        .unwrap_or(HashMap::new()),
+      extra_fields: serde_json::from_str(
+        row
+          .get::<usize, Option<String>>(4)?
+          .unwrap_or("{}".to_string())
+          .as_str(),
+      )
+      .unwrap_or(Vec::new()),
       invoice_id_template: row.get(5)?,
       invoice_seq: row.get(6)?,
       payer: row.get(7)?,

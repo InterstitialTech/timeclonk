@@ -1,5 +1,5 @@
 use serde_derive::{Deserialize, Serialize};
-use std::collections::HashMap;
+// use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
 
@@ -23,11 +23,17 @@ pub struct ListProject {
   pub role: Role,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ExtraField {
+  pub n: String,
+  pub v: String,
+}
+
 #[derive(Deserialize, Debug, Clone)]
 pub struct SaveProjectInvoice {
   pub id: i64,
   pub invoice_seq: i64,
-  pub extra_fields: HashMap<String, String>,
+  pub extra_fields: Vec<ExtraField>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -36,7 +42,7 @@ pub struct SaveProject {
   pub name: String,
   pub description: Option<String>,
   pub due_days: Option<i32>,
-  pub extra_fields: HashMap<String, String>,
+  pub extra_fields: Vec<ExtraField>,
   pub invoice_id_template: String,
   pub invoice_seq: i64,
   pub payer: String,
@@ -110,7 +116,7 @@ pub struct Project {
   pub name: String,
   pub description: String,
   pub due_days: Option<i32>,
-  pub extra_fields: HashMap<String, String>,
+  pub extra_fields: Vec<ExtraField>,
   pub invoice_id_template: String,
   pub invoice_seq: i64,
   pub payer: String,
@@ -247,7 +253,7 @@ pub struct PrintInvoice {
   pub items: Vec<InvoiceItem>,
   pub date: String,
   pub due_date: Option<String>,
-  pub extra_fields: HashMap<String, String>,
+  pub extra_fields: Vec<ExtraField>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

@@ -1,6 +1,7 @@
 module Data exposing
     ( Allocation
     , AllocationId(..)
+    , ExtraField
     , InvoiceItem
     , ListProject
     , LoginData
@@ -155,7 +156,7 @@ type alias Project =
     , name : String
     , description : String
     , dueDays : Maybe Int
-    , extraFields : List ( String, String )
+    , extraFields : List ExtraField
     , invoiceIdTemplate : String
     , invoiceSeq : Int
     , payer : String
@@ -171,7 +172,7 @@ type alias Project =
 
 type alias SaveProjectInvoice =
     { id : ProjectId
-    , extraFields : List ( String, String )
+    , extraFields : List ExtraField
     , invoiceSeq : Int
     }
 
@@ -181,7 +182,7 @@ type alias SaveProject =
     , name : String
     , description : String
     , dueDays : Maybe Int
-    , extraFields : List ( String, String )
+    , extraFields : List ExtraField
     , invoiceIdTemplate : String
     , invoiceSeq : Int
     , payer : String
@@ -366,6 +367,12 @@ type alias InvoiceItem =
     }
 
 
+type alias ExtraField =
+    { n : String
+    , v : String
+    }
+
+
 type alias PrintInvoiceInternal =
     { projectid : ProjectId
     , seq : Int
@@ -374,7 +381,7 @@ type alias PrintInvoiceInternal =
     , payer : String
     , payee : String
     , items : List InvoiceItem
-    , extraFields : List ( String, String )
+    , extraFields : List ExtraField
     }
 
 
@@ -422,7 +429,7 @@ type alias PrintInvoice =
     , items : List InvoiceItem
     , date : String
     , dueDate : Maybe String
-    , extraFields : List ( String, String )
+    , extraFields : List ExtraField
     }
 
 
@@ -453,7 +460,7 @@ encodePrintInvoice pi =
             , Just ( "date", JE.string pi.date )
             , pi.dueDate |> Maybe.map (\dd -> ( "due_date", JE.string dd ))
             , Just ( "items", JE.list encodeInvoiceItem pi.items )
-            , Just ( "extra_fields", encodeExtraFields pi.extraFields )
+            , Just ( "extra_fields", JE.list encodeExtraField pi.extraFields )
             ]
 
 
@@ -572,7 +579,7 @@ encodeSaveProjectInvoice : SaveProjectInvoice -> JE.Value
 encodeSaveProjectInvoice sp =
     JE.object <|
         [ ( "id", JE.int (getProjectIdVal sp.id) )
-        , ( "extra_fields", encodeExtraFields sp.extraFields )
+        , ( "extra_fields", JE.list encodeExtraField sp.extraFields )
         , ( "invoice_seq", JE.int sp.invoiceSeq )
         ]
 
@@ -584,7 +591,7 @@ encodeSaveProject sp =
             [ Just ( "name", JE.string sp.name )
             , Just ( "description", JE.string sp.description )
             , sp.dueDays |> Maybe.map (\dd -> ( "due_days", JE.int dd ))
-            , Just ( "extra_fields", encodeExtraFields sp.extraFields )
+            , Just ( "extra_fields", JE.list encodeExtraField sp.extraFields )
             , Just ( "invoice_id_template", JE.string sp.invoiceIdTemplate )
             , Just ( "invoice_seq", JE.int sp.invoiceSeq )
             , Just ( "payer", JE.string sp.payer )
@@ -597,19 +604,19 @@ encodeSaveProject sp =
             ]
 
 
-encodeExtraField : ( String, String ) -> JE.Value
-encodeExtraField ( n, v ) =
-    JE.object [ ( "name", JE.string n ), ( "value", JE.string v ) ]
+encodeExtraField : ExtraField -> JE.Value
+encodeExtraField ef =
+    JE.object
+        [ ( "n", JE.string ef.n )
+        , ( "v", JE.string ef.v )
+        ]
 
 
-encodeExtraFields : List ( String, String ) -> JE.Value
-encodeExtraFields fields =
-    JE.object <| (fields |> List.map (\( n, v ) -> ( n, JE.string v )))
-
-
-decodeExtraFields : JD.Decoder (List ( String, String ))
-decodeExtraFields =
-    JD.keyValuePairs JD.string
+decodeExtraField : JD.Decoder ExtraField
+decodeExtraField =
+    JD.succeed ExtraField
+        |> andMap (JD.field "n" JD.string)
+        |> andMap (JD.field "v" JD.string)
 
 
 decodeProject : JD.Decoder Project
@@ -619,7 +626,7 @@ decodeProject =
         |> andMap (JD.field "name" JD.string)
         |> andMap (JD.field "description" JD.string)
         |> andMap (JD.field "due_days" (JD.maybe JD.int))
-        |> andMap (JD.field "extra_fields" decodeExtraFields)
+        |> andMap (JD.field "extra_fields" <| JD.list decodeExtraField)
         |> andMap (JD.field "invoice_id_template" JD.string)
         |> andMap (JD.field "invoice_seq" JD.int)
         |> andMap (JD.field "payer" JD.string)

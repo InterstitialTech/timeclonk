@@ -44,7 +44,7 @@ type alias Model =
     , name : String
     , description : String
     , dueDays : Maybe Int
-    , extraFields : List ( String, String )
+    , extraFields : List Data.ExtraField
     , invoiceIdTemplate : String
     , invoiceSeq : Int
     , payer : String
@@ -450,7 +450,10 @@ view ld size model =
                             []
                             (E.text "invoice id template")
                     }
-                , E.row [ E.alignRight ] [ E.text "Use <date> or <seq>, ex: ", E.el [ EF.italic ] <| E.text "example<date><seq>" ]
+                , E.row [ E.alignRight ]
+                    [ E.text "Use <date> or <seq>, ex: "
+                    , E.el [ EF.italic ] <| E.text "example<date><seq>"
+                    ]
                 , EI.text
                     (if isdirty then
                         [ E.focused [ EBd.glow TC.darkYellow 3 ] ]

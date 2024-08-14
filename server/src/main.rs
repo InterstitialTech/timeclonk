@@ -26,6 +26,7 @@ use log::{error, info};
 use messages::{PublicMessage, ServerResponse, UserMessage};
 use orgauth::data::WhatMessage;
 use orgauth::endpoints::Callbacks;
+use serde::ser::SerializeTuple;
 use serde_json;
 use std::error::Error;
 use std::path::PathBuf;
@@ -285,117 +286,6 @@ fn load_config() -> Config {
   }
 }
 
-fn main() {
-  match err_main() {
-    Err(e) => error!("error: {:?}", e),
-    Ok(_) => (),
-  }
-}
-
-#[actix_web::main]
-async fn err_main() -> Result<(), Box<dyn Error>> {
-  let matches = clap::App::new("timeclonk server")
-    .version("1.0")
-    .author("Ben Burdette")
-    .about("team time clock web server")
-    .arg(
-      Arg::with_name("export")
-        .short("e")
-        .long("export")
-        .value_name("FILE")
-        .help("Export database to json")
-        .takes_value(true),
-    )
-    .get_matches();
-
-  // are we exporting the DB?
-  match matches.value_of("export") {
-    Some(_exportfile) => {
-      // do that exporting...
-      let config = load_config();
-
-      sqldata::dbinit(
-        config.orgauth_config.db.as_path(),
-        config.orgauth_config.login_token_expiration_ms,
-      )?;
-
-      error!("export is unimplemented!");
-
-      // util::write_string(
-      //   exportfile,
-      //   serde_json::to_string_pretty(&sqldata::export_db(config.db.as_path())?)?.as_str(),
-      // )?;
-
-      Ok(())
-    }
-    None => {
-      // normal server ops
-      env_logger::init();
-
-      info!("server init!");
-
-      let mut config = load_config();
-
-      if config.static_path == None {
-        for (key, value) in env::vars() {
-          if key == "TIMECLONK_STATIC_PATH" {
-            config.static_path = PathBuf::from_str(value.as_str()).ok();
-          }
-        }
-      }
-
-      info!("config: {:?}", config);
-
-      sqldata::dbinit(
-        config.orgauth_config.db.as_path(),
-        config.orgauth_config.login_token_expiration_ms,
-      )?;
-
-      let timer = timer::Timer::new();
-
-      let ptconfig = config.clone();
-
-      let _guard = timer.schedule_repeating(chrono::Duration::days(1), move || {
-        match orgauth::dbfun::purge_tokens(&ptconfig.orgauth_config) {
-          Err(e) => error!("purge_login_tokens error: {}", e),
-          Ok(_) => (),
-        }
-      });
-
-      let c = config.clone();
-      HttpServer::new(move || {
-        let staticpath = c.static_path.clone().unwrap_or(PathBuf::from("static/"));
-        App::new()
-          .app_data(web::Data::new(c.clone())) // <- create app with shared state
-          .wrap(middleware::Logger::default())
-          .wrap(
-            SessionMiddleware::builder(CookieSessionStore::default(), Key::from(&[0; 64]))
-              .cookie_secure(false)
-              // one year cookie duration
-              .session_lifecycle(
-                PersistentSession::default().session_ttl(cookie::time::Duration::weeks(52)),
-              )
-              .build(),
-          )
-          .service(web::resource("/public").route(web::post().to(public)))
-          .service(web::resource("/private").route(web::post().to(private)))
-          .service(web::resource("/user").route(web::post().to(user)))
-          .service(web::resource("/admin").route(web::post().to(admin)))
-          .service(web::resource(r"/register/{uid}/{key}").route(web::get().to(register)))
-          .service(web::resource(r"/newemail/{uid}/{token}").route(web::get().to(new_email)))
-          .service(web::resource(r"/invoice").route(web::post().to(invoice)))
-          .service(actix_files::Files::new("/static/", staticpath))
-          .service(web::resource("/{tail:.*}").route(web::get().to(mainpage)))
-      })
-      .bind(format!("{}:{}", config.ip, config.port))?
-      .run()
-      .await?;
-
-      Ok(())
-    }
-  }
-}
-
 async fn invoice(
   session: Session,
   config: web::Data<Config>,
@@ -521,9 +411,9 @@ pub fn run_invoice(print_invoice: PrintInvoice) -> Result<PathBuf, orgauth::erro
       print_invoice
         .extra_fields
         .iter()
-        .map(|(n, v)| -> String { format!("(\"{}\", \"{}\")", n, v) })
+        .map(|ef| -> String { format!("(\"{}\", \"{}\"), ", ef.n, ef.v) })
         .collect::<Vec<String>>()
-        .join(", ")
+        .join("")
     ),
   );
 
@@ -552,5 +442,116 @@ pub fn run_invoice(print_invoice: PrintInvoice) -> Result<PathBuf, orgauth::erro
       "invoice err {:?}",
       e
     ))),
+  }
+}
+
+fn main() {
+  match err_main() {
+    Err(e) => error!("error: {:?}", e),
+    Ok(_) => (),
+  }
+}
+
+#[actix_web::main]
+async fn err_main() -> Result<(), Box<dyn Error>> {
+  let matches = clap::App::new("timeclonk server")
+    .version("1.0")
+    .author("Ben Burdette")
+    .about("team time clock web server")
+    .arg(
+      Arg::with_name("export")
+        .short("e")
+        .long("export")
+        .value_name("FILE")
+        .help("Export database to json")
+        .takes_value(true),
+    )
+    .get_matches();
+
+  // are we exporting the DB?
+  match matches.value_of("export") {
+    Some(_exportfile) => {
+      // do that exporting...
+      let config = load_config();
+
+      sqldata::dbinit(
+        config.orgauth_config.db.as_path(),
+        config.orgauth_config.login_token_expiration_ms,
+      )?;
+
+      error!("export is unimplemented!");
+
+      // util::write_string(
+      //   exportfile,
+      //   serde_json::to_string_pretty(&sqldata::export_db(config.db.as_path())?)?.as_str(),
+      // )?;
+
+      Ok(())
+    }
+    None => {
+      // normal server ops
+      env_logger::init();
+
+      info!("server init!");
+
+      let mut config = load_config();
+
+      if config.static_path == None {
+        for (key, value) in env::vars() {
+          if key == "TIMECLONK_STATIC_PATH" {
+            config.static_path = PathBuf::from_str(value.as_str()).ok();
+          }
+        }
+      }
+
+      info!("config: {:?}", config);
+
+      sqldata::dbinit(
+        config.orgauth_config.db.as_path(),
+        config.orgauth_config.login_token_expiration_ms,
+      )?;
+
+      let timer = timer::Timer::new();
+
+      let ptconfig = config.clone();
+
+      let _guard = timer.schedule_repeating(chrono::Duration::days(1), move || {
+        match orgauth::dbfun::purge_tokens(&ptconfig.orgauth_config) {
+          Err(e) => error!("purge_login_tokens error: {}", e),
+          Ok(_) => (),
+        }
+      });
+
+      let c = config.clone();
+      HttpServer::new(move || {
+        let staticpath = c.static_path.clone().unwrap_or(PathBuf::from("static/"));
+        App::new()
+          .app_data(web::Data::new(c.clone())) // <- create app with shared state
+          .wrap(middleware::Logger::default())
+          .wrap(
+            SessionMiddleware::builder(CookieSessionStore::default(), Key::from(&[0; 64]))
+              .cookie_secure(false)
+              // one year cookie duration
+              .session_lifecycle(
+                PersistentSession::default().session_ttl(cookie::time::Duration::weeks(52)),
+              )
+              .build(),
+          )
+          .service(web::resource("/public").route(web::post().to(public)))
+          .service(web::resource("/private").route(web::post().to(private)))
+          .service(web::resource("/user").route(web::post().to(user)))
+          .service(web::resource("/admin").route(web::post().to(admin)))
+          .service(web::resource(r"/register/{uid}/{key}").route(web::get().to(register)))
+          .service(web::resource(r"/newemail/{uid}/{token}").route(web::get().to(new_email)))
+          .service(web::resource(r"/invoice").route(web::post().to(invoice)))
+          .service(actix_files::Files::new("/static/", staticpath))
+          .service(web::resource("/{tail:.*}").route(web::get().to(mainpage)))
+      })
+      .bind(format!("{}:{}", config.ip, config.port))?
+      .run()
+      .await?;
+
+      Ok(())
+    }
   }
 }
