@@ -41,12 +41,15 @@
         rust-stuff = naersk-lib.buildPackage {
             pname = pname;
             root = ./.;
-            buildInputs = with pkgs; [
+            nativeBuildInputs = with pkgs; [
               cargo
               rustc
+              ];
+            buildInputs = with pkgs; [
               sqlite
               pkg-config
-              openssl.dev 
+              openssl.dev
+              typst
               ];
           };
       in
@@ -101,6 +104,9 @@
               elmPackages.elm-verify-examples
               elmPackages.elmi-to-json
               elmPackages.elm-optimize-level-2
+              typst
+              # typst-fmt
+              # typst-lsp
             ];
           };
         }
