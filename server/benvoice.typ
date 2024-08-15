@@ -263,11 +263,6 @@
       [#t.invoice-id:], [*#invoice-id-norm*],
       [#t.issuing-date:], [*#issuing-date*],
       ..ddt,
-      ..extraFields
-        .map((row) => {
-          (row.at(0),  row.at(1))
-        }
-        ).flatten()
     )
   )
 
@@ -435,6 +430,19 @@
           }
 
     // (t.due-text)(due-date)
+    align(left,
+      table(
+        columns: 2,
+        align: (left, left),
+        inset: 4pt,
+        ..extraFields
+          .map((row) => {
+            (row.at(0),  row.at(1))
+          }
+          ).flatten()
+      )
+    )
+
 
     v(1em)
     align(center)[
