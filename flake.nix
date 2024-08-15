@@ -49,6 +49,7 @@
               sqlite
               pkg-config
               openssl.dev
+              typst
               ];
           };
       in
