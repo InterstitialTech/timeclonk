@@ -2019,7 +2019,14 @@ distributionview _ _ zone model =
                                         [ EI.button Common.buttonStyle
                                             { onPress = Just <| ToClipboardMsg textdist, label = E.text "⧉" }
                                             |> E.el [ E.centerY ]
-                                        , EI.button Common.buttonStyle
+                                        , EI.button
+                                            (case model.project.rate of
+                                                Just _ ->
+                                                    Common.buttonStyle
+
+                                                Nothing ->
+                                                    Common.disabledButtonStyle
+                                            )
                                             { onPress =
                                                 case model.project.rate of
                                                     Just rate ->
