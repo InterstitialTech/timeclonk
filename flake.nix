@@ -65,7 +65,7 @@
             installPhase = ''
               mkdir -p $out/share/timeclonk/static
               mkdir $out/bin
-              echo ${pkgs.typst} | $out/share/deps.txt
+              echo ${pkgs.typst} > $out/share/deps.txt
               cp -r $src/server/static $out/share/timeclonk
               cp ${elm-stuff}/main.js $out/share/timeclonk/static
               cp -r ${rust-stuff}/bin $out
