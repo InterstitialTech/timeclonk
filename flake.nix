@@ -110,6 +110,8 @@
             ];
           };
         }
-    );
+    ) // {
+      nixosModules = { timeclonk = import ./module.nix; };
+    };
 }
 

@@ -7,12 +7,21 @@ use crate::migrations as tm;
 use barrel::backend::Sqlite;
 use log::info;
 use orgauth::data::RegistrationData;
+use orgauth::endpoints::Callbacks;
 use orgauth::util::now;
 use rusqlite::{params, Connection};
 use std::collections::HashMap;
 use std::path::Path;
 use std::str::FromStr;
 use std::time::Duration;
+
+pub fn timeclonk_callbacks() -> Callbacks {
+  Callbacks {
+    on_new_user: Box::new(on_new_user),
+    extra_login_data: Box::new(extra_login_data_callback),
+    on_delete_user: Box::new(on_delete_user),
+  }
+}
 
 pub fn on_new_user(
   conn: &Connection,
