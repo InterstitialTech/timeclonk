@@ -49,7 +49,6 @@
               sqlite
               pkg-config
               openssl.dev
-              typst
               ];
           };
       in
@@ -58,6 +57,7 @@
           # `nix build`
           packages.${pname} = pkgs.stdenv.mkDerivation {
             nativeBuildInputs = [ pkgs.makeWrapper ];
+            buildInputs = [ pkgs.typst ];
             name = pname;
             src = ./.;
             # building the 'out' folder
