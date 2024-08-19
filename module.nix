@@ -86,6 +86,7 @@ in
         cd "/home/${cfg.user}"
         mkdir -p timeclonk
         cd timeclonk
+        echo "${pkgs.typst}/bin/typst" > typst
         echo "${cfg.settings}" > config.toml
         RUST_LOG=info ${pkgs.timeclonk}/bin/timeclonk-server -c config.toml
         '';
@@ -98,7 +99,7 @@ in
     users.users = lib.mkMerge [
       (lib.mkIf (cfg.user == "timeclonk") {
         ${cfg.user} = {
-          isSystemUser = true;
+          # isSystemUser = true;
           group = cfg.group;
           home = "/home/${cfg.user}";
           createHome = true;
