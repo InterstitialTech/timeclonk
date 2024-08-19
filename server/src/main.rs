@@ -402,15 +402,20 @@ pub fn run_invoice(print_invoice: PrintInvoice) -> Result<PathBuf, orgauth::erro
 
   orgauth::util::write_string("wat.typ", typ.as_str())?;
 
+  let first = Command::new("typst").spawn()?;
+  println!("fisrst {:?}", first);
+
   // return Ok("./invoice-maker/meh/en.pdf".into());
-  let mut child = Command::new("typst")
-    .current_dir("/home/timeclonk/timeclonk")
-    .arg("compile")
-    .arg("./wat.typ")
-    .spawn()?;
+  let mut child = Command::new("typst");
+  child.arg("compile").arg("./wat.typ");
+  // .spawn()?;
   // .expect("typst failed to execute");
 
-  match child.wait() {
+  info!("current dir: {:?}", child.get_current_dir());
+
+  let mut res = child.spawn()?;
+
+  match res.wait() {
     Ok(exit_code) => {
       if exit_code.success() {
         // add file to result.
