@@ -402,8 +402,9 @@ pub fn run_invoice(print_invoice: PrintInvoice) -> Result<PathBuf, orgauth::erro
 
   orgauth::util::write_string("wat.typ", typ.as_str())?;
 
+  info!("pre first");
   let first = Command::new("typst").spawn()?;
-  println!("fisrst {:?}", first);
+  info!("fisrst {:?}", first);
 
   // return Ok("./invoice-maker/meh/en.pdf".into());
   let mut child = Command::new("typst");
