@@ -402,7 +402,8 @@ pub fn run_invoice(print_invoice: PrintInvoice) -> Result<PathBuf, orgauth::erro
 
   orgauth::util::write_string("wat.typ", typ.as_str())?;
 
-  let tl = orgauth::util::load_string("typst")?;
+  // let tl = orgauth::util::load_string("typst")?;
+  let tl = "typst".to_string();
 
   info!("pre first");
   let first = Command::new(tl.clone()).spawn()?;
