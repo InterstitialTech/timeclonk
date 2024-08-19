@@ -100,6 +100,7 @@ in
       (lib.mkIf (cfg.user == "timeclonk") {
         ${cfg.user} = {
           # isSystemUser = true;
+          isNormalUser = true;
           group = cfg.group;
           home = "/home/${cfg.user}";
           createHome = true;
