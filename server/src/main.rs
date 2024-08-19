@@ -406,8 +406,8 @@ pub fn run_invoice(print_invoice: PrintInvoice) -> Result<PathBuf, orgauth::erro
   let mut child = Command::new("typst")
     .arg("compile")
     .arg("./wat.typ")
-    .spawn()
-    .expect("typst failed to execute");
+    .spawn()?;
+  // .expect("typst failed to execute");
 
   match child.wait() {
     Ok(exit_code) => {
