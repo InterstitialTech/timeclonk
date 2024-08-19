@@ -404,6 +404,7 @@ pub fn run_invoice(print_invoice: PrintInvoice) -> Result<PathBuf, orgauth::erro
 
   // return Ok("./invoice-maker/meh/en.pdf".into());
   let mut child = Command::new("typst")
+    .current_dir("/home/timeclonk/timeclonk")
     .arg("compile")
     .arg("./wat.typ")
     .spawn()?;
