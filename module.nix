@@ -72,7 +72,7 @@ in
   ###### implementation
   config = mkIf cfg.enable {
 
-    packages = [ pkgs.typst ];
+    environment.systemPackages = [ pkgs.typst ];
 
     systemd.services.timeclonk = {
       description = "timeclonk";
