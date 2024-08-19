@@ -79,6 +79,8 @@ in
       after = [ "network.target" ];
       wantedBy = [ "multi-user.target" ];
 
+      path = [ pkgs.typst ]
+
       serviceConfig.User = cfg.user;
       serviceConfig.Group = cfg.group;
 
