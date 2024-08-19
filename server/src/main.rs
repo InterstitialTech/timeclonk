@@ -405,7 +405,7 @@ pub fn run_invoice(print_invoice: PrintInvoice) -> Result<PathBuf, orgauth::erro
   let tl = orgauth::util::load_string("typst")?;
 
   info!("pre first");
-  let first = Command::new(tl).spawn()?;
+  let first = Command::new(tl.clone()).spawn()?;
   info!("fisrst {:?}", first);
 
   // return Ok("./invoice-maker/meh/en.pdf".into());
