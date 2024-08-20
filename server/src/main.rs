@@ -53,6 +53,8 @@ fn sitemap(_req: &HttpRequest) -> Result<NamedFile> {
 }
 */
 
+const INVOICE_DIR: &str = "invoices";
+
 // simple index handler
 async fn mainpage(session: Session, data: web::Data<Config>, req: HttpRequest) -> HttpResponse {
   info!("remote ip: {:?}, request:{:?}", req.connection_info(), req);
@@ -259,7 +261,6 @@ fn defcon() -> Config {
     ip: "127.0.0.1".to_string(),
     port: 8000,
     static_path: None,
-    invoice_template: None,
     orgauth_config: oc,
   }
 }
@@ -355,7 +356,7 @@ pub fn run_invoice(print_invoice: PrintInvoice) -> Result<PathBuf, orgauth::erro
 
   let typ = format!(
     "
-#import \"./invoice.typ\": *
+#import \"../invoice.typ\": *
 
 
 #let biller = \"{}\"
@@ -400,7 +401,10 @@ pub fn run_invoice(print_invoice: PrintInvoice) -> Result<PathBuf, orgauth::erro
     ),
   );
 
-  orgauth::util::write_string("wat.typ", typ.as_str())?;
+  let invoicepath = format!("{}/{}{}", INVOICE_DIR, print_invoice.id, ".typ");
+  let invoicepdf = format!("{}/{}{}", INVOICE_DIR, print_invoice.id, ".pdf");
+
+  orgauth::util::write_string(invoicepath.as_str(), typ.as_str())?;
 
   // let tl = orgauth::util::load_string("typst")?;
   let tl = "typst".to_string();
@@ -410,10 +414,13 @@ pub fn run_invoice(print_invoice: PrintInvoice) -> Result<PathBuf, orgauth::erro
   info!("fisrst {:?}", first);
 
   // return Ok("./invoice-maker/meh/en.pdf".into());
+
   let mut child = Command::new(tl);
-  child.arg("compile").arg("./wat.typ");
-  // .spawn()?;
-  // .expect("typst failed to execute");
+  child
+    .arg("compile")
+    .arg(invoicepath.to_string())
+    .arg("--root")
+    .arg(".");
 
   info!("current dir: {:?}", child.get_current_dir());
 
@@ -423,7 +430,7 @@ pub fn run_invoice(print_invoice: PrintInvoice) -> Result<PathBuf, orgauth::erro
     Ok(exit_code) => {
       if exit_code.success() {
         // add file to result.
-        Ok("./wat.pdf".into())
+        Ok(invoicepdf.into())
       } else {
         Err(orgauth::error::Error::String(format!(
           "typst err {:?}",
@@ -536,6 +543,11 @@ async fn err_main() -> Result<(), Box<dyn Error>> {
             config.static_path = PathBuf::from_str(value.as_str()).ok();
           }
         }
+      }
+
+      let id = PathBuf::from(INVOICE_DIR); // .to_string().into()?;
+      if !std::path::Path::exists(&id) {
+        std::fs::create_dir_all(&id)?;
       }
 
       info!("config: {:?}", config);

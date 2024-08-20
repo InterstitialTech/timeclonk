@@ -104,7 +104,7 @@ pub fn timeclonk_interface_loggedin(
       };
 
       if allowed {
-        let saved = sqldata::save_project_invoice(&conn, uid, sp)?;
+        let saved = sqldata::save_project_invoice(&conn, sp)?;
         Ok(ServerResponse {
           what: "savedprojectinvoice".to_string(),
           content: serde_json::to_value(saved)?,

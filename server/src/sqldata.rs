@@ -10,7 +10,6 @@ use orgauth::data::RegistrationData;
 use orgauth::endpoints::Callbacks;
 use orgauth::util::now;
 use rusqlite::{params, Connection};
-use std::collections::HashMap;
 use std::path::Path;
 use std::str::FromStr;
 use std::time::Duration;
@@ -325,7 +324,6 @@ pub fn save_project_edit(
 
 pub fn save_project_invoice(
   conn: &Connection,
-  user: i64,
   project: SaveProjectInvoice,
 ) -> Result<Project, orgauth::error::Error> {
   let now = orgauth::util::now()?;

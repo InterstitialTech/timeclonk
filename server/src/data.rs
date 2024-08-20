@@ -53,12 +53,6 @@ pub struct SaveProject {
   pub currency: Option<String>,
 }
 
-#[derive(Deserialize, Debug, Clone)]
-pub struct UserTime {
-  pub startdate: i64,
-  pub enddate: i64,
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Role {
   Member,
