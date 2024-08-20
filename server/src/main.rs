@@ -1,21 +1,19 @@
 mod config;
 mod data;
 mod interfaces;
+mod invoice;
 mod messages;
 mod migrations;
 mod sqldata;
-use actix_files::NamedFile;
 use actix_session::{
   config::PersistentSession, storage::CookieSessionStore, Session, SessionMiddleware,
 };
 use actix_web::{
   cookie::{self, Key},
-  error::{ErrorInternalServerError, ErrorUnauthorized},
   middleware, web, App, HttpRequest, HttpResponse, HttpServer,
 };
 use clap::Arg;
 use config::Config;
-use data::{InvoiceItem, PrintInvoice};
 use log::{error, info};
 use messages::{PublicMessage, ServerResponse, UserMessage};
 use orgauth::data::WhatMessage;
@@ -25,7 +23,6 @@ use std::env;
 use std::error::Error;
 use std::io::stdin;
 use std::path::PathBuf;
-use std::process::Command;
 use std::str::FromStr;
 use timer;
 use uuid::Uuid;
@@ -44,8 +41,6 @@ fn sitemap(_req: &HttpRequest) -> Result<NamedFile> {
   Ok(NamedFile::open(stpath)?)
 }
 */
-
-const INVOICE_DIR: &str = "invoices";
 
 // simple index handler
 async fn mainpage(session: Session, data: web::Data<Config>, req: HttpRequest) -> HttpResponse {
@@ -262,181 +257,6 @@ pub fn load_config(filename: &str) -> Result<Config, Box<dyn Error>> {
   Ok(toml::from_str(&util::load_string(&filename)?)?)
 }
 
-async fn invoice(
-  session: Session,
-  config: web::Data<Config>,
-  item: web::Json<PrintInvoice>,
-  _req: HttpRequest,
-) -> actix_web::Result<NamedFile> {
-  info!("invoice start {:?}", item.0);
-  // we logged in?  to prevent randos from making invoices
-  let token = match session.get::<Uuid>("token")? {
-    None => {
-      return Err(ErrorUnauthorized(orgauth::error::Error::String(
-        "not logged in".to_string(),
-      )))
-    }
-    Some(t) => t,
-  };
-
-  let conn = match sqldata::connection_open(config.orgauth_config.db.as_path()) {
-    Err(e) => return Err(ErrorInternalServerError(e)),
-    Ok(c) => c,
-  };
-  let _user = match orgauth::dbfun::read_user_by_token_api(
-    &conn,
-    token,
-    config.orgauth_config.login_token_expiration_ms,
-    config.orgauth_config.regen_login_tokens,
-  ) {
-    Err(e) => {
-      return Err(ErrorUnauthorized(e));
-    }
-    Ok(u) => u,
-  };
-
-  let path = run_invoice(item.0).map_err(|e| ErrorInternalServerError(e.to_string()))?; // .map_err(|e| actix_web::Error::fmt(, )
-
-  info!("invoice here {}", path.display());
-  Ok(NamedFile::open(path)?)
-}
-
-pub fn invoice_str(item: &InvoiceItem) -> String {
-  format!(
-    "
-    (
-      item: \"{}\",
-      dur-min: 0,
-      hours: {},
-      rate: {},
-    ),
-    ",
-    item.description, item.duration, item.rate
-  )
-}
-
-pub fn run_invoice(print_invoice: PrintInvoice) -> Result<PathBuf, orgauth::error::Error> {
-  let items = print_invoice
-    .items
-    .iter()
-    .map(|item| invoice_str(item))
-    .collect::<Vec<String>>()
-    .concat();
-
-  let eelines = print_invoice.payee.split('\n').count();
-  let erlines = print_invoice.payer.split('\n').count();
-
-  let (payee, payer) = match eelines.cmp(&erlines) {
-    std::cmp::Ordering::Less => (
-      format!(
-        "{}{}",
-        print_invoice.payee,
-        "\n".to_string().repeat(erlines - eelines)
-      ),
-      print_invoice.payer,
-    ),
-    std::cmp::Ordering::Equal => (print_invoice.payee, print_invoice.payer),
-    std::cmp::Ordering::Greater => (
-      print_invoice.payee,
-      format!(
-        "{}{}",
-        print_invoice.payer,
-        "\n".to_string().repeat(eelines - erlines)
-      ),
-    ),
-  };
-
-  let typ = format!(
-    "
-#import \"../invoice.typ\": *
-
-
-#let biller = \"{}\"
-#let recipient = \"{}\"
-
-
-#let table-data = ( {} )
-
-#show: invoice.with(
-  language: \"en\",
-  banner-image: none,
-  invoice-id: \"{}\",
-  // Set this to create a cancellation invoice
-  // cancellation-id: \"2024-03-24t210835\",
-  issuing-date: \"{}\",
-  due-date: {},
-  extraFields: {},
-  biller: biller,
-  hourly-rate: 100,
-  recipient: recipient,
-  tax: 0,
-  items: table-data,
-  styling: ( font: none ), // Explicitly use Typst's default font
-)",
-    payee,
-    payer,
-    items,
-    print_invoice.id,
-    print_invoice.date,
-    print_invoice
-      .due_date
-      .map(|dd| format!("\"{}\"", dd))
-      .unwrap_or("none".to_string()),
-    format!(
-      "( {} )",
-      print_invoice
-        .extra_fields
-        .iter()
-        .map(|ef| -> String { format!("(\"{}\", \"{}\"), ", ef.n, ef.v) })
-        .collect::<Vec<String>>()
-        .join("")
-    ),
-  );
-
-  let invoicepath = format!("{}/{}{}", INVOICE_DIR, print_invoice.id, ".typ");
-  let invoicepdf = format!("{}/{}{}", INVOICE_DIR, print_invoice.id, ".pdf");
-
-  orgauth::util::write_string(invoicepath.as_str(), typ.as_str())?;
-
-  // let tl = orgauth::util::load_string("typst")?;
-  let tl = "typst".to_string();
-
-  info!("pre first");
-  let first = Command::new(tl.clone()).spawn()?;
-  info!("fisrst {:?}", first);
-
-  // return Ok("./invoice-maker/meh/en.pdf".into());
-
-  let mut child = Command::new(tl);
-  child
-    .arg("compile")
-    .arg(invoicepath.to_string())
-    .arg("--root")
-    .arg(".");
-
-  info!("current dir: {:?}", child.get_current_dir());
-
-  let mut res = child.spawn()?;
-
-  match res.wait() {
-    Ok(exit_code) => {
-      if exit_code.success() {
-        // add file to result.
-        Ok(invoicepdf.into())
-      } else {
-        Err(orgauth::error::Error::String(format!(
-          "typst err {:?}",
-          exit_code
-        )))
-      }
-    }
-    Err(e) => Err(orgauth::error::Error::String(format!(
-      "invoice err {:?}",
-      e
-    ))),
-  }
-}
-
 fn main() {
   match err_main() {
     Err(e) => error!("error: {:?}", e),
@@ -537,7 +357,7 @@ async fn err_main() -> Result<(), Box<dyn Error>> {
         }
       }
 
-      let id = PathBuf::from(INVOICE_DIR); // .to_string().into()?;
+      let id = PathBuf::from(invoice::INVOICE_DIR); // .to_string().into()?;
       if !std::path::Path::exists(&id) {
         std::fs::create_dir_all(&id)?;
       }
@@ -616,7 +436,7 @@ async fn err_main() -> Result<(), Box<dyn Error>> {
           .service(web::resource("/admin").route(web::post().to(admin)))
           .service(web::resource(r"/register/{uid}/{key}").route(web::get().to(register)))
           .service(web::resource(r"/newemail/{uid}/{token}").route(web::get().to(new_email)))
-          .service(web::resource(r"/invoice").route(web::post().to(invoice)))
+          .service(web::resource(r"/invoice").route(web::post().to(invoice::invoice)))
           .service(actix_files::Files::new("/static/", staticpath))
           .service(web::resource("/{tail:.*}").route(web::get().to(mainpage)))
       })

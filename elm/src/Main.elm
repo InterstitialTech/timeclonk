@@ -1183,8 +1183,6 @@ actualupdate msg model =
             , Cmd.none
             )
 
-        -- (view { model | state = state } |> E.map (always ()))) }, Cmd.none )
-        -- (UserSettings.view numod |> E.map (always ())))
         ( PrintInvoiceDialogMsg sdmsg, PrintInvoiceDialog sdmod instate ) ->
             case GD.update sdmsg sdmod of
                 GD.Dialog nmod ->
