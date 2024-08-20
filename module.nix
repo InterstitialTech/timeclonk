@@ -89,7 +89,7 @@ in
         mkdir -p timeclonk
         cd timeclonk
         echo "${cfg.settings}" > config.toml
-        cp ${pkgs.timeclonk}/share/timeclonk/invoice.typ invoice.typ
+        cat ${pkgs.timeclonk}/share/timeclonk/invoice.typ > invoice.typ
         RUST_LOG=info ${pkgs.timeclonk}/bin/timeclonk-server -c config.toml
         '';
     };
