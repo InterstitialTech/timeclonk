@@ -101,8 +101,7 @@ in
     users.users = lib.mkMerge [
       (lib.mkIf (cfg.user == "timeclonk") {
         ${cfg.user} = {
-          # isSystemUser = true;
-          isNormalUser = true;
+          isSystemUser = true;
           group = cfg.group;
           home = "/home/${cfg.user}";
           createHome = true;
