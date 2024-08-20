@@ -65,9 +65,9 @@
             installPhase = ''
               mkdir -p $out/share/timeclonk/static
               mkdir $out/bin
-              echo ${pkgs.typst} > $out/share/deps.txt
               cp -r $src/server/static $out/share/timeclonk
               cp ${elm-stuff}/main.js $out/share/timeclonk/static
+              cp $src/server/invoice.typ $out/share/timeclonk/invoice.typ
               cp -r ${rust-stuff}/bin $out
               mv $out/bin/timeclonk-server $out/bin/.timeclonk-server
               makeWrapper $out/bin/.timeclonk-server $out/bin/timeclonk-server --set TIMECLONK_STATIC_PATH $out/share/timeclonk/static;

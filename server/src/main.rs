@@ -355,7 +355,7 @@ pub fn run_invoice(print_invoice: PrintInvoice) -> Result<PathBuf, orgauth::erro
 
   let typ = format!(
     "
-#import \"./benvoice.typ\": *
+#import \"./invoice.typ\": *
 
 
 #let biller = \"{}\"

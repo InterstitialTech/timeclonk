@@ -88,8 +88,8 @@ in
         cd "/home/${cfg.user}"
         mkdir -p timeclonk
         cd timeclonk
-        echo "${pkgs.typst}/bin/typst" > typst
         echo "${cfg.settings}" > config.toml
+        cp ${pkgs.timeclonk}/share/timeclonk/invoice.typ .
         RUST_LOG=info ${pkgs.timeclonk}/bin/timeclonk-server -c config.toml
         '';
     };
