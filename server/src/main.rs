@@ -9,15 +9,9 @@ use actix_session::{
   config::PersistentSession, storage::CookieSessionStore, Session, SessionMiddleware,
 };
 use actix_web::{
-  cookie::{
-    self,
-    time::{OffsetDateTime, UtcOffset},
-    Key,
-  },
+  cookie::{self, Key},
   error::{ErrorInternalServerError, ErrorUnauthorized},
-  http::StatusCode,
-  middleware, web, App, HttpRequest, HttpResponse, HttpResponseBuilder, HttpServer, Responder,
-  ResponseError,
+  middleware, web, App, HttpRequest, HttpResponse, HttpServer,
 };
 use clap::Arg;
 use config::Config;
@@ -25,16 +19,14 @@ use data::{InvoiceItem, PrintInvoice};
 use log::{error, info};
 use messages::{PublicMessage, ServerResponse, UserMessage};
 use orgauth::data::WhatMessage;
-use orgauth::endpoints::Callbacks;
 use orgauth::util;
-use serde::ser::SerializeTuple;
 use serde_json;
+use std::env;
 use std::error::Error;
 use std::io::stdin;
 use std::path::PathBuf;
 use std::process::Command;
 use std::str::FromStr;
-use std::{env, fmt::Display};
 use timer;
 use uuid::Uuid;
 
