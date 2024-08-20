@@ -72,8 +72,6 @@ in
   ###### implementation
   config = mkIf cfg.enable {
 
-    environment.systemPackages = [ pkgs.typst ];
-
     systemd.services.timeclonk = {
       description = "timeclonk";
       after = [ "network.target" ];
