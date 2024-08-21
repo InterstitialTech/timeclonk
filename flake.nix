@@ -41,12 +41,15 @@
         rust-stuff = naersk-lib.buildPackage {
             pname = pname;
             root = ./.;
-            buildInputs = with pkgs; [
+            nativeBuildInputs = with pkgs; [
               cargo
               rustc
+              ];
+            buildInputs = with pkgs; [
               sqlite
-              pkgconfig
-              openssl.dev 
+              pkg-config
+              openssl.dev
+              typst
               ];
           };
       in
@@ -55,6 +58,7 @@
           # `nix build`
           packages.${pname} = pkgs.stdenv.mkDerivation {
             nativeBuildInputs = [ pkgs.makeWrapper ];
+            buildInputs = [ pkgs.typst ];
             name = pname;
             src = ./.;
             # building the 'out' folder
@@ -63,6 +67,7 @@
               mkdir $out/bin
               cp -r $src/server/static $out/share/timeclonk
               cp ${elm-stuff}/main.js $out/share/timeclonk/static
+              cp $src/server/invoice.typ $out/share/timeclonk/invoice.typ
               cp -r ${rust-stuff}/bin $out
               mv $out/bin/timeclonk-server $out/bin/.timeclonk-server
               makeWrapper $out/bin/.timeclonk-server $out/bin/timeclonk-server --set TIMECLONK_STATIC_PATH $out/share/timeclonk/static;
@@ -79,13 +84,14 @@
           # `nix develop`
           devShell = pkgs.mkShell {
             nativeBuildInputs = with pkgs; [
+              typst
               cargo
               cargo-watch
               rustc
               rustfmt
               rust-analyzer
               sqlite
-              pkgconfig
+              pkg-config
               openssl.dev
               elm2nix
               elmPackages.elm
@@ -100,9 +106,14 @@
               elmPackages.elm-verify-examples
               elmPackages.elmi-to-json
               elmPackages.elm-optimize-level-2
+              typst
+              # typst-fmt
+              # typst-lsp
             ];
           };
         }
-    );
+    ) // {
+      nixosModules = { timeclonk = import ./module.nix; };
+    };
 }
 

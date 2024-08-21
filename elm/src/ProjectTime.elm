@@ -3,7 +3,7 @@ module ProjectTime exposing (..)
 import Calendar
 import Common
 import Csv
-import Data
+import Data exposing (InvoiceItem, SaveProjectInvoice)
 import Dict exposing (Dict)
 import Element as E exposing (Element)
 import Element.Background as EBk
@@ -11,8 +11,7 @@ import Element.Border as EBd
 import Element.Events as EE
 import Element.Font as EF
 import Element.Input as EI
-import Html.Attributes
-import Orgauth.Data as OD exposing (UserId, getUserIdVal, makeUserId)
+import Orgauth.Data exposing (UserId, getUserIdVal)
 import Paginator as P
 import Round as R
 import Set
@@ -82,6 +81,7 @@ type Msg
     | ClearDistribution
     | CalcDistribution
     | ToClipboardMsg String
+    | PrintInvoiceMsg (List InvoiceItem)
     | OnPaymentChanged UserId String
     | AddPaymentPress UserId Int Data.PayType
     | AddPayment UserId Int Data.PayType Int
@@ -192,6 +192,7 @@ type Command
     | ShowError String
     | SelectMember (List Data.User)
     | ToClipboard String
+    | PrintInvoice Data.PrintInvoiceInternal
     | None
 
 
@@ -205,6 +206,11 @@ onClockTick time model =
     { model
         | clonkOutDisplay = Just time
     }
+
+
+onSavedProjectInvoice : Data.Project -> Model -> Model
+onSavedProjectInvoice project model =
+    { model | project = project }
 
 
 onMemberSelected : UserId -> Model -> Model
@@ -726,7 +732,7 @@ dateTimeWidth =
 
 
 clonkview : Data.LoginData -> Util.Size -> Time.Zone -> Bool -> Model -> List (Element Msg)
-clonkview ld size zone isdirty model =
+clonkview ld _ zone isdirty model =
     let
         ttotes =
             getTotes model.timeentries
@@ -1224,12 +1230,12 @@ clonkview ld size zone isdirty model =
             [ { header = E.none
               , width = E.shrink
               , view =
-                    \( title, entry ) -> E.el headerStyle <| E.text title
+                    \( title, _ ) -> E.el headerStyle <| E.text title
               }
             , { header = E.none
               , width = E.shrink
               , view =
-                    \( title, entry ) -> E.text entry
+                    \( _, entry ) -> E.text entry
               }
             ]
         }
@@ -1271,7 +1277,7 @@ clonkview ld size zone isdirty model =
 
 
 teamview : Data.LoginData -> Util.Size -> Time.Zone -> Bool -> Model -> List (Element Msg)
-teamview ld size zone isdirty model =
+teamview _ _ zone isdirty model =
     let
         ttotes =
             getTotes model.teamentries
@@ -1445,12 +1451,12 @@ teamview ld size zone isdirty model =
             [ { header = E.none
               , width = E.shrink
               , view =
-                    \( title, entry ) -> E.el headerStyle <| E.text title
+                    \( title, _ ) -> E.el headerStyle <| E.text title
               }
             , { header = E.none
               , width = E.shrink
               , view =
-                    \( title, entry ) -> E.text entry
+                    \( _, entry ) -> E.text entry
               }
             ]
         }
@@ -1464,7 +1470,7 @@ type Entry
 
 
 distributionview : Data.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
-distributionview ld size zone model =
+distributionview _ _ zone model =
     let
         timetotes =
             getTes model.timeentries |> Dict.values |> TR.timeTotes
@@ -1513,10 +1519,10 @@ distributionview ld size zone model =
             Dict.foldl (\_ pe c -> c || pe.checked) False model.payentries
 
         data =
-            Dict.union (Dict.map (\i v -> TimeDay v) tmpd) <|
+            Dict.union (Dict.map (\_ v -> TimeDay v) tmpd) <|
                 Dict.union
-                    (Dict.map (\i v -> PayEntry v) model.payentries)
-                    (Dict.map (\i v -> Allocation v) model.allocations)
+                    (Dict.map (\_ v -> PayEntry v) model.payentries)
+                    (Dict.map (\_ v -> Allocation v) model.allocations)
     in
     [ if anychecked then
         E.row [ E.spacing TC.defaultSpacing ]
@@ -1569,7 +1575,7 @@ distributionview ld size zone model =
                                 , label = EI.labelHidden "check item"
                                 }
 
-                        Allocation e ->
+                        Allocation _ ->
                             E.none
 
                         TimeDay _ ->
@@ -1580,7 +1586,7 @@ distributionview ld size zone model =
                    , view =
                         \( date, entry ) ->
                             case entry of
-                                TimeDay td ->
+                                TimeDay _ ->
                                     date
                                         |> Time.millisToPosix
                                         |> Calendar.fromPosix
@@ -1666,7 +1672,7 @@ distributionview ld size zone model =
                                                     row
                                            )
 
-                                Allocation a ->
+                                Allocation _ ->
                                     date
                                         |> Time.millisToPosix
                                         |> Calendar.fromPosix
@@ -1779,7 +1785,7 @@ distributionview ld size zone model =
                                         |> E.text
                                         << millisAsHours
 
-                                PayEntry epe ->
+                                PayEntry _ ->
                                     E.none
                      }
                    , { header = E.el [] <| E.el headerStyle <| E.text "allocations"
@@ -2004,10 +2010,40 @@ distributionview ld size zone model =
                                                             )
                                                         |> String.concat
                                                    )
+
+                                        totehours =
+                                            dl
+                                                |> List.foldl (\( _, hours ) t -> t + (Maybe.withDefault 0 <| String.toFloat hours)) 0
                                     in
-                                    EI.button Common.buttonStyle
-                                        { onPress = Just <| ToClipboardMsg textdist, label = E.text "⧉" }
-                                        |> E.el [ E.centerY ]
+                                    E.row [ E.spacing TC.defaultSpacing ]
+                                        [ EI.button Common.buttonStyle
+                                            { onPress = Just <| ToClipboardMsg textdist, label = E.text "⧉" }
+                                            |> E.el [ E.centerY ]
+                                        , EI.button
+                                            (case model.project.rate of
+                                                Just _ ->
+                                                    Common.buttonStyle
+
+                                                Nothing ->
+                                                    Common.disabledButtonStyle
+                                            )
+                                            { onPress =
+                                                case model.project.rate of
+                                                    Just rate ->
+                                                        Just <|
+                                                            PrintInvoiceMsg
+                                                                [ { description = model.project.genericTask
+                                                                  , duration = totehours
+                                                                  , rate = rate
+                                                                  }
+                                                                ]
+
+                                                    Nothing ->
+                                                        Nothing
+                                            , label = E.text "pdf invoice"
+                                            }
+                                            |> E.el [ E.centerY ]
+                                        ]
                               , width = E.shrink
                               , view =
                                     \( user, hours ) ->
@@ -3822,7 +3858,7 @@ update msg model ld zone =
         PeToStart ->
             ( { model | pepaginator = P.onToStart model.pepaginator }, None )
 
-        PeToEnd c ->
+        PeToEnd _ ->
             ( { model | pepaginator = P.onToEnd (Dict.size model.payentries) model.pepaginator }, None )
 
         AForward ->
@@ -3851,6 +3887,20 @@ update msg model ld zone =
 
         ToClipboardMsg text ->
             ( model, ToClipboard text )
+
+        PrintInvoiceMsg items ->
+            ( model
+            , PrintInvoice
+                { projectid = model.project.id
+                , seq = model.project.invoiceSeq
+                , duedays = model.project.dueDays
+                , idtemplate = model.project.invoiceIdTemplate
+                , payer = model.project.payer
+                , payee = model.project.payee
+                , items = items
+                , extraFields = model.project.extraFields
+                }
+            )
 
         DonePress ->
             ( model, Done )

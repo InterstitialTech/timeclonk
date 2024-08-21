@@ -1,10 +1,9 @@
 ip = "0.0.0.0"
-port = 8010
-createdirs = false
+port = 8000
 
 [orgauth_config]
 db = "./timeclonk.db"
-mainsite = "http://localhost:8010"
+mainsite = "http://localhost:8000"
 appname = "TIMECLONK"
 emaildomain = "timeclonk.com"
 admin_email = "admin@admin.admin"
@@ -14,5 +13,5 @@ email_token_expiration_ms = 86400000
 reset_token_expiration_ms = 86400000
 invite_token_expiration_ms = 86400000
 static_path = "./static/"
-open_registration = false
+open_registration = true
 non_admin_invite = true

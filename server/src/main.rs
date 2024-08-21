@@ -1,6 +1,7 @@
 mod config;
 mod data;
 mod interfaces;
+mod invoice;
 mod messages;
 mod migrations;
 mod sqldata;
@@ -9,17 +10,18 @@ use actix_session::{
 };
 use actix_web::{
   cookie::{self, Key},
-  middleware, web, App, HttpRequest, HttpResponse, HttpServer, Result,
+  middleware, web, App, HttpRequest, HttpResponse, HttpServer,
 };
 use clap::Arg;
 use config::Config;
 use log::{error, info};
 use messages::{PublicMessage, ServerResponse, UserMessage};
 use orgauth::data::WhatMessage;
-use orgauth::endpoints::Callbacks;
+use orgauth::util;
 use serde_json;
 use std::env;
 use std::error::Error;
+use std::io::stdin;
 use std::path::PathBuf;
 use std::str::FromStr;
 use timer;
@@ -114,11 +116,7 @@ async fn user(
     &item.data,
     req.connection_info()
   );
-  let mut cb = Callbacks {
-    on_new_user: Box::new(sqldata::on_new_user),
-    on_delete_user: Box::new(sqldata::on_delete_user),
-    extra_login_data: Box::new(sqldata::extra_login_data_callback),
-  };
+  let mut cb = sqldata::timeclonk_callbacks();
 
   match orgauth::endpoints::user_interface(
     &session,
@@ -150,11 +148,7 @@ async fn admin(
     &item.data,
     req.connection_info()
   );
-  let mut cb = Callbacks {
-    on_new_user: Box::new(sqldata::on_new_user),
-    extra_login_data: Box::new(sqldata::extra_login_data_callback),
-    on_delete_user: Box::new(sqldata::on_delete_user),
-  };
+  let mut cb = sqldata::timeclonk_callbacks();
   match orgauth::endpoints::admin_interface_check(
     &session,
     &data.orgauth_config,
@@ -238,9 +232,9 @@ async fn new_email(data: web::Data<Config>, req: HttpRequest) -> HttpResponse {
 fn defcon() -> Config {
   let oc = orgauth::data::Config {
     db: PathBuf::from("./timeclonk.db"),
-    mainsite: "http://localhost:8001".to_string(),
+    mainsite: "http://localhost:8000".to_string(),
     appname: "timeclonk".to_string(),
-    emaildomain: "localhost:8001".to_string(),
+    emaildomain: "localhost:8000".to_string(),
     admin_email: "admin@admin.admin".to_string(),
     regen_login_tokens: false,
     login_token_expiration_ms: Some(7 * 24 * 60 * 60 * 1000), // 7 days in milliseconds
@@ -258,20 +252,9 @@ fn defcon() -> Config {
   }
 }
 
-fn load_config() -> Config {
-  match orgauth::util::load_string("config.toml") {
-    Err(e) => {
-      error!("error loading config.toml: {:?}", e);
-      defcon()
-    }
-    Ok(config_str) => match toml::from_str(config_str.as_str()) {
-      Ok(c) => c,
-      Err(e) => {
-        error!("error loading config.toml: {:?}", e);
-        defcon()
-      }
-    },
-  }
+pub fn load_config(filename: &str) -> Result<Config, Box<dyn Error>> {
+  info!("loading config: {}", filename);
+  Ok(toml::from_str(&util::load_string(&filename)?)?)
 }
 
 fn main() {
@@ -287,22 +270,65 @@ async fn err_main() -> Result<(), Box<dyn Error>> {
     .version("1.0")
     .author("Ben Burdette")
     .about("team time clock web server")
+    // .arg(
+    //   Arg::with_name("export")
+    //     .short("e")
+    //     .long("export")
+    //     .value_name("FILE")
+    //     .help("Export database to json")
+    //     .takes_value(true),
+    // )
     .arg(
-      Arg::with_name("export")
-        .short("e")
-        .long("export")
+      Arg::with_name("config")
+        .short("c")
+        .long("config")
         .value_name("FILE")
-        .help("Export database to json")
+        .help("specify config file")
+        .takes_value(true),
+    )
+    .arg(
+      Arg::with_name("write_config")
+        .short("w")
+        .long("write_config")
+        .value_name("FILE")
+        .help("write default config file")
+        .takes_value(true),
+    )
+    .arg(
+      Arg::with_name("promote_to_admin")
+        .short("p")
+        .long("promote_to_admin")
+        .value_name("user name")
+        .help("grant admin privileges to user")
+        .takes_value(true),
+    )
+    .arg(
+      Arg::with_name("create_admin_user")
+        .short("a")
+        .long("create_admin_user")
+        .value_name("user name")
+        .help("create new admin user")
         .takes_value(true),
     )
     .get_matches();
+
+  // writing a config file?
+  if let Some(filename) = matches.value_of("write_config") {
+    util::write_string(filename, toml::to_string_pretty(&defcon())?.as_str())?;
+    info!("default config written to file: {}", filename);
+    return Ok(());
+  }
+
+  // specifying a config file?  otherwise try to load the default.
+  let mut config = match matches.value_of("config") {
+    Some(filename) => load_config(filename)?,
+    None => load_config("config.toml")?,
+  };
 
   // are we exporting the DB?
   match matches.value_of("export") {
     Some(_exportfile) => {
       // do that exporting...
-      let config = load_config();
-
       sqldata::dbinit(
         config.orgauth_config.db.as_path(),
         config.orgauth_config.login_token_expiration_ms,
@@ -323,14 +349,17 @@ async fn err_main() -> Result<(), Box<dyn Error>> {
 
       info!("server init!");
 
-      let mut config = load_config();
-
       if config.static_path == None {
         for (key, value) in env::vars() {
           if key == "TIMECLONK_STATIC_PATH" {
             config.static_path = PathBuf::from_str(value.as_str()).ok();
           }
         }
+      }
+
+      let id = PathBuf::from(invoice::INVOICE_DIR); // .to_string().into()?;
+      if !std::path::Path::exists(&id) {
+        std::fs::create_dir_all(&id)?;
       }
 
       info!("config: {:?}", config);
@@ -350,6 +379,39 @@ async fn err_main() -> Result<(), Box<dyn Error>> {
           Ok(_) => (),
         }
       });
+
+      // promoting a user to admin?
+      if let Some(uid) = matches.value_of("promote_to_admin") {
+        let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
+        let mut user = orgauth::dbfun::read_user_by_name(&conn, uid)?;
+        user.admin = true;
+        orgauth::dbfun::update_user(&conn, &user)?;
+
+        info!("promoted user {} to admin", uid);
+        return Ok(());
+      }
+
+      // creating an admin user?
+      if let Some(username) = matches.value_of("create_admin_user") {
+        // prompt for password.
+        println!("Enter password for admin user '{}':", username);
+        let mut pwd = String::new();
+        stdin().read_line(&mut pwd)?;
+        let mut cb = sqldata::timeclonk_callbacks();
+
+        let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
+        // make new registration i
+        let rd = orgauth::data::RegistrationData {
+          uid: username.to_string(),
+          pwd: pwd.trim().to_string(),
+          email: "".to_string(),
+        };
+
+        orgauth::dbfun::new_user(&conn, &rd, None, None, true, None, &mut cb.on_new_user)?;
+
+        println!("admin user created: {}", username);
+        return Ok(());
+      }
 
       let c = config.clone();
       HttpServer::new(move || {
@@ -372,6 +434,7 @@ async fn err_main() -> Result<(), Box<dyn Error>> {
           .service(web::resource("/admin").route(web::post().to(admin)))
           .service(web::resource(r"/register/{uid}/{key}").route(web::get().to(register)))
           .service(web::resource(r"/newemail/{uid}/{token}").route(web::get().to(new_email)))
+          .service(web::resource(r"/invoice").route(web::post().to(invoice::invoice)))
           .service(actix_files::Files::new("/static/", staticpath))
           .service(web::resource("/{tail:.*}").route(web::get().to(mainpage)))
       })

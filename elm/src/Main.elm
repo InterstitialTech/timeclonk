@@ -37,6 +37,7 @@ import Orgauth.ShowUrl as ShowUrl
 import Orgauth.UserEdit as UserEdit
 import Orgauth.UserInterface as UI
 import Orgauth.UserListing as UserListing
+import PrintInvoice as PI
 import ProjectEdit
 import ProjectListing
 import ProjectTime
@@ -81,11 +82,13 @@ type Msg
     | ProjectTimeData String (Result Http.Error TI.ServerResponse)
     | ProjectViewData String (Result Http.Error PI.ServerResponse)
     | TProjectViewData String (Result Http.Error TI.ServerResponse)
+    | PrintInvoiceReplyData (Result Http.Error (Cmd Msg))
     | LoadUrl String
     | InternalUrl Url
     | SelectedText JD.Value
     | UrlChanged Url
     | WindowSize Util.Size
+    | PrintInvoiceDialogMsg (GD.Msg PI.Msg)
     | DisplayMessageMsg (GD.Msg DisplayMessage.Msg)
     | SelectUserDialogMsg (GD.Msg (SS.Msg Data.User))
     | SelectRoleDialogMsg (GD.Msg (SS.Msg ( UserId, Data.Role )))
@@ -102,6 +105,7 @@ type Msg
     | ProjectTimeMsg ProjectTime.Msg
     | FileLoaded (String -> Msg) F.File
     | TimeCmd (Time.Posix -> Cmd Msg) Time.Posix
+    | PrintInvoiceInit Data.PrintInvoiceInternal String String
     | Noop
 
 
@@ -117,6 +121,7 @@ type State
     | ShowMessage ShowMessage.Model Data.LoginData (Maybe State)
     | PubShowMessage ShowMessage.Model (Maybe State)
     | LoginShowMessage ShowMessage.Model Data.LoginData Url
+    | PrintInvoiceDialog PI.GDModel State
     | SelectUserDialog (SS.GDModel Data.User) State
     | SelectRoleDialog (SS.GDModel ( UserId, Data.Role )) State
     | ChangePasswordDialog CP.GDModel State
@@ -466,6 +471,9 @@ showMessage msg =
         ReceiveLocalVal _ ->
             "ReceiveLocalVal"
 
+        PrintInvoiceDialogMsg _ ->
+            "PrintInvoiceDialogMsg"
+
         SelectUserDialogMsg _ ->
             "SelectUserDialogMsg"
 
@@ -498,6 +506,12 @@ showMessage msg =
 
         ClockTick _ ->
             "ClockTick"
+
+        PrintInvoiceReplyData _ ->
+            "PrintInvoiceReplyData"
+
+        PrintInvoiceInit _ _ _ ->
+            "PrintInvoiceInit "
 
 
 showState : State -> String
@@ -541,6 +555,9 @@ showState state =
 
         Wait _ _ ->
             "Wait"
+
+        PrintInvoiceDialog _ _ ->
+            "PrintInvoiceDialog"
 
         SelectUserDialog _ _ ->
             "SelectDialog"
@@ -617,12 +634,16 @@ viewState size state model =
         UserSettings em _ _ ->
             E.map UserSettingsMsg <| UserSettings.view em
 
-        DisplayMessage em _ ->
+        DisplayMessage _ _ ->
             -- render is at the layout level, not here.
             E.none
 
         Wait innerState _ ->
             E.map (\_ -> Noop) (viewState size innerState model)
+
+        PrintInvoiceDialog _ _ ->
+            -- render is at the layout level, not here.
+            E.none
 
         SelectUserDialog _ _ ->
             -- render is at the layout level, not here.
@@ -694,6 +715,9 @@ stateLogin state =
 
         Wait wstate _ ->
             stateLogin wstate
+
+        PrintInvoiceDialog _ instate ->
+            stateLogin instate
 
         SelectUserDialog _ instate ->
             stateLogin instate
@@ -828,6 +852,12 @@ view model =
                 Html.map ChangeEmailDialogMsg <|
                     GD.layout
                         (Just { width = min 600 model.size.width, height = min 200 model.size.height })
+                        cdm
+
+            PrintInvoiceDialog cdm _ ->
+                Html.map PrintInvoiceDialogMsg <|
+                    GD.layout
+                        (Just { width = min 600 model.size.width, height = min 600 model.size.height })
                         cdm
 
             _ ->
@@ -1089,6 +1119,14 @@ actualupdate msg model =
         ( WindowSize s, _ ) ->
             ( { model | size = s }, Cmd.none )
 
+        ( PrintInvoiceReplyData meh, _ ) ->
+            case meh of
+                Ok cmd ->
+                    ( model, cmd )
+
+                Err e ->
+                    ( displayMessageDialog model <| Util.httpErrorString e, Cmd.none )
+
         ( ChangePasswordDialogMsg sdmsg, ChangePasswordDialog sdmod instate ) ->
             case GD.update sdmsg sdmod of
                 GD.Dialog nmod ->
@@ -1129,6 +1167,45 @@ actualupdate msg model =
 
                 ResetPassword.None ->
                     ( { model | state = ResetPassword nst }, Cmd.none )
+
+        ( PrintInvoiceInit pi date duedate, state ) ->
+            ( { model
+                | state =
+                    PrintInvoiceDialog
+                        (PI.init pi
+                            date
+                            duedate
+                            Common.buttonStyle
+                            (E.map (\_ -> ()) (viewState model.size model.state model))
+                        )
+                        state
+              }
+            , Cmd.none
+            )
+
+        ( PrintInvoiceDialogMsg sdmsg, PrintInvoiceDialog sdmod instate ) ->
+            case GD.update sdmsg sdmod of
+                GD.Dialog nmod ->
+                    ( { model | state = PrintInvoiceDialog nmod instate }, Cmd.none )
+
+                GD.Ok ( pi, spi ) ->
+                    ( { model | state = instate }
+                    , Cmd.batch
+                        [ Http.post
+                            { url = model.location ++ "/invoice"
+                            , body = Http.jsonBody (Data.encodePrintInvoice pi)
+                            , expect =
+                                Http.expectBytesResponse PrintInvoiceReplyData <|
+                                    resolve <|
+                                        \bytes ->
+                                            Ok <| FD.bytes (pi.id ++ ".pdf") "application/pdf" bytes
+                            }
+                        , sendTIMsg model.location (TI.SaveProjectInvoice spi)
+                        ]
+                    )
+
+                GD.Cancel ->
+                    ( { model | state = instate }, Cmd.none )
 
         ( UserSettingsMsg umsg, UserSettings umod login prevstate ) ->
             let
@@ -1722,6 +1799,17 @@ actualupdate msg model =
                                 _ ->
                                     ( model, Cmd.none )
 
+                        TI.SavedProjectInvoice p ->
+                            case state of
+                                ProjectEdit s l ->
+                                    ( { model | state = ProjectEdit (ProjectEdit.onSavedProjectInvoice p s) l }, Cmd.none )
+
+                                ProjectTime s l ->
+                                    ( { model | state = ProjectTime (ProjectTime.onSavedProjectInvoice p s) l }, Cmd.none )
+
+                                _ ->
+                                    ( model, Cmd.none )
+
                         TI.SavedProjectEdit x ->
                             case state of
                                 ProjectEdit s l ->
@@ -1860,6 +1948,9 @@ actualupdate msg model =
         ( DisplayMessageMsg GD.Noop, _ ) ->
             ( model, Cmd.none )
 
+        ( PrintInvoiceDialogMsg GD.Noop, _ ) ->
+            ( model, Cmd.none )
+
         ( ProjectListingMsg ms, ProjectListing st login ) ->
             let
                 ( nm, cmd ) =
@@ -1941,7 +2032,7 @@ actualupdate msg model =
         ( ProjectViewMsg ms, ProjectView st mblogin ) ->
             handleProjectView model (ProjectView.update ms st model.timezone) mblogin
 
-        ( x, y ) ->
+        ( x, _ ) ->
             ( unexpectedMsg model x
             , Cmd.none
             )
@@ -2070,6 +2161,48 @@ handleProjectTime model ( nm, cmd ) login =
 
         ProjectTime.ToClipboard text ->
             ( { model | state = ProjectTime nm login }, toClipBoard text )
+
+        ProjectTime.PrintInvoice pi ->
+            ( { model | state = ProjectTime nm login }
+            , Time.now
+                |> Task.perform
+                    (\now ->
+                        PrintInvoiceInit pi
+                            (Data.piDate now model.timezone)
+                            (pi.duedays
+                                |> Maybe.map
+                                    (\dd ->
+                                        Data.piDate
+                                            (now
+                                                |> Time.posixToMillis
+                                                |> (+) (dd * 24 * 60 * 60 * 1000)
+                                                |> Time.millisToPosix
+                                            )
+                                            model.timezone
+                                    )
+                                |> Maybe.withDefault ""
+                            )
+                    )
+            )
+
+
+resolve : (body -> Result String a) -> Http.Response body -> Result Http.Error a
+resolve toResult response =
+    case response of
+        Http.BadUrl_ url ->
+            Err (Http.BadUrl url)
+
+        Http.Timeout_ ->
+            Err Http.Timeout
+
+        Http.NetworkError_ ->
+            Err Http.NetworkError
+
+        Http.BadStatus_ metadata _ ->
+            Err (Http.BadStatus metadata.statusCode)
+
+        Http.GoodStatus_ _ body ->
+            Result.mapError Http.BadBody (toResult body)
 
 
 handleProjectView : Model -> ( ProjectView.Model, ProjectView.Command ) -> Maybe Data.LoginData -> ( Model, Cmd Msg )
@@ -2359,6 +2492,7 @@ port receiveKeyMsg : (JD.Value -> msg) -> Sub msg
 port toClipBoard : String -> Cmd msg
 
 
+keyreceive : Sub Msg
 keyreceive =
     receiveKeyMsg <| WindowKeys.receive WkMsg
 
@@ -2366,5 +2500,6 @@ keyreceive =
 port sendKeyCommand : JE.Value -> Cmd msg
 
 
+skcommand : WindowKeys.WindowKeyCmd -> Cmd Msg
 skcommand =
     WindowKeys.send sendKeyCommand

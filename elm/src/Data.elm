@@ -1,11 +1,15 @@
 module Data exposing
     ( Allocation
     , AllocationId(..)
+    , ExtraField
+    , InvoiceItem
     , ListProject
     , LoginData
     , PayEntry
     , PayEntryId(..)
     , PayType(..)
+    , PrintInvoice
+    , PrintInvoiceInternal
     , Project
     , ProjectEdit
     , ProjectId(..)
@@ -16,6 +20,7 @@ module Data exposing
     , SavePayEntry
     , SaveProject
     , SaveProjectEdit
+    , SaveProjectInvoice
     , SaveProjectMember
     , SaveProjectTime
     , SaveTimeEntry
@@ -38,11 +43,13 @@ module Data exposing
     , decodeSavedProjectEdit
     , decodeTimeEntry
     , decodeUser
+    , encodePrintInvoice
     , encodeRole
     , encodeSaveAllocation
     , encodeSavePayEntry
     , encodeSaveProject
     , encodeSaveProjectEdit
+    , encodeSaveProjectInvoice
     , encodeSaveProjectMember
     , encodeSaveProjectTime
     , encodeSaveTimeEntry
@@ -54,19 +61,25 @@ module Data exposing
     , getTimeEntryIdVal
     , ldToOdLd
     , makeAllocationId
+    , makeInvoiceId
     , makePayEntryId
     , makeProjectId
     , makeTimeEntryId
     , odLdToLd
+    , piDate
     , projectMemberToUser
     , roleToString
     , showRole
     , stringToRole
+    , toPi
+      -- , toPrintInvoice
+    , toSaveProjectInvoice
     )
 
 import Json.Decode as JD
 import Json.Encode as JE
 import Orgauth.Data as OD exposing (UserId, getUserIdVal, makeUserId)
+import Time
 import UUID exposing (UUID)
 import Url.Builder as UB
 import Util exposing (andMap)
@@ -142,6 +155,13 @@ type alias Project =
     { id : ProjectId
     , name : String
     , description : String
+    , dueDays : Maybe Int
+    , extraFields : List ExtraField
+    , invoiceIdTemplate : String
+    , invoiceSeq : Int
+    , payer : String
+    , payee : String
+    , genericTask : String
     , public : Bool
     , rate : Maybe Float
     , currency : Maybe String
@@ -150,10 +170,24 @@ type alias Project =
     }
 
 
+type alias SaveProjectInvoice =
+    { id : ProjectId
+    , extraFields : List ExtraField
+    , invoiceSeq : Int
+    }
+
+
 type alias SaveProject =
     { id : Maybe ProjectId
     , name : String
     , description : String
+    , dueDays : Maybe Int
+    , extraFields : List ExtraField
+    , invoiceIdTemplate : String
+    , invoiceSeq : Int
+    , payer : String
+    , payee : String
+    , genericTask : String
     , public : Bool
     , rate : Maybe Float
     , currency : Maybe String
@@ -326,6 +360,110 @@ type alias ProjectTime =
     }
 
 
+type alias InvoiceItem =
+    { description : String
+    , duration : Float
+    , rate : Float
+    }
+
+
+type alias ExtraField =
+    { n : String
+    , v : String
+    }
+
+
+type alias PrintInvoiceInternal =
+    { projectid : ProjectId
+    , seq : Int
+    , duedays : Maybe Int
+    , idtemplate : String
+    , payer : String
+    , payee : String
+    , items : List InvoiceItem
+    , extraFields : List ExtraField
+    }
+
+
+makeInvoiceId : String -> String -> Int -> String
+makeInvoiceId template date seq =
+    template
+        |> String.replace "<seq>" (String.fromInt seq)
+        |> String.replace "<date>" date
+
+
+piDate : Time.Posix -> Time.Zone -> String
+piDate time zone =
+    (String.fromInt <| Time.toYear zone time)
+        ++ "-"
+        ++ (String.fromInt <| Util.monthInt <| Time.toMonth zone time)
+        ++ "-"
+        ++ (String.fromInt <| Time.toDay zone time)
+
+
+toPi :
+    PrintInvoiceInternal
+    -> String
+    -> String
+    -> PrintInvoice
+toPi pii date duedate =
+    { id = makeInvoiceId pii.idtemplate date pii.seq
+    , payer = pii.payer
+    , payee = pii.payee
+    , items = pii.items
+    , date = date
+    , dueDate =
+        if duedate == "" then
+            Nothing
+
+        else
+            Just duedate
+    , extraFields = pii.extraFields
+    }
+
+
+type alias PrintInvoice =
+    { id : String
+    , payer : String
+    , payee : String
+    , items : List InvoiceItem
+    , date : String
+    , dueDate : Maybe String
+    , extraFields : List ExtraField
+    }
+
+
+toSaveProjectInvoice : PrintInvoiceInternal -> SaveProjectInvoice
+toSaveProjectInvoice pi =
+    { id = pi.projectid
+    , extraFields = pi.extraFields
+    , invoiceSeq = pi.seq
+    }
+
+
+encodeInvoiceItem : InvoiceItem -> JE.Value
+encodeInvoiceItem ii =
+    JE.object
+        [ ( "description", JE.string ii.description )
+        , ( "duration", JE.float ii.duration )
+        , ( "rate", JE.float ii.rate )
+        ]
+
+
+encodePrintInvoice : PrintInvoice -> JE.Value
+encodePrintInvoice pi =
+    JE.object <|
+        List.filterMap identity
+            [ Just ( "id", JE.string pi.id )
+            , Just ( "payer", JE.string pi.payer )
+            , Just ( "payee", JE.string pi.payee )
+            , Just ( "date", JE.string pi.date )
+            , pi.dueDate |> Maybe.map (\dd -> ( "due_date", JE.string dd ))
+            , Just ( "items", JE.list encodeInvoiceItem pi.items )
+            , Just ( "extra_fields", JE.list encodeExtraField pi.extraFields )
+            ]
+
+
 
 -------------------------------------------
 -- Id types.  They're all ints underneath.
@@ -437,25 +575,48 @@ decodeListProject =
         |> andMap (JD.field "role" decodeRole)
 
 
+encodeSaveProjectInvoice : SaveProjectInvoice -> JE.Value
+encodeSaveProjectInvoice sp =
+    JE.object <|
+        [ ( "id", JE.int (getProjectIdVal sp.id) )
+        , ( "extra_fields", JE.list encodeExtraField sp.extraFields )
+        , ( "invoice_seq", JE.int sp.invoiceSeq )
+        ]
+
+
 encodeSaveProject : SaveProject -> JE.Value
 encodeSaveProject sp =
     JE.object <|
-        [ ( "name", JE.string sp.name )
-        , ( "description", JE.string sp.description )
-        , ( "public", JE.bool sp.public )
+        List.filterMap identity
+            [ Just ( "name", JE.string sp.name )
+            , Just ( "description", JE.string sp.description )
+            , sp.dueDays |> Maybe.map (\dd -> ( "due_days", JE.int dd ))
+            , Just ( "extra_fields", JE.list encodeExtraField sp.extraFields )
+            , Just ( "invoice_id_template", JE.string sp.invoiceIdTemplate )
+            , Just ( "invoice_seq", JE.int sp.invoiceSeq )
+            , Just ( "payer", JE.string sp.payer )
+            , Just ( "payee", JE.string sp.payee )
+            , Just ( "generic_task", JE.string sp.genericTask )
+            , Just ( "public", JE.bool sp.public )
+            , sp.rate |> Maybe.map (\rate -> ( "rate", JE.float rate ))
+            , sp.currency |> Maybe.map (\currency -> ( "currency", JE.string currency ))
+            , sp.id |> Maybe.map (\id -> ( "id", JE.int (getProjectIdVal id) ))
+            ]
+
+
+encodeExtraField : ExtraField -> JE.Value
+encodeExtraField ef =
+    JE.object
+        [ ( "n", JE.string ef.n )
+        , ( "v", JE.string ef.v )
         ]
-            ++ (sp.rate
-                    |> Maybe.map (\rate -> [ ( "rate", JE.float rate ) ])
-                    |> Maybe.withDefault []
-               )
-            ++ (sp.currency
-                    |> Maybe.map (\currency -> [ ( "currency", JE.string currency ) ])
-                    |> Maybe.withDefault []
-               )
-            ++ (sp.id
-                    |> Maybe.map (\id -> [ ( "id", JE.int (getProjectIdVal id) ) ])
-                    |> Maybe.withDefault []
-               )
+
+
+decodeExtraField : JD.Decoder ExtraField
+decodeExtraField =
+    JD.succeed ExtraField
+        |> andMap (JD.field "n" JD.string)
+        |> andMap (JD.field "v" JD.string)
 
 
 decodeProject : JD.Decoder Project
@@ -464,6 +625,13 @@ decodeProject =
         |> andMap (JD.field "id" JD.int |> JD.map makeProjectId)
         |> andMap (JD.field "name" JD.string)
         |> andMap (JD.field "description" JD.string)
+        |> andMap (JD.field "due_days" (JD.maybe JD.int))
+        |> andMap (JD.field "extra_fields" <| JD.list decodeExtraField)
+        |> andMap (JD.field "invoice_id_template" JD.string)
+        |> andMap (JD.field "invoice_seq" JD.int)
+        |> andMap (JD.field "payer" JD.string)
+        |> andMap (JD.field "payee" JD.string)
+        |> andMap (JD.field "generic_task" JD.string)
         |> andMap (JD.field "public" JD.bool)
         |> andMap (JD.field "rate" <| JD.maybe JD.float)
         |> andMap (JD.field "currency" <| JD.maybe JD.string)

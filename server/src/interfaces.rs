@@ -1,5 +1,5 @@
 use crate::config::Config;
-use crate::data::{Role, SaveProjectEdit, SaveProjectTime};
+use crate::data::{Role, SaveProjectEdit, SaveProjectInvoice, SaveProjectTime};
 use crate::messages::{PublicMessage, ServerResponse, UserMessage};
 use crate::sqldata;
 use actix_session::Session;
@@ -88,6 +88,30 @@ pub fn timeclonk_interface_loggedin(
       } else {
         Ok(ServerResponse {
           what: "projectedit_denied".to_string(),
+          content: serde_json::Value::Null,
+        })
+      }
+    }
+    "SaveProjectInvoice" => {
+      let msgdata = Option::ok_or(msg.data.as_ref(), "malformed json data")?;
+      let sp: SaveProjectInvoice = serde_json::from_value(msgdata.clone())?;
+
+      let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
+      let allowed = match sqldata::member_role(&conn, uid, sp.id)? {
+        Some(Role::Admin) => true,
+        Some(Role::Member) => true,
+        _ => false,
+      };
+
+      if allowed {
+        let saved = sqldata::save_project_invoice(&conn, sp)?;
+        Ok(ServerResponse {
+          what: "savedprojectinvoice".to_string(),
+          content: serde_json::to_value(saved)?,
+        })
+      } else {
+        Ok(ServerResponse {
+          what: "savedprojectinvoice_denied".to_string(),
           content: serde_json::Value::Null,
         })
       }

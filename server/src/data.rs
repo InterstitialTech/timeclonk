@@ -1,4 +1,5 @@
 use serde_derive::{Deserialize, Serialize};
+// use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
 
@@ -22,20 +23,34 @@ pub struct ListProject {
   pub role: Role,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ExtraField {
+  pub n: String,
+  pub v: String,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct SaveProjectInvoice {
+  pub id: i64,
+  pub invoice_seq: i64,
+  pub extra_fields: Vec<ExtraField>,
+}
+
 #[derive(Deserialize, Debug, Clone)]
 pub struct SaveProject {
   pub id: Option<i64>,
   pub name: String,
   pub description: Option<String>,
+  pub due_days: Option<i32>,
+  pub extra_fields: Vec<ExtraField>,
+  pub invoice_id_template: String,
+  pub invoice_seq: i64,
+  pub payer: String,
+  pub payee: String,
+  pub generic_task: String,
   pub public: bool,
   pub rate: Option<i64>,
   pub currency: Option<String>,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct UserTime {
-  pub startdate: i64,
-  pub enddate: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -94,6 +109,13 @@ pub struct Project {
   pub id: i64,
   pub name: String,
   pub description: String,
+  pub due_days: Option<i32>,
+  pub extra_fields: Vec<ExtraField>,
+  pub invoice_id_template: String,
+  pub invoice_seq: i64,
+  pub payer: String,
+  pub payee: String,
+  pub generic_task: String,
   pub public: bool,
   pub rate: Option<f64>,
   pub currency: Option<String>,
@@ -215,4 +237,22 @@ pub struct SaveAllocation {
   pub duration: i64,
   pub allocationdate: i64,
   pub description: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PrintInvoice {
+  pub id: String,
+  pub payer: String,
+  pub payee: String,
+  pub items: Vec<InvoiceItem>,
+  pub date: String,
+  pub due_date: Option<String>,
+  pub extra_fields: Vec<ExtraField>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct InvoiceItem {
+  pub description: String,
+  pub duration: f64,
+  pub rate: f64,
 }
