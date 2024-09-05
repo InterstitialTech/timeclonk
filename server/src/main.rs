@@ -111,9 +111,8 @@ async fn user(
   req: HttpRequest,
 ) -> HttpResponse {
   info!(
-    "user msg: {}, {:?}  \n connection_info: {:?}",
+    "user msg: {}  \n connection_info: {:?}",
     &item.what,
-    &item.data,
     req.connection_info()
   );
   let mut cb = sqldata::timeclonk_callbacks();
@@ -143,9 +142,8 @@ async fn admin(
   req: HttpRequest,
 ) -> HttpResponse {
   info!(
-    "admin msg: {}, {:?}  \n connection_info: {:?}",
+    "admin msg: {}  \n connection_info: {:?}",
     &item.what,
-    &item.data,
     req.connection_info()
   );
   let mut cb = sqldata::timeclonk_callbacks();
