@@ -308,7 +308,7 @@
   let cancel-neg = if cancellation-id != none { -1 } else { 1 }
 
   table(
-    columns: (auto, 1fr, auto, auto, auto, auto, auto),
+    columns: (auto, auto, auto, auto, auto, auto, auto),
     align: (col, row) => right,
     inset: 6pt,
     table.header(
