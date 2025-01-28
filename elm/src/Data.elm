@@ -382,6 +382,7 @@ type alias PrintInvoiceInternal =
     , payee : String
     , items : List InvoiceItem
     , extraFields : List ExtraField
+    , currency : Maybe String
     }
 
 
@@ -419,6 +420,7 @@ toPi pii date duedate =
         else
             Just duedate
     , extraFields = pii.extraFields
+    , currency = Maybe.withDefault "$" pii.currency
     }
 
 
@@ -430,6 +432,7 @@ type alias PrintInvoice =
     , date : String
     , dueDate : Maybe String
     , extraFields : List ExtraField
+    , currency : String
     }
 
 
@@ -461,6 +464,7 @@ encodePrintInvoice pi =
             , pi.dueDate |> Maybe.map (\dd -> ( "due_date", JE.string dd ))
             , Just ( "items", JE.list encodeInvoiceItem pi.items )
             , Just ( "extra_fields", JE.list encodeExtraField pi.extraFields )
+            , Just ( "currency", JE.string pi.currency )
             ]
 
 

@@ -248,6 +248,7 @@ pub struct PrintInvoice {
   pub date: String,
   pub due_date: Option<String>,
   pub extra_fields: Vec<ExtraField>,
+  pub currency: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
