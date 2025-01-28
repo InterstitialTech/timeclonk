@@ -153,6 +153,7 @@
   recipient: (:),
   keywords: (),
   hourly-rate: none,
+  currency-symbol: "$",
   styling: (:), // font, font-size, margin (sets defaults below)
   items: (),
   extraFields: (),
@@ -193,6 +194,7 @@
     recipient = data.at("recipient", default: recipient)
     keywords = data.at("keywords", default: keywords)
     hourly-rate = data.at("hourly-rate", default: hourly-rate)
+    currency-symbol = data.at("currency-symbol", default: currency-symbol)
     styling = data.at("styling", default: styling)
     items = data.at("items", default: items)
     extraFields = data.at("extraFields", default: extraFields)
@@ -297,8 +299,6 @@
     (t.cancellation-notice)(invoice-id, issuing-date)
   }
 
-  // [== #t.items]
-
   v(1em)
 
   let getRowTotal = row => {
@@ -308,7 +308,7 @@
   let cancel-neg = if cancellation-id != none { -1 } else { 1 }
 
   table(
-    columns: (auto, 1fr, auto, auto, auto, auto, auto),
+    columns: (auto, auto, auto, auto, auto, auto, auto),
     align: (col, row) => right,
     inset: 6pt,
     table.header(
@@ -317,8 +317,8 @@
       table.hline(stroke: 0.5pt),
       [*#t.item*],
       [*#t.hours*],
-      [*#t.rate*\ #text(size: 0.8em)[( \$ )]],
-      [*#t.total*\ #text(size: 0.8em)[( \$ )]],
+      [*#t.rate*\ #text(size: 0.8em)[( #(currency-symbol) )]],
+      [*#t.total*\ #text(size: 0.8em)[( #(currency-symbol) )]],
       table.hline(stroke: 0.5pt),
     ),
     ..items
@@ -327,10 +327,7 @@
         let dur-min = row.at("dur-min", default: 0)
         let dur-hour = dur-min / 60
         (
-          // row.at("number", default: index + 1),
-          // row.date,
           row.item,
-          // str(if dur-min == 0 { "" } else { dur-min }),
           str(row.at("hours", default: if dur-min == 0 { "1" } else { "" })),
           str(add-zeros(cancel-neg *
            row.at("rate", default: calc.round(hourly-rate * dur-hour, digits: 2))
@@ -361,7 +358,7 @@
     }
   let discount-label = if discount == none { 0 }
     else {
-      if (discount.type == "fixed") { str(discount.value) + " \$" }
+      if (discount.type == "fixed") { str(discount.value) + " " + currency-symbol }
       else if discount.type == "proportionate" {
         str(discount.value * 100) + " %"
       }
@@ -380,18 +377,18 @@
     },
     if (discount-value != 0) or (tax != 0) {
       ([#t.subtotal:],
-      [#{add-zeros(cancel-neg * sub-total)} \$])
+      [#{add-zeros(cancel-neg * sub-total)} #(currency-symbol)])
     },
     if discount-value != 0 {
       (
         [#t.discount-of #discount-label
           #{if discount.reason != "" { "(" + discount.reason + ")" }}],
-        [-#add-zeros(cancel-neg * discount-value) \$]
+        [-#add-zeros(cancel-neg * discount-value) #(currency-symbol)]
       )
     },
     if not has-reverse-charge and (tax != 0) {
       ([#t.tax #{tax * 100} %:],
-        [#{add-zeros(cancel-neg * taxamt)} \$]
+        [#{add-zeros(cancel-neg * taxamt)} #(currency-symbol)]
       )
     },
     if (has-reverse-charge) {
@@ -399,7 +396,7 @@
     },
     (
       [*#t.total*:],
-      [*#add-zeros(cancel-neg * total) \$*]
+      [*#add-zeros(cancel-neg * total) #(currency-symbol)*]
     ),
   )
   .filter(entry => entry != none)

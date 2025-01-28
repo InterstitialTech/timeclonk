@@ -3899,6 +3899,7 @@ update msg model ld zone =
                 , payee = model.project.payee
                 , items = items
                 , extraFields = model.project.extraFields
+                , currency = model.project.currency
                 }
             )
 

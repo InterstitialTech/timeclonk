@@ -117,6 +117,7 @@ pub fn run_invoice(print_invoice: PrintInvoice) -> Result<PathBuf, orgauth::erro
   extraFields: {},
   biller: biller,
   hourly-rate: 100,
+  currency-symbol: \"{}\",
   recipient: recipient,
   tax: 0,
   items: table-data,
@@ -140,6 +141,7 @@ pub fn run_invoice(print_invoice: PrintInvoice) -> Result<PathBuf, orgauth::erro
         .collect::<Vec<String>>()
         .join("")
     ),
+    print_invoice.currency
   );
 
   let invoicepath = format!("{}/{}{}", INVOICE_DIR, print_invoice.id, ".typ");
