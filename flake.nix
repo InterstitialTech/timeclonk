@@ -85,6 +85,7 @@
           devShell = pkgs.mkShell {
             nativeBuildInputs = with pkgs; [
               typst
+              tinymist
               cargo
               cargo-watch
               rustc
