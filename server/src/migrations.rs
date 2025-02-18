@@ -1039,3 +1039,245 @@ pub fn udpate12(dbfile: &Path) -> Result<(), orgauth::error::Error> {
 
   Ok(())
 }
+
+pub fn udpate13(dbfile: &Path) -> Result<(), orgauth::error::Error> {
+  // db connection without foreign key checking.
+  let conn = Connection::open(dbfile)?;
+
+  // drop the work table from the last migration.
+  conn.execute("drop table projecttemp ", params![])?;
+
+  Ok(())
+}
+
+
+// {
+//   // create backup table for project.
+//   let mut m1 = Migration::new();
+
+//   m1.create_table("projecttemp", |t| {
+//     t.add_column(
+//       "id",
+//       types::integer()
+//         .primary(true)
+//         .increments(true)
+//         .nullable(false),
+//     );
+//     t.add_column("name", types::text().nullable(false));
+//     t.add_column("description", types::text().nullable(false));
+//     t.add_column("public", types::boolean().nullable(false));
+//     t.add_column("rate", types::float().nullable(true));
+//     t.add_column("currency", types::text().nullable(true));
+//     t.add_column("due_days", types::integer().nullable(true));
+//     t.add_column("extra_fields", types::text().nullable(true));
+//     t.add_column("invoice_id_template", types::text().nullable(false));
+//     t.add_column("invoice_seq", types::integer().nullable(false));
+//     t.add_column("payer", types::text().nullable(false));
+//     t.add_column("payee", types::text().nullable(false));
+//     t.add_column("generic_task", types::text().nullable(false));
+//     t.add_column("createdate", types::integer().nullable(false));
+//     t.add_column("changeddate", types::integer().nullable(false));
+//   });
+
+//   conn.execute_batch(m1.make::<Sqlite>().as_str())?;
+
+//   // copy project table.
+//   conn.execute(
+//     "insert into projecttemp (id, name, description, public, rate, currency, due_days, extra_fields, invoice_id_template, invoice_seq, payer, payee, generic_task, createdate, changeddate)
+//      select id, name, description, public, rate, currency, due_days, extra_fields, invoice_id_template, invoice_seq, payer, payee, generic_task, createdate, changeddate from project ",
+//     params![],
+//   )?;
+  
+
+//   let mut m2 = Migration::new();
+//   m2.drop_table("project");
+//   // timeclonk specific tables.
+//   m2.create_table("client", |t| {
+//     t.add_column(
+//       "id",
+//       types::integer()
+//         .primary(true)
+//         .increments(true)
+//         .nullable(false),
+//     );
+//     t.add_column("name", types::text().nullable(false));
+//     t.add_column("description", types::text().nullable(false));
+//     t.add_column("createdate", types::integer().nullable(false));
+//     t.add_column("changeddate", types::integer().nullable(false));
+//   });
+
+//   m2.create_table("sow", |t| {
+//     t.add_column(
+//       "id",
+//       types::integer()
+//         .primary(true)
+//         .increments(true)
+//         .nullable(false),
+//     );
+//     t.add_column("name", types::text().nullable(false));
+//     t.add_column("description", types::text().nullable(false));
+//     t.add_column("startdate", types::integer().nullable(true));
+//     t.add_column("enddate", types::integer().nullable(true));
+//     t.add_column("public", types::boolean().nullable(false));
+//     t.add_column("rate", types::float().nullable(true));
+//     t.add_column("currency", types::text().nullable(true));
+//     t.add_column("due_days", types::integer().nullable(true));
+//     t.add_column("extra_fields", types::text().nullable(true));
+//     t.add_column("invoice_id_template", types::text().nullable(false));
+//     t.add_column("invoice_seq", types::integer().nullable(false));
+//     t.add_column("payer", types::text().nullable(false));
+//     t.add_column("payee", types::text().nullable(false));
+//     t.add_column("generic_task", types::text().nullable(false));
+//     t.add_column("createdate", types::integer().nullable(false));
+//     t.add_column("changeddate", types::integer().nullable(false));
+//   });
+
+
+//   Ok(())
+// }
+
+
+
+pub fn udpate14(dbfile: &Path) -> Result<(), orgauth::error::Error> {
+  // db connection without foreign key checking.
+  let conn = Connection::open(dbfile)?;
+
+  // drop the work table from the last migration.
+  conn.execute("drop table projecttemp ", params![])?;
+
+  Ok(())
+}
+
+DROP INDEX "timeentryunq";
+DROP INDEX "allocationunq";
+DROP INDEX "unq";
+DROP INDEX "payentryunq";
+// rename all timeclonk tables
+ALTER TABLE "timeentry" RENAME TO "timeentry_bk";
+ALTER TABLE "allocation" RENAME TO "allocation_bk";
+ALTER TABLE "projectmember" RENAME TO "projectmember_bk";
+ALTER TABLE "payentry" RENAME TO "payentry_bk";
+ALTER TABLE "project" RENAME TO "project_bk";
+
+// new timeclonk tables.
+CREATE TABLE IF NOT EXISTS "timeentry" 
+  ("id" INTEGER PRIMARY KEY NOT NULL,
+   "sow" INTEGER REFERENCES sow
+    (id) NOT NULL,
+   "user" INTEGER REFERENCES sowmember
+    (id) NOT NULL,
+   "description" TEXT NOT NULL,
+   "startdate" INTEGER NOT NULL,
+   "enddate" INTEGER NOT NULL,
+   "ignore" BOOLEAN NOT NULL,
+   "createdate" INTEGER NOT NULL,
+   "changeddate" INTEGER NOT NULL,
+   "creator" INTEGER REFERENCES orgauth_user
+    (id) NOT NULL);
+CREATE UNIQUE INDEX "timeentryunq" ON "timeentry" 
+  ("user",
+ o  "startdate");
+CREATE TABLE IF NOT EXISTS "clientmember" 
+  ("id" INTEGER PRIMARY KEY NOT NULL,
+   "client" INTEGER REFERENCES client(id) NOT NULL,
+   "user" INTEGER REFERENCES orgauth_user
+    (id) NOT NULL,
+   "role" TEXT NOT NULL);
+CREATE UNIQUE INDEX "projectmemberunq" ON "projectmember" 
+  ("project",
+   "user");
+CREATE TABLE IF NOT EXISTS "sowmember" 
+  ("id" INTEGER PRIMARY KEY NOT NULL,
+   "sow" INTEGER REFERENCES sow(id) NOT NULL,
+   "clientmember" INTEGER NOT NULL REFERENCES clientmember
+    (id) ON UPDATE RESTRICT ON DELETE RESTRICT,
+   "role" TEXT NOT NULL);
+CREATE UNIQUE INDEX "sowmemberunq" ON "sowmember" 
+  ("sow",
+   "projectmember");
+CREATE TABLE IF NOT EXISTS "payentry" 
+  ("id" INTEGER PRIMARY KEY NOT NULL,
+   "sow" INTEGER NOT NULL REFERENCES sow
+    (id) ON UPDATE RESTRICT ON DELETE RESTRICT,
+   "user" INTEGER NOT NULL REFERENCES orgauth_user
+    (id) ON UPDATE RESTRICT ON DELETE RESTRICT,
+   "description" TEXT NOT NULL,
+   "duration" INTEGER NOT NULL,
+   "type" INTEGER NOT NULL,
+   "paymentdate" INTEGER NOT NULL,
+   "createdate" INTEGER NOT NULL,
+   "changeddate" INTEGER NOT NULL,
+   "creator" INTEGER NOT NULL REFERENCES orgauth_user
+    (id) ON UPDATE RESTRICT ON DELETE RESTRICT);
+CREATE UNIQUE INDEX "payentryunq" ON "payentry" 
+  ("user",
+   "paymentdate");
+CREATE TABLE IF NOT EXISTS "client" 
+  ("id" INTEGER PRIMARY KEY NOT NULL,
+   "name" TEXT NOT NULL,
+   "description" TEXT NOT NULL,
+   "invoice_id_template" TEXT NOT NULL,
+   "invoice_seq" INTEGER NOT NULL,
+   "payer" TEXT NOT NULL,
+   "payee" TEXT NOT NULL,
+   "creator" INTEGER REFERENCES orgauth_user (id) NOT NULL;
+   "createdate" INTEGER NOT NULL,
+   "changeddate" INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS "sow" 
+  ("id" INTEGER PRIMARY KEY NOT NULL,
+   "name" TEXT NOT NULL,
+   "description" TEXT NOT NULL,
+   "startdate" INTEGER,
+   "enddate" INTEGER,
+   "duration" INTEGER NOT NULL,
+   "closed" BOOLEAN NOT NULL,
+   "public" BOOLEAN NOT NULL,
+   "rate" REAL,
+   "currency" TEXT,
+   "due_days" INTEGER,
+   "extra_fields" TEXT,
+   "invoice_id_template" TEXT NOT NULL,
+   "invoice_seq" INTEGER NOT NULL,
+   "payer" TEXT NOT NULL,
+   "payee" TEXT NOT NULL,
+   "generic_task" TEXT NOT NULL,
+   "creator" INTEGER REFERENCES clientmember (id) NOT NULL;
+   "createdate" INTEGER NOT NULL,
+   "changeddate" INTEGER NOT NULL);
+
+// copy in old timeclonk data.  
+
+// make clients from projects
+// make sows from allocations and projects.
+// copy timeentries, assign to sows by start date.
+
+insert into client (id, name, description, invoice_id_template, invoice_seq, payer, payee, creator, createdate, changeddate)
+select id name, description, invoice_id_template, invoice_seq, createdate, changeddate
+from project_bk;
+
+// insert into sow (id, name, description, startdate, enddate, duration, closed, public, rate, currency, due_days, extra_fields, invoice_id_template, invoice_seq, payer, payee, generic_task, creator, createdate, changeddate)
+// select p.id, p.name, p.description, p.public, p.rate, p.currency, p.due_days, p.extra_fields, p.invoice_id_template, p.invoice_seq, p.payer, p.payee, p.generic_task, p.createdate, p.changeddate
+// a.id, a.project, a.description, a.duration, a.allocationdate, a.createdate, a.changeddate, a.creator
+// from project p, allocation a
+// where a.project = p.id
+
+// enddate will be null on these.
+insert into sow (id, name, description, startdate, duration, closed, public, rate, currency, due_days, extra_fields, payer, payee, generic_task, creator, createdate, changeddate)
+select a.id, p.name, a.description, a.allocationdate, a.duration, false, p.public, p.rate, p.currency, p.due_days, p.extra_fields, p.payer, p.payee, p.generic_task, a.creator, a.createdate, a.changeddate
+from project_bk p, allocation_bk a
+where a.project = p.id;
+
+insert into clientmember (id, client, user, role)
+select from projectmember  project, user, role
+
+
+// TODO: rename client to project again.
+// Q: do we want to use the fancy sowmamber id to enforce project membership, or just use orgauth_ids.  
+
+
+
+// Q: what about the use case where you want a single link to a public project?  If new sows are issued you don't have to update the link.
+
+
+// Q; have a rate, currency, etc in the project?  to copy to new sows.
+
