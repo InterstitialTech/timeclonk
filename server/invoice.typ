@@ -224,7 +224,7 @@
   set par(justify: true)
   set text(
     lang: t.id,
-    font: if styling.font != none { styling.font } else { () },
+    font: if styling.font != none { styling.font } else { "sans-serif" },
     size: styling.font-size,
   )
   set table(stroke: none)
