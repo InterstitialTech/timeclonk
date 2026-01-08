@@ -163,7 +163,7 @@
   doc,
 ) = {
   // Set styling defaults
-  styling.font = styling.at("font", default: "Liberation Sans")
+  styling.font = styling.at("font", default: "Ubuntu")
   styling.font-size = styling.at("font-size", default: 11pt)
   styling.margin = styling.at("margin", default: (
     top: 20mm,
