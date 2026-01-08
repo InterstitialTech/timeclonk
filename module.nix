@@ -77,7 +77,7 @@ in
       after = [ "network.target" ];
       wantedBy = [ "multi-user.target" ];
 
-      path = [ pkgs.typst pkgs.ubuntu-sans ];
+      path = [ pkgs.typst ];
 
       serviceConfig.User = cfg.user;
       serviceConfig.Group = cfg.group;
