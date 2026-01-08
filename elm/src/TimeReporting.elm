@@ -139,6 +139,21 @@ millisPerDay zone from to =
             []
 
 
+descriptionSummary : List EditTimeEntry -> Dict String Int
+descriptionSummary etes =
+    List.foldl
+        (\ete sumdict ->
+            case Dict.get ete.description sumdict of
+                Just millis ->
+                    Dict.insert ete.description (millis + eteMillis ete) sumdict
+
+                Nothing ->
+                    Dict.insert ete.description (eteMillis ete) sumdict
+        )
+        Dict.empty
+        etes
+
+
 type alias Mpd =
     { date : Calendar.Date
     , user : UserId

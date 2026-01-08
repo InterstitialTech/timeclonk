@@ -20,7 +20,7 @@ import TSet exposing (TSet)
 import TangoColors as TC
 import TcCommon as TC
 import Time
-import TimeReporting as TR exposing (EditAllocation, EditPayEntry, EditTimeEntry, csvToEditAllocations, csvToEditTimeEntries, eteToCsv, millisAsHours)
+import TimeReporting as TR exposing (EditAllocation, EditPayEntry, EditTimeEntry, csvToEditAllocations, csvToEditTimeEntries, descriptionSummary, eteToCsv, millisAsHours)
 import TimeTotaler exposing (TTotaler, getTes, getTotes, mapTimeentry, mkTToteler, setTes)
 import Toop
 import Util
@@ -128,6 +128,7 @@ type ViewMode
     | Payments
     | Allocations
     | Distributions
+    | Tasks
 
 
 type FocusColumn
@@ -247,6 +248,9 @@ showViewMode mode =
         Distributions ->
             "distributions"
 
+        Tasks ->
+            "tasks"
+
 
 readViewMode : String -> Maybe ViewMode
 readViewMode str =
@@ -265,6 +269,9 @@ readViewMode str =
 
         "distributions" ->
             Just Distributions
+
+        "tasks" ->
+            Just Tasks
 
         _ ->
             Nothing
@@ -653,6 +660,7 @@ viewModeBar model =
         , vbt Payments "payments"
         , vbt Allocations "allocations"
         , vbt Distributions "distributions"
+        , vbt Tasks "tasks"
         ]
 
 
@@ -718,6 +726,9 @@ view ld size zone model =
 
                         Distributions ->
                             distributionview ld size zone model
+
+                        Tasks ->
+                            taskview ld size zone model
                    )
 
 
@@ -1467,6 +1478,16 @@ type Entry
     = TimeDay (TDict UserId Int Int)
     | PayEntry EditPayEntry
     | Allocation EditAllocation
+
+
+taskview : Data.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
+taskview _ _ zone model =
+    descriptionSummary (getTes model.timeentries |> Dict.values)
+        |> Dict.toList
+        |> List.map
+            (\( task, millis ) ->
+                E.row [] [ E.text task, E.text (String.fromFloat (toFloat millis / 1000 / 60 / 60)) ]
+            )
 
 
 distributionview : Data.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
@@ -2873,6 +2894,9 @@ update msg model ld zone =
                 Distributions ->
                     ( model, ShowError "csv import is unimplemented for distributions view." )
 
+                Tasks ->
+                    ( model, ShowError "csv import is unimplemented for tasks." )
+
         SettingsPress ->
             ( model, Settings )
 
@@ -3077,6 +3101,9 @@ update msg model ld zone =
 
                             Nothing ->
                                 ( model, None )
+
+                    Tasks ->
+                        ( model, None )
 
         FocusDescriptionChanged text ->
             ( { model | focusdescription = text }, None )
