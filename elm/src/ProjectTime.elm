@@ -1482,12 +1482,26 @@ type Entry
 
 taskview : Data.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
 taskview _ _ zone model =
-    descriptionSummary (getTes model.timeentries |> Dict.values)
-        |> Dict.toList
-        |> List.map
-            (\( task, millis ) ->
-                E.row [] [ E.text task, E.text (String.fromFloat (toFloat millis / 1000 / 60 / 60)) ]
-            )
+    [ E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
+        { data =
+            descriptionSummary (getTes model.timeentries |> Dict.values)
+                |> Dict.toList
+        , columns =
+            [ { header = E.el [ EF.underline ] (E.text "task")
+              , width = E.shrink
+              , view =
+                    \( task, _ ) ->
+                        E.text task
+              }
+            , { header = E.el [ EF.underline ] (E.text "task")
+              , width = E.shrink
+              , view =
+                    \( _, millis ) ->
+                        E.text (R.round 2 <| toFloat millis / 1000 / 60 / 60)
+              }
+            ]
+        }
+    ]
 
 
 distributionview : Data.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
