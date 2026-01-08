@@ -77,7 +77,7 @@ in
       after = [ "network.target" ];
       wantedBy = [ "multi-user.target" ];
 
-      path = [ pkgs.typst ];
+      path = [ pkgs.typst pkgs.liberation_ttf ];
 
       serviceConfig.User = cfg.user;
       serviceConfig.Group = cfg.group;
