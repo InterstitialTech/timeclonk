@@ -148,14 +148,23 @@ descriptionSummary membernames etes =
         (\ete sumdict ->
             let
                 eted =
-                    (Dict.get (getUserIdVal ete.user) membernames |> Maybe.withDefault "") ++ " - " ++ ete.description
+                    (Dict.get (getUserIdVal ete.user) membernames
+                        |> Maybe.withDefault ""
+                    )
+                        ++ " - "
+                        ++ ete.description
             in
-            case Dict.get eted sumdict of
-                Just millis ->
-                    Dict.insert eted (millis + eteMillis ete) sumdict
+            -- skip ignored entries
+            if ete.ignore then
+                sumdict
 
-                Nothing ->
-                    Dict.insert eted (eteMillis ete) sumdict
+            else
+                case Dict.get eted sumdict of
+                    Just millis ->
+                        Dict.insert eted (millis + eteMillis ete) sumdict
+
+                    Nothing ->
+                        Dict.insert eted (eteMillis ete) sumdict
         )
         Dict.empty
         etes

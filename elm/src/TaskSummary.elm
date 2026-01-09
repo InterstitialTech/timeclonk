@@ -122,11 +122,11 @@ taskFilterView me model =
         , EI.radio []
             { onChange = SelectTimeType
             , options =
-                [ EI.option Paid (E.text "paid")
+                [ EI.option All (E.text "all")
+                , EI.option Paid (E.text "paid")
                 , EI.option Unpaid (E.text "unpaid")
                 , EI.option Invoiced (E.text "invoiced")
                 , EI.option Uninvoiced (E.text "uninvoiced")
-                , EI.option All (E.text "all")
                 ]
             , selected = Just model.timetype
             , label = EI.labelLeft [] (E.text "time type")
