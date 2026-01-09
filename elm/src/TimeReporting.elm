@@ -139,6 +139,37 @@ millisPerDay zone from to =
             []
 
 
+descriptionSummary :
+    Dict Int String
+    -> List EditTimeEntry
+    -> Dict String Int
+descriptionSummary membernames etes =
+    List.foldl
+        (\ete sumdict ->
+            let
+                eted =
+                    (Dict.get (getUserIdVal ete.user) membernames
+                        |> Maybe.withDefault ""
+                    )
+                        ++ " - "
+                        ++ ete.description
+            in
+            -- skip ignored entries
+            if ete.ignore then
+                sumdict
+
+            else
+                case Dict.get eted sumdict of
+                    Just millis ->
+                        Dict.insert eted (millis + eteMillis ete) sumdict
+
+                    Nothing ->
+                        Dict.insert eted (eteMillis ete) sumdict
+        )
+        Dict.empty
+        etes
+
+
 type alias Mpd =
     { date : Calendar.Date
     , user : UserId
@@ -230,6 +261,68 @@ payTotes entries =
                         TDict.insert entry.user (payAmount entry) sums
             )
             emptyUserTimeDict
+
+
+unpaidEntries : Dict Int EditTimeEntry -> TDict UserId Int Int -> List EditTimeEntry
+unpaidEntries timeentries paytotes =
+    let
+        tes =
+            Dict.values timeentries
+
+        ( l, _ ) =
+            List.foldl
+                (\ete ( etes, ptotes ) ->
+                    let
+                        ut =
+                            TDict.get ete.user ptotes |> Maybe.withDefault 0
+
+                        em =
+                            eteMillis ete
+                    in
+                    if em < ut then
+                        ( etes, TDict.insert ete.user (ut - em) ptotes )
+
+                    else if ut > 0 then
+                        ( { ete | startdate = ete.startdate + ut } :: etes, TDict.insert ete.user 0 ptotes )
+
+                    else
+                        ( ete :: etes, ptotes )
+                )
+                ( [], paytotes )
+                tes
+    in
+    List.reverse l
+
+
+paidEntries : Dict Int EditTimeEntry -> TDict UserId Int Int -> List EditTimeEntry
+paidEntries timeentries paytotes =
+    let
+        tes =
+            Dict.values timeentries
+
+        ( l, _ ) =
+            List.foldl
+                (\ete ( etes, ptotes ) ->
+                    let
+                        ut =
+                            TDict.get ete.user ptotes |> Maybe.withDefault 0
+
+                        em =
+                            eteMillis ete
+                    in
+                    if em < ut then
+                        ( ete :: etes, TDict.insert ete.user (ut - em) ptotes )
+
+                    else if ut > 0 then
+                        ( { ete | enddate = ete.enddate - ut } :: etes, TDict.insert ete.user 0 ptotes )
+
+                    else
+                        ( etes, ptotes )
+                )
+                ( [], paytotes )
+                tes
+    in
+    List.reverse l
 
 
 invoiceTotes : List EditPayEntry -> TDict UserId Int Int

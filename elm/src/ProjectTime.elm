@@ -18,9 +18,10 @@ import Set
 import TDict exposing (TDict)
 import TSet exposing (TSet)
 import TangoColors as TC
+import TaskSummary as TS
 import TcCommon as TC
 import Time
-import TimeReporting as TR exposing (EditAllocation, EditPayEntry, EditTimeEntry, csvToEditAllocations, csvToEditTimeEntries, eteToCsv, millisAsHours)
+import TimeReporting as TR exposing (EditAllocation, EditPayEntry, EditTimeEntry, csvToEditAllocations, csvToEditTimeEntries, descriptionSummary, eteToCsv, millisAsHours)
 import TimeTotaler exposing (TTotaler, getTes, getTotes, mapTimeentry, mkTToteler, setTes)
 import Toop
 import Util
@@ -119,6 +120,7 @@ type Msg
     | DToStart
     | DToEnd Int
     | DoEet Command
+    | TSMsg TS.Msg
     | Noop
 
 
@@ -128,6 +130,7 @@ type ViewMode
     | Payments
     | Allocations
     | Distributions
+    | Tasks
 
 
 type FocusColumn
@@ -178,6 +181,7 @@ type alias Model =
     , viewmode : ViewMode
     , saveonclonk : Bool
     , clonkOutDisplay : Maybe Time.Posix
+    , tasksummarymod : TS.Model
     }
 
 
@@ -247,6 +251,9 @@ showViewMode mode =
         Distributions ->
             "distributions"
 
+        Tasks ->
+            "tasks"
+
 
 readViewMode : String -> Maybe ViewMode
 readViewMode str =
@@ -265,6 +272,9 @@ readViewMode str =
 
         "distributions" ->
             Just Distributions
+
+        "tasks" ->
+            Just Tasks
 
         _ ->
             Nothing
@@ -590,6 +600,7 @@ init zone ld pt saveonclonk pageincrement mode =
     , paymentuser = Nothing
     , saveonclonk = saveonclonk
     , clonkOutDisplay = Nothing
+    , tasksummarymod = TS.default
     }
 
 
@@ -650,6 +661,7 @@ viewModeBar model =
     E.row [ E.width E.fill, E.spacing TC.defaultSpacing, E.paddingXY 0 8 ]
         [ vbt Clonks "clonks"
         , vbt Team "team"
+        , vbt Tasks "tasks"
         , vbt Payments "payments"
         , vbt Allocations "allocations"
         , vbt Distributions "distributions"
@@ -718,6 +730,9 @@ view ld size zone model =
 
                         Distributions ->
                             distributionview ld size zone model
+
+                        Tasks ->
+                            taskview ld size zone model
                    )
 
 
@@ -1467,6 +1482,13 @@ type Entry
     = TimeDay (TDict UserId Int Int)
     | PayEntry EditPayEntry
     | Allocation EditAllocation
+
+
+taskview : Data.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
+taskview ld _ _ model =
+    [ E.map TSMsg <| TS.taskFilterView ld.userid model.tasksummarymod
+    , E.map TSMsg <| TS.taskview model.timeentries model.payentries model.membernames model.tasksummarymod
+    ]
 
 
 distributionview : Data.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
@@ -2873,6 +2895,9 @@ update msg model ld zone =
                 Distributions ->
                     ( model, ShowError "csv import is unimplemented for distributions view." )
 
+                Tasks ->
+                    ( model, ShowError "csv import is unimplemented for tasks." )
+
         SettingsPress ->
             ( model, Settings )
 
@@ -3077,6 +3102,9 @@ update msg model ld zone =
 
                             Nothing ->
                                 ( model, None )
+
+                    Tasks ->
+                        ( model, None )
 
         FocusDescriptionChanged text ->
             ( { model | focusdescription = text }, None )
@@ -3908,6 +3936,13 @@ update msg model ld zone =
 
         DoEet cmd ->
             ( model, cmd )
+
+        TSMsg tmsg ->
+            let
+                tsmod =
+                    TS.update tmsg ld.userid model.tasksummarymod
+            in
+            ( { model | tasksummarymod = tsmod }, None )
 
         Noop ->
             ( model, None )
