@@ -9,7 +9,7 @@ import Element.Input as EI
 import Orgauth.Data exposing (UserId)
 import Round as R
 import TcCommon as TC
-import TimeReporting exposing (EditPayEntry, EditTimeEntry, descriptionSummary, invoiceTotes, paidEntries, payTotes, unpaidEntries)
+import TimeReporting exposing (EditPayEntry, EditTimeEntry, descriptionSummary, eteMillis, invoiceTotes, paidEntries, payTotes, unpaidEntries)
 import TimeTotaler exposing (TTotaler, getTes)
 
 
@@ -162,10 +162,13 @@ taskview timeentries payentries membernames model =
 
                 All ->
                     Dict.values <| tedict
+
+        total =
+            List.foldl (\ete s -> eteMillis ete + s) 0 tes
     in
     E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
         { data =
-            descriptionSummary membernames tes
+            (descriptionSummary membernames tes
                 |> Dict.toList
                 |> (case ( model.sort, model.direction ) of
                         ( Description, Asc ) ->
@@ -180,6 +183,8 @@ taskview timeentries payentries membernames model =
                         ( Hours, Desc ) ->
                             \a -> List.sortBy Tuple.second a |> List.reverse
                    )
+            )
+                ++ [ ( "total:", total ) ]
         , columns =
             [ { header =
                     EI.button
@@ -208,7 +213,11 @@ taskview timeentries payentries membernames model =
               , width = E.shrink
               , view =
                     \( task, _ ) ->
-                        E.text task
+                        if task == "total:" then
+                            E.el [ EF.bold ] <| E.text task
+
+                        else
+                            E.text task
               }
             , { header =
                     EI.button
@@ -236,8 +245,16 @@ taskview timeentries payentries membernames model =
                         }
               , width = E.shrink
               , view =
-                    \( _, millis ) ->
-                        E.text (R.round 2 <| toFloat millis / 1000 / 60 / 60)
+                    \( task, millis ) ->
+                        (if task == "total:" then
+                            E.el [ EF.bold ]
+
+                         else
+                            E.el []
+                        )
+                        <|
+                            E.text
+                                (R.round 2 <| toFloat millis / 1000 / 60 / 60)
               }
             ]
         }
