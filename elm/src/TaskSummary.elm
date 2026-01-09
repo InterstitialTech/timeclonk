@@ -188,10 +188,16 @@ taskview timeentries payentries membernames model =
                         , label =
                             case ( model.sort, model.direction ) of
                                 ( Description, Asc ) ->
-                                    E.el [ EF.underline, EF.bold ] <| E.text "task↑"
+                                    E.row []
+                                        [ E.el [ EF.underline, EF.bold ] <| E.text "task"
+                                        , E.el [ EF.bold ] <| E.text "↑"
+                                        ]
 
                                 ( Description, Desc ) ->
-                                    E.el [ EF.underline, EF.bold ] <| E.text "task↓"
+                                    E.row []
+                                        [ E.el [ EF.underline, EF.bold ] <| E.text "task"
+                                        , E.el [ EF.bold ] <| E.text "↓"
+                                        ]
 
                                 ( Hours, Asc ) ->
                                     E.el [ EF.underline ] <| E.text "task"
@@ -217,10 +223,16 @@ taskview timeentries payentries membernames model =
                                     E.el [ EF.underline ] <| E.text "hours"
 
                                 ( Hours, Asc ) ->
-                                    E.el [ EF.underline, EF.bold ] <| E.text "hours↑"
+                                    E.row []
+                                        [ E.el [ EF.underline, EF.bold ] <| E.text "hours"
+                                        , E.el [ EF.bold ] <| E.text "↑"
+                                        ]
 
                                 ( Hours, Desc ) ->
-                                    E.el [ EF.underline, EF.bold ] <| E.text "hours↓"
+                                    E.row []
+                                        [ E.el [ EF.underline, EF.bold ] <| E.text "hours"
+                                        , E.el [ EF.bold ] <| E.text "↓"
+                                        ]
                         }
               , width = E.shrink
               , view =
