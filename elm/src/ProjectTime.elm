@@ -18,6 +18,7 @@ import Set
 import TDict exposing (TDict)
 import TSet exposing (TSet)
 import TangoColors as TC
+import TaskSummary as TS
 import TcCommon as TC
 import Time
 import TimeReporting as TR exposing (EditAllocation, EditPayEntry, EditTimeEntry, csvToEditAllocations, csvToEditTimeEntries, descriptionSummary, eteToCsv, millisAsHours)
@@ -119,6 +120,7 @@ type Msg
     | DToStart
     | DToEnd Int
     | DoEet Command
+    | TSMsg TS.Msg
     | Noop
 
 
@@ -179,6 +181,7 @@ type alias Model =
     , viewmode : ViewMode
     , saveonclonk : Bool
     , clonkOutDisplay : Maybe Time.Posix
+    , tasksummarymod : TS.Model
     }
 
 
@@ -597,6 +600,7 @@ init zone ld pt saveonclonk pageincrement mode =
     , paymentuser = Nothing
     , saveonclonk = saveonclonk
     , clonkOutDisplay = Nothing
+    , tasksummarymod = TS.default
     }
 
 
@@ -1481,26 +1485,9 @@ type Entry
 
 
 taskview : Data.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
-taskview _ _ zone model =
-    [ E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
-        { data =
-            descriptionSummary (getTes model.timeentries |> Dict.values)
-                |> Dict.toList
-        , columns =
-            [ { header = E.el [ EF.underline ] (E.text "task")
-              , width = E.shrink
-              , view =
-                    \( task, _ ) ->
-                        E.text task
-              }
-            , { header = E.el [ EF.underline ] (E.text "hours")
-              , width = E.shrink
-              , view =
-                    \( _, millis ) ->
-                        E.text (R.round 2 <| toFloat millis / 1000 / 60 / 60)
-              }
-            ]
-        }
+taskview ld _ _ model =
+    [ E.map TSMsg <| TS.taskFilterView ld.userid model.tasksummarymod
+    , E.map TSMsg <| TS.taskview model.timeentries model.tasksummarymod
     ]
 
 
@@ -3949,6 +3936,13 @@ update msg model ld zone =
 
         DoEet cmd ->
             ( model, cmd )
+
+        TSMsg tmsg ->
+            let
+                tsmod =
+                    TS.update tmsg ld.userid model.tasksummarymod
+            in
+            ( { model | tasksummarymod = tsmod }, None )
 
         Noop ->
             ( model, None )
