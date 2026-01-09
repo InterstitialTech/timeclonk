@@ -139,16 +139,23 @@ millisPerDay zone from to =
             []
 
 
-descriptionSummary : List EditTimeEntry -> Dict String Int
-descriptionSummary etes =
+descriptionSummary :
+    Dict Int String
+    -> List EditTimeEntry
+    -> Dict String Int
+descriptionSummary membernames etes =
     List.foldl
         (\ete sumdict ->
-            case Dict.get ete.description sumdict of
+            let
+                eted =
+                    (Dict.get (getUserIdVal ete.user) membernames |> Maybe.withDefault "") ++ " - " ++ ete.description
+            in
+            case Dict.get eted sumdict of
                 Just millis ->
-                    Dict.insert ete.description (millis + eteMillis ete) sumdict
+                    Dict.insert eted (millis + eteMillis ete) sumdict
 
                 Nothing ->
-                    Dict.insert ete.description (eteMillis ete) sumdict
+                    Dict.insert eted (eteMillis ete) sumdict
         )
         Dict.empty
         etes

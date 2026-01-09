@@ -134,30 +134,38 @@ taskFilterView me model =
         ]
 
 
-taskview : TTotaler -> Dict Int EditPayEntry -> Model -> Element Msg
-taskview timeentries payentries model =
+taskview : TTotaler -> Dict Int EditPayEntry -> Dict Int String -> Model -> Element Msg
+taskview timeentries payentries membernames model =
     let
+        tedict =
+            if model.users == [] then
+                getTes timeentries
+
+            else
+                getTes timeentries
+                    |> Dict.filter (\_ v -> List.any ((==) v.user) model.users)
+
         tes : List EditTimeEntry
         tes =
             case model.timetype of
                 Paid ->
-                    paidEntries (getTes timeentries) (payTotes (Dict.values payentries))
+                    paidEntries tedict (payTotes (Dict.values payentries))
 
                 Unpaid ->
-                    unpaidEntries (getTes timeentries) (payTotes (Dict.values payentries))
+                    unpaidEntries tedict (payTotes (Dict.values payentries))
 
                 Invoiced ->
-                    paidEntries (getTes timeentries) (invoiceTotes (Dict.values payentries))
+                    paidEntries tedict (invoiceTotes (Dict.values payentries))
 
                 Uninvoiced ->
-                    unpaidEntries (getTes timeentries) (invoiceTotes (Dict.values payentries))
+                    unpaidEntries tedict (invoiceTotes (Dict.values payentries))
 
                 All ->
-                    Dict.values <| getTes timeentries
+                    Dict.values <| tedict
     in
     E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
         { data =
-            descriptionSummary tes
+            descriptionSummary membernames tes
                 |> Dict.toList
                 |> (case ( model.sort, model.direction ) of
                         ( Description, Asc ) ->

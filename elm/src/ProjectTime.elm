@@ -1487,7 +1487,7 @@ type Entry
 taskview : Data.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
 taskview ld _ _ model =
     [ E.map TSMsg <| TS.taskFilterView ld.userid model.tasksummarymod
-    , E.map TSMsg <| TS.taskview model.timeentries model.payentries model.tasksummarymod
+    , E.map TSMsg <| TS.taskview model.timeentries model.payentries model.membernames model.tasksummarymod
     ]
 
 
