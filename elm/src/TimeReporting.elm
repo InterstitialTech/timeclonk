@@ -247,6 +247,68 @@ payTotes entries =
             emptyUserTimeDict
 
 
+unpaidEntries : Dict Int EditTimeEntry -> TDict UserId Int Int -> List EditTimeEntry
+unpaidEntries timeentries paytotes =
+    let
+        tes =
+            Dict.values timeentries
+
+        ( l, _ ) =
+            List.foldl
+                (\ete ( etes, ptotes ) ->
+                    let
+                        ut =
+                            TDict.get ete.user ptotes |> Maybe.withDefault 0
+
+                        em =
+                            eteMillis ete
+                    in
+                    if em < ut then
+                        ( etes, TDict.insert ete.user (ut - em) ptotes )
+
+                    else if ut > 0 then
+                        ( { ete | startdate = ete.startdate + ut } :: etes, TDict.insert ete.user 0 ptotes )
+
+                    else
+                        ( ete :: etes, ptotes )
+                )
+                ( [], paytotes )
+                tes
+    in
+    List.reverse l
+
+
+paidEntries : Dict Int EditTimeEntry -> TDict UserId Int Int -> List EditTimeEntry
+paidEntries timeentries paytotes =
+    let
+        tes =
+            Dict.values timeentries
+
+        ( l, _ ) =
+            List.foldl
+                (\ete ( etes, ptotes ) ->
+                    let
+                        ut =
+                            TDict.get ete.user ptotes |> Maybe.withDefault 0
+
+                        em =
+                            eteMillis ete
+                    in
+                    if em < ut then
+                        ( ete :: etes, TDict.insert ete.user (ut - em) ptotes )
+
+                    else if ut > 0 then
+                        ( { ete | enddate = ete.enddate - ut } :: etes, TDict.insert ete.user 0 ptotes )
+
+                    else
+                        ( etes, ptotes )
+                )
+                ( [], paytotes )
+                tes
+    in
+    List.reverse l
+
+
 invoiceTotes : List EditPayEntry -> TDict UserId Int Int
 invoiceTotes entries =
     entries

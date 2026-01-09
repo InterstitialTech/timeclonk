@@ -9,7 +9,7 @@ import Element.Input as EI
 import Orgauth.Data exposing (UserId)
 import Round as R
 import TcCommon as TC
-import TimeReporting exposing (descriptionSummary)
+import TimeReporting exposing (EditPayEntry, EditTimeEntry, descriptionSummary, invoiceTotes, paidEntries, payTotes, unpaidEntries)
 import TimeTotaler exposing (TTotaler, getTes)
 
 
@@ -134,11 +134,30 @@ taskFilterView me model =
         ]
 
 
-taskview : TTotaler -> Model -> Element Msg
-taskview timeentries model =
+taskview : TTotaler -> Dict Int EditPayEntry -> Model -> Element Msg
+taskview timeentries payentries model =
+    let
+        tes : List EditTimeEntry
+        tes =
+            case model.timetype of
+                Paid ->
+                    paidEntries (getTes timeentries) (payTotes (Dict.values payentries))
+
+                Unpaid ->
+                    unpaidEntries (getTes timeentries) (payTotes (Dict.values payentries))
+
+                Invoiced ->
+                    paidEntries (getTes timeentries) (invoiceTotes (Dict.values payentries))
+
+                Uninvoiced ->
+                    unpaidEntries (getTes timeentries) (invoiceTotes (Dict.values payentries))
+
+                All ->
+                    Dict.values <| getTes timeentries
+    in
     E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
         { data =
-            descriptionSummary (getTes timeentries |> Dict.values)
+            descriptionSummary tes
                 |> Dict.toList
                 |> (case ( model.sort, model.direction ) of
                         ( Description, Asc ) ->
