@@ -661,10 +661,10 @@ viewModeBar model =
     E.row [ E.width E.fill, E.spacing TC.defaultSpacing, E.paddingXY 0 8 ]
         [ vbt Clonks "clonks"
         , vbt Team "team"
+        , vbt Tasks "tasks"
         , vbt Payments "payments"
         , vbt Allocations "allocations"
         , vbt Distributions "distributions"
-        , vbt Tasks "tasks"
         ]
 
 
