@@ -1493,7 +1493,7 @@ taskview _ _ zone model =
                     \( task, _ ) ->
                         E.text task
               }
-            , { header = E.el [ EF.underline ] (E.text "task")
+            , { header = E.el [ EF.underline ] (E.text "hours")
               , width = E.shrink
               , view =
                     \( _, millis ) ->
