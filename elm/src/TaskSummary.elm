@@ -18,6 +18,7 @@ type TimeType
     | Unpaid
     | Invoiced
     | Uninvoiced
+    | Ignored
     | All
 
 
@@ -127,6 +128,7 @@ taskFilterView me model =
                 , EI.option Unpaid (E.text "unpaid")
                 , EI.option Invoiced (E.text "invoiced")
                 , EI.option Uninvoiced (E.text "uninvoiced")
+                , EI.option Ignored (E.text "ignored")
                 ]
             , selected = Just model.timetype
             , label = EI.labelLeft [] (E.text "time type")
@@ -137,13 +139,22 @@ taskFilterView me model =
 taskview : TTotaler -> Dict Int EditPayEntry -> Dict Int String -> Model -> Element Msg
 taskview timeentries payentries membernames model =
     let
-        tedict =
-            if model.users == [] then
-                getTes timeentries
+        igfilter =
+            if model.timetype == Ignored then
+                \_ v -> v.ignore
 
             else
+                \_ v -> not v.ignore
+
+        tedict =
+            (if model.users == [] then
+                getTes timeentries
+
+             else
                 getTes timeentries
                     |> Dict.filter (\_ v -> List.any ((==) v.user) model.users)
+            )
+                |> Dict.filter igfilter
 
         tes : List EditTimeEntry
         tes =
@@ -160,11 +171,17 @@ taskview timeentries payentries membernames model =
                 Uninvoiced ->
                     unpaidEntries tedict (invoiceTotes (Dict.values payentries))
 
+                Ignored ->
+                    Dict.values <| tedict
+
                 All ->
                     Dict.values <| tedict
 
         total =
-            List.foldl (\ete s -> eteMillis ete + s) 0 tes
+            List.foldl
+                (\ete s -> eteMillis ete + s)
+                0
+                tes
     in
     E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
         { data =

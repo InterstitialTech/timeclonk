@@ -154,17 +154,12 @@ descriptionSummary membernames etes =
                         ++ " - "
                         ++ ete.description
             in
-            -- skip ignored entries
-            if ete.ignore then
-                sumdict
+            case Dict.get eted sumdict of
+                Just millis ->
+                    Dict.insert eted (millis + eteMillis ete) sumdict
 
-            else
-                case Dict.get eted sumdict of
-                    Just millis ->
-                        Dict.insert eted (millis + eteMillis ete) sumdict
-
-                    Nothing ->
-                        Dict.insert eted (eteMillis ete) sumdict
+                Nothing ->
+                    Dict.insert eted (eteMillis ete) sumdict
         )
         Dict.empty
         etes
@@ -542,7 +537,7 @@ csvToEditTimeEntries zone user projectid csv =
 -}
 eteToCsv : Time.Zone -> Dict Int String -> Dict Int String -> List EditTimeEntry -> String
 eteToCsv zone projectnames membernames timeentries =
-    ("project,user,task,startdate,enddate,duration"
+    ("project,user,task,ignore,startdate,enddate,duration"
         :: (timeentries
                 |> List.map
                     (\te ->
@@ -556,6 +551,13 @@ eteToCsv zone projectnames membernames timeentries =
                                )
                             ++ "\",\""
                             ++ te.description
+                            ++ "\",\""
+                            ++ (if te.ignore then
+                                    "ignore"
+
+                                else
+                                    ""
+                               )
                             ++ "\",\""
                             ++ Util.showDateTime zone (Time.millisToPosix te.startdate)
                             ++ "\",\""
