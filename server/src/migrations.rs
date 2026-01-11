@@ -1177,9 +1177,9 @@ CREATE TABLE IF NOT EXISTS "timeentry"
 CREATE UNIQUE INDEX "timeentryunq" ON "timeentry" 
   ("user",
  o  "startdate");
-CREATE TABLE IF NOT EXISTS "clientmember" 
+CREATE TABLE IF NOT EXISTS "projectmember" 
   ("id" INTEGER PRIMARY KEY NOT NULL,
-   "client" INTEGER REFERENCES client(id) NOT NULL,
+   "project" INTEGER REFERENCES project(id) NOT NULL,
    "user" INTEGER REFERENCES orgauth_user
     (id) NOT NULL,
    "role" TEXT NOT NULL);
@@ -1189,7 +1189,7 @@ CREATE UNIQUE INDEX "projectmemberunq" ON "projectmember"
 CREATE TABLE IF NOT EXISTS "sowmember" 
   ("id" INTEGER PRIMARY KEY NOT NULL,
    "sow" INTEGER REFERENCES sow(id) NOT NULL,
-   "clientmember" INTEGER NOT NULL REFERENCES clientmember
+   "projectmember" INTEGER NOT NULL REFERENCES projectmember
     (id) ON UPDATE RESTRICT ON DELETE RESTRICT,
    "role" TEXT NOT NULL);
 CREATE UNIQUE INDEX "sowmemberunq" ON "sowmember" 
@@ -1212,7 +1212,7 @@ CREATE TABLE IF NOT EXISTS "payentry"
 CREATE UNIQUE INDEX "payentryunq" ON "payentry" 
   ("user",
    "paymentdate");
-CREATE TABLE IF NOT EXISTS "client" 
+CREATE TABLE IF NOT EXISTS "project" 
   ("id" INTEGER PRIMARY KEY NOT NULL,
    "name" TEXT NOT NULL,
    "description" TEXT NOT NULL,
@@ -1241,7 +1241,7 @@ CREATE TABLE IF NOT EXISTS "sow"
    "payer" TEXT NOT NULL,
    "payee" TEXT NOT NULL,
    "generic_task" TEXT NOT NULL,
-   "creator" INTEGER REFERENCES clientmember (id) NOT NULL;
+   "creator" INTEGER REFERENCES projectmember (id) NOT NULL;
    "createdate" INTEGER NOT NULL,
    "changeddate" INTEGER NOT NULL);
 
