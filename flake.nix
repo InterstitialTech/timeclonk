@@ -2,8 +2,10 @@
   description = "timeclonk";
 
   inputs = {
+    nixpkgs = { url = "github:nixos/nixpkgs/nixos-25.11"; };
     flake-utils.url = "github:numtide/flake-utils";
     naersk.url = "github:nmattia/naersk";
+    naersk.inputs.nixpkgs.follows = "nixpkgs";  # needed so we don't get obsolete rustc!
   };
 
   outputs = { self, nixpkgs, flake-utils, naersk }:
@@ -40,7 +42,7 @@
         elm-stuff = makeElmPkg { inherit pkgs; };
         rust-stuff = naersk-lib.buildPackage {
             pname = pname;
-            root = ./.;
+            src = ./.;
             nativeBuildInputs = with pkgs; [
               cargo
               rustc
