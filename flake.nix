@@ -105,7 +105,6 @@
               elmPackages.elm-xref
               elmPackages.elm-language-server
               elmPackages.elm-verify-examples
-              elmPackages.elmi-to-json
               elmPackages.elm-optimize-level-2
               typst
               # typst-fmt
