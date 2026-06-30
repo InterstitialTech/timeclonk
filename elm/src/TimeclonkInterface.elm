@@ -160,19 +160,19 @@ serverResponseDecoder =
 
                     "saveprojectedit_denied" ->
                         JD.succeed
-                            (ServerError "saveprojectedit failed: insufficient user privileges")
+                            (ServerError "'save project' failed: insufficient user privileges")
 
                     "projectedit_denied" ->
                         JD.succeed
-                            (ServerError "get projectedit failed: insufficient user privileges")
+                            (ServerError "'get project' failed: insufficient user privileges")
 
                     "savedprojectinvoice_denied" ->
                         JD.succeed
-                            (ServerError "savedprojectinvoice failed: insufficient user privileges")
+                            (ServerError "'save project invoice' failed: insufficient user privileges")
 
                     "projecttime_denied" ->
                         JD.succeed
-                            (ServerError "get projecttime failed: insufficient user privileges")
+                            (ServerError "'get project time' failed: insufficient user privileges")
 
                     wat ->
                         JD.succeed

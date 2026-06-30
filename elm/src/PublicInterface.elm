@@ -56,7 +56,7 @@ serverResponseDecoder =
 
                     "projecttime_denied" ->
                         JD.succeed
-                            (ServerError "get projecttime failed: insufficient user privileges")
+                            (ServerError "'get project time' failed: insufficient user privileges")
 
                     wat ->
                         JD.succeed
