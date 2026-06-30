@@ -54,6 +54,10 @@ serverResponseDecoder =
                     "projecttime" ->
                         JD.map ProjectTime (JD.at [ "content" ] Data.decodeProjectTime)
 
+                    "projecttime_denied" ->
+                        JD.succeed
+                            (ServerError "'get project time' failed: insufficient user privileges")
+
                     wat ->
                         JD.succeed
                             (ServerError ("invalid 'what' from server: " ++ wat))
