@@ -1,3 +1,4 @@
+use elm_rs::{Elm, ElmDecode, ElmEncode};
 use serde_derive::{Deserialize, Serialize};
 // use std::collections::HashMap;
 use std::fmt;
@@ -16,20 +17,20 @@ pub struct UserInviteData {
   pub projects: Vec<UserInviteProject>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Elm, ElmDecode, Serialize, Deserialize, Debug, Clone)]
 pub struct ListProject {
   pub id: i64,
   pub name: String,
   pub role: Role,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Elm, ElmDecode, ElmEncode, Serialize, Deserialize, Debug, Clone)]
 pub struct ExtraField {
   pub n: String,
   pub v: String,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Elm, ElmEncode, Deserialize, Debug, Clone)]
 pub struct SaveProjectInvoice {
   pub id: i64,
   pub invoice_seq: i64,
@@ -53,7 +54,7 @@ pub struct SaveProject {
   pub currency: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Elm, ElmDecode, ElmEncode, Serialize, Deserialize, Debug, Clone)]
 pub enum Role {
   Member,
   Admin,
@@ -98,13 +99,13 @@ pub struct SavedProject {
   pub changeddate: i64,
 }
 
-#[derive(Serialize, Debug, Clone)]
+#[derive(Elm, ElmDecode, ElmEncode, Deserialize, Serialize, Debug, Clone)]
 pub struct SavedProjectEdit {
   pub project: Project,
   pub members: Vec<ProjectMember>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Elm, ElmDecode, ElmEncode, Serialize, Deserialize, Debug, Clone)]
 pub struct Project {
   pub id: i64,
   pub name: String,
@@ -123,7 +124,7 @@ pub struct Project {
   pub changeddate: i64,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Elm, ElmDecode, ElmEncode, Serialize, Deserialize, Debug, Clone)]
 pub struct ProjectMember {
   pub id: i64,
   pub name: String,
@@ -136,13 +137,13 @@ pub struct User {
   pub name: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Elm, ElmDecode, Serialize, Deserialize, Debug, Clone)]
 pub struct ProjectEdit {
   pub project: Project,
   pub members: Vec<ProjectMember>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Elm, ElmEncode, ElmDecode, Serialize, Deserialize, Debug, Clone)]
 pub struct TimeEntry {
   pub id: i64,
   pub project: i64,
@@ -156,7 +157,7 @@ pub struct TimeEntry {
   pub creator: i64,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Elm, ElmEncode, Serialize, Deserialize, Debug, Clone)]
 pub struct SaveTimeEntry {
   pub id: Option<i64>,
   pub project: i64,
@@ -167,7 +168,7 @@ pub struct SaveTimeEntry {
   pub ignore: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Elm, ElmEncode, Serialize, Deserialize, Debug, Clone)]
 pub struct SaveProjectTime {
   pub project: i64,
   pub savetimeentries: Vec<SaveTimeEntry>,
@@ -178,7 +179,7 @@ pub struct SaveProjectTime {
   pub deleteallocations: Vec<i64>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Elm, ElmEncode, ElmDecode, Serialize, Deserialize, Debug, Clone)]
 pub struct ProjectTime {
   pub project: Project,
   pub members: Vec<ProjectMember>,
@@ -187,13 +188,13 @@ pub struct ProjectTime {
   pub allocations: Vec<Allocation>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Elm, ElmDecode, ElmEncode, Serialize, Deserialize, Debug, Clone)]
 pub enum PayType {
   Invoiced,
   Paid,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Elm, ElmDecode, ElmEncode, Serialize, Deserialize, Debug, Clone)]
 pub struct PayEntry {
   pub id: i64,
   pub project: i64,
@@ -207,7 +208,7 @@ pub struct PayEntry {
   pub creator: i64,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Elm, ElmEncode, Serialize, Deserialize, Debug, Clone)]
 pub struct SavePayEntry {
   pub id: Option<i64>,
   pub project: i64,
@@ -218,7 +219,7 @@ pub struct SavePayEntry {
   pub description: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Elm, ElmDecode, ElmEncode, Serialize, Deserialize, Debug, Clone)]
 pub struct Allocation {
   pub id: i64,
   pub project: i64,
@@ -230,7 +231,7 @@ pub struct Allocation {
   pub creator: i64,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Elm, ElmEncode, Serialize, Deserialize, Debug, Clone)]
 pub struct SaveAllocation {
   pub id: Option<i64>,
   pub project: i64,
