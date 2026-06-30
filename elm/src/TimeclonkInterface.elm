@@ -158,6 +158,22 @@ serverResponseDecoder =
                     "invalid user or pwd" ->
                         JD.succeed InvalidUserOrPwd
 
+                    "saveprojectedit_denied" ->
+                        JD.succeed
+                            (ServerError "'save project' failed: insufficient user privileges")
+
+                    "projectedit_denied" ->
+                        JD.succeed
+                            (ServerError "'get project' failed: insufficient user privileges")
+
+                    "savedprojectinvoice_denied" ->
+                        JD.succeed
+                            (ServerError "'save project invoice' failed: insufficient user privileges")
+
+                    "projecttime_denied" ->
+                        JD.succeed
+                            (ServerError "'get project time' failed: insufficient user privileges")
+
                     wat ->
                         JD.succeed
                             (ServerError ("invalid 'what' from server: " ++ wat))
