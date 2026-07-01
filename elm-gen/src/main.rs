@@ -1,7 +1,13 @@
 use std::path::Path;
 
 use orgauth::util;
-use protocol::messages::{PublicMessageX, ServerResponseX, UserMessageX};
+use protocol::{
+  data::{
+    Allocation, ExtraField, ListProject, PayEntry, Project, ProjectEdit, ProjectMember,
+    ProjectTime, Role, SaveProjectInvoice, SaveProjectTime, SavedProjectEdit, TimeEntry, User,
+  },
+  messages::{PublicMessageX, ServerResponseX, UserMessageX},
+};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
   let ed = Path::new("../elm/src");
@@ -15,9 +21,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "Data",
         &mut target,
         {        // generates types and encoders for types implementing ElmEncoder
-        encoders: [ServerResponseX],
+        encoders: [ServerResponseX ,
+          ListProject,
+           Project,
+           ProjectEdit,
+           ProjectTime, PayEntry, ProjectMember, Allocation, 
+           SavedProjectEdit,
+           TimeEntry,
+           User,
+           Role,
+           ExtraField],
         // generates types and decoders for types implementing ElmDecoder
-        decoders: [PublicMessageX, UserMessageX],
+        decoders: [PublicMessageX, UserMessageX , SavedProjectEdit, SaveProjectInvoice, SaveProjectTime],
         // generates types and functions for forming queries for types implementing ElmQuery
         queries: [],
         // generates types and functions for forming queries for types implementing ElmQueryField
@@ -29,18 +44,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let output = String::from_utf8(target).unwrap();
 
     // add line importing Orgauth.Userid
-    let uidout = output.replace(
-      "import Json.Encode",
-      r#"import Json.Encode
-import Orgauth.Data exposing (UserId(..), userIdDecoder, userIdEncoder)"#,
-    );
+    //     let uidout = output.replace(
+    //       "import Json.Encode",
+    //       r#"import Json.Encode
+    // import Orgauth.Data exposing (UserId(..), userIdDecoder, userIdEncoder)"#,
+    //     );
 
     let outf = ed
       .join("NwData.elm")
       .to_str()
       .expect("bad path")
       .to_string();
-    util::write_string(outf.as_str(), uidout.as_str())?;
+    util::write_string(outf.as_str(), output.as_str())?;
     println!("wrote file: {}", outf);
   }
 

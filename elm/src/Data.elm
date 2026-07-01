@@ -78,7 +78,8 @@ module Data exposing
 
 import Json.Decode as JD
 import Json.Encode as JE
-import Orgauth.Data as OD exposing (UserId, getUserIdVal, makeUserId)
+import Orgauth.Data as OD exposing (UserId)
+import Orgauth.UserId exposing (getUserIdVal, makeUserId)
 import Time
 import UUID exposing (UUID)
 import Url.Builder as UB
@@ -87,6 +88,7 @@ import Util exposing (andMap)
 
 type alias LoginData =
     { userid : UserId
+    , uuid : String
     , name : String
     , email : String
     , admin : Bool
@@ -94,20 +96,46 @@ type alias LoginData =
     }
 
 
+
+-- { userid : UserId
+-- , uuid : String
+-- , name : String
+-- , email : String
+-- , admin : Bool
+-- , active : Bool
+-- , remoteUrl : Maybe (String)
+-- , data : Maybe (String)
+-- }
+
+
 ldToOdLd : LoginData -> OD.LoginData
 ldToOdLd ld =
     { userid = ld.userid
+    , uuid = ld.uuid
     , name = ld.name
     , email = ld.email
     , admin = ld.admin
     , active = ld.active
-    , data = JE.null
+    , remoteUrl = Nothing
+    , data = Nothing
     }
+
+
+
+-- { userid : UserId
+-- , uuid : String
+-- , name : String
+-- , email : String
+-- , admin : Bool
+-- , active : Bool
+-- , data : Maybe (String)
+-- }
 
 
 odLdToLd : OD.LoginData -> LoginData
 odLdToLd ld =
     { userid = ld.userid
+    , uuid = ld.uuid
     , name = ld.name
     , email = ld.email
     , admin = ld.admin
