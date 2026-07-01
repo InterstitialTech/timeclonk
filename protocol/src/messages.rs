@@ -14,7 +14,7 @@ pub struct ServerResponse {
   pub content: Value,
 }
 
-#[derive(Serialize, ElmDecode, Elm)]
+#[derive(Serialize, ElmEncode, Elm)]
 pub enum ServerResponseX {
   ProjectEdit(ProjectEdit),
   ProjectEditDenied,
@@ -35,7 +35,7 @@ pub struct UserMessage {
   pub data: Option<serde_json::Value>,
 }
 
-#[derive(Elm, ElmEncode, Deserialize, Debug)]
+#[derive(Elm, ElmDecode, Deserialize, Debug)]
 pub enum UserMessageX {
   GetProjectList,
   SaveProjectEdit(SavedProjectEdit),
@@ -53,7 +53,7 @@ pub struct PublicMessage {
   pub data: Option<serde_json::Value>,
 }
 
-#[derive(Elm, ElmEncode, Deserialize, Debug)]
+#[derive(Elm, ElmDecode, Deserialize, Debug)]
 pub enum PublicMessageX {
   GetProjectTime(i64),
 }

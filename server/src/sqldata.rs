@@ -1,14 +1,14 @@
-use crate::data::{
-  Allocation, ListProject, PayEntry, PayType, Project, ProjectEdit, ProjectMember, ProjectTime,
-  Role, SaveAllocation, SavePayEntry, SaveProject, SaveProjectEdit, SaveProjectInvoice,
-  SaveProjectTime, SaveTimeEntry, SavedProject, SavedProjectEdit, TimeEntry, User, UserInviteData,
-};
 use crate::migrations as tm;
 use barrel::backend::Sqlite;
 use log::info;
 use orgauth::data::{RegistrationData, UserId};
 use orgauth::endpoints::Callbacks;
 use orgauth::util::now;
+use protocol::data::{
+  Allocation, ListProject, PayEntry, PayType, Project, ProjectEdit, ProjectMember, ProjectTime,
+  Role, SaveAllocation, SavePayEntry, SaveProject, SaveProjectEdit, SaveProjectInvoice,
+  SaveProjectTime, SaveTimeEntry, SavedProject, SavedProjectEdit, TimeEntry, User, UserInviteData,
+};
 use rusqlite::{params, Connection};
 use std::path::Path;
 use std::str::FromStr;

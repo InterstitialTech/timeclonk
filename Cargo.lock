@@ -1126,6 +1126,7 @@ version = "0.1.0"
 dependencies = [
  "elm_rs",
  "orgauth",
+ "protocol",
 ]
 
 [[package]]
@@ -2746,6 +2747,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "protocol"
+version = "0.1.0"
+dependencies = [
+ "elm_rs",
+ "orgauth",
+ "serde",
+ "serde_derive",
+ "serde_json",
+]
+
+[[package]]
 name = "psm"
 version = "0.1.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3679,6 +3691,7 @@ dependencies = [
  "json",
  "log",
  "orgauth",
+ "protocol",
  "rand 0.5.6",
  "rusqlite",
  "serde",

@@ -3,6 +3,6 @@
 members = [
     "server",
     "elm-gen",
-    "orgauth/rustlib",
+    "orgauth/rustlib", "protocol",
 ]
 resolver = "2"

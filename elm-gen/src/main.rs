@@ -1,10 +1,10 @@
 use std::path::Path;
 
 use orgauth::util;
-use ::{PublicMessageX, ServerResponseX, UserMessageX};
+use protocol::messages::{PublicMessageX, ServerResponseX, UserMessageX};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-  let ed = Path::new("../../elm/src");
+  let ed = Path::new("../elm/src");
 
   // --------------------------------------------------------------------------
   // Data.elm
@@ -35,7 +35,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 import Orgauth.Data exposing (UserId(..), userIdDecoder, userIdEncoder)"#,
     );
 
-    let outf = ed.join("Data.elm").to_str().expect("bad path").to_string();
+    let outf = ed
+      .join("NwData.elm")
+      .to_str()
+      .expect("bad path")
+      .to_string();
     util::write_string(outf.as_str(), uidout.as_str())?;
     println!("wrote file: {}", outf);
   }

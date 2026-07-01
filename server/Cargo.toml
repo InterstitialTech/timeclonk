@@ -8,6 +8,7 @@ edition = "2018"
 
 [dependencies]
 orgauth = { path = "../orgauth/rustlib" }
+protocol = { path = "../protocol" }
 env_logger = "0.5.13"
 rusqlite = { version = "0.37.0", features = ["bundled"] }
 barrel = { version = "0.7.0", features = ["sqlite3"] }

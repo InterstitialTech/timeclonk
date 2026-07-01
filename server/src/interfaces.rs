@@ -1,9 +1,9 @@
 use crate::config::Config;
-use crate::data::{Role, SaveProjectEdit, SaveProjectInvoice, SaveProjectTime};
-use crate::messages::{PublicMessage, ServerResponse, UserMessage};
 use crate::sqldata;
 use actix_session::Session;
 use log::info;
+use protocol::data::{Role, SaveProjectEdit, SaveProjectInvoice, SaveProjectTime};
+use protocol::messages::{PublicMessage, ServerResponse, UserMessage};
 use std::error::Error;
 
 pub fn login_data_for_token(

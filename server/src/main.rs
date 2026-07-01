@@ -1,8 +1,9 @@
 mod config;
-mod data;
+// mod protocol::data;
+use protocol::messages::{PublicMessage, ServerResponse, UserMessage};
 mod interfaces;
 mod invoice;
-mod messages;
+// mod messages;
 mod migrations;
 mod sqldata;
 use actix_session::{
@@ -15,7 +16,7 @@ use actix_web::{
 use clap::Arg;
 use config::Config;
 use log::{error, info};
-use messages::{PublicMessage, ServerResponse, UserMessage};
+// use messages::{PublicMessage, ServerResponse, UserMessage};
 use orgauth::{data::UserResponse, util};
 use orgauth::{
   data::{AdminResponse, UserRequest},
