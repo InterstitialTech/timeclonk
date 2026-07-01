@@ -6,7 +6,7 @@ use crate::data::{
 use crate::migrations as tm;
 use barrel::backend::Sqlite;
 use log::info;
-use orgauth::data::RegistrationData;
+use orgauth::data::{RegistrationData, UserId};
 use orgauth::endpoints::Callbacks;
 use orgauth::util::now;
 use rusqlite::{params, Connection};
@@ -22,26 +22,33 @@ pub fn timeclonk_callbacks() -> Callbacks {
   }
 }
 
+// &Connection,       // <- conn
+// &RegistrationData, // <- rd
+// Option<String>,    // <- extraLoginData
+// Option<String>,    // <- remote_data
+// Option<UserId>,    // <- creator
+// UserId,            // <- uid
 pub fn on_new_user(
   conn: &Connection,
   _rd: &RegistrationData,
-  data: Option<String>,
-  creator: Option<i64>,
-  uid: i64,
+  extra_login_data: Option<String>,
+  _remote_data: Option<String>,
+  creator: Option<UserId>,
+  uid: UserId,
 ) -> Result<(), orgauth::error::Error> {
-  match data {
+  match extra_login_data {
     Some(d) => {
       let invitedata: UserInviteData = serde_json::from_str(d.as_str())?;
       match creator {
         Some(cuid) => {
           for p in invitedata.projects {
-            match member_role(conn, cuid, p.id)? {
+            match member_role(conn, cuid.into(), p.id)? {
               Some(Role::Admin) => {
                 conn.execute(
                   "insert into projectmember (project, user, role)
                    values (?1, ?2, ?3)
                    on conflict (project, user) do update set role = ?3",
-                  params![p.id, uid, p.role.to_string().as_str()],
+                  params![p.id, Into::<i64>::into(uid), p.role.to_string().as_str()],
                 )?;
               }
               Some(_) => (),
@@ -58,14 +65,14 @@ pub fn on_new_user(
   }
 }
 
-pub fn on_delete_user(_conn: &Connection, _uid: i64) -> Result<bool, orgauth::error::Error> {
+pub fn on_delete_user(_conn: &Connection, _uid: UserId) -> Result<bool, orgauth::error::Error> {
   Ok(true)
 }
 
 // callback to pass to orgauth
 pub fn extra_login_data_callback(
   _conn: &Connection,
-  _uid: i64,
+  _uid: UserId,
 ) -> Result<Option<serde_json::Value>, orgauth::error::Error> {
   Ok(None)
 }

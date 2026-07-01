@@ -16,8 +16,11 @@ use clap::Arg;
 use config::Config;
 use log::{error, info};
 use messages::{PublicMessage, ServerResponse, UserMessage};
-use orgauth::data::WhatMessage;
-use orgauth::util;
+use orgauth::{data::UserResponse, util};
+use orgauth::{
+  data::{AdminResponse, UserRequest},
+  endpoints::ActixTokener,
+};
 use serde_json;
 use std::env;
 use std::error::Error;
@@ -107,29 +110,41 @@ async fn public(
 async fn user(
   session: Session,
   data: web::Data<Config>,
-  item: web::Json<WhatMessage>,
+  item: web::Json<UserRequest>,
   req: HttpRequest,
 ) -> HttpResponse {
   info!(
-    "user msg: {}  \n connection_info: {:?}",
-    &item.what,
+    "user msg: \n connection_info: {:?}",
+    // &item,
     req.connection_info()
   );
   let mut cb = sqldata::timeclonk_callbacks();
 
-  match orgauth::endpoints::user_interface(
-    &session,
-    &data.orgauth_config,
-    &mut cb,
-    item.into_inner(),
-  ) {
+  // conn: &Connection,
+  // tokener: &mut dyn Tokener,
+  // config: &Config,
+  // callbacks: &mut Callbacks,
+  // user_uri_path: Option<String>,
+  // msg: UserRequest,
+  match async {
+    let conn = sqldata::connection_open(data.orgauth_config.db.as_path())?;
+
+    orgauth::endpoints::user_interface(
+      &conn,
+      &mut ActixTokener { session: &session },
+      &data.orgauth_config,
+      &mut cb,
+      None,
+      item.into_inner(),
+    )
+    .await
+  }
+  .await
+  {
     Ok(sr) => HttpResponse::Ok().json(sr),
     Err(e) => {
       error!("'user' err: {:?}", e);
-      let se = orgauth::data::WhatMessage {
-        what: "server error".to_string(),
-        data: Some(serde_json::Value::String(e.to_string())),
-      };
+      let se = UserResponse::UrpServerError(e.to_string());
       HttpResponse::Ok().json(se)
     }
   }
@@ -138,17 +153,17 @@ async fn user(
 async fn admin(
   session: Session,
   data: web::Data<Config>,
-  item: web::Json<orgauth::data::WhatMessage>,
+  item: web::Json<orgauth::data::AdminRequest>,
   req: HttpRequest,
 ) -> HttpResponse {
   info!(
-    "admin msg: {}  \n connection_info: {:?}",
-    &item.what,
+    "admin msg:  \n connection_info: {:?}",
+    // &item.what,
     req.connection_info()
   );
   let mut cb = sqldata::timeclonk_callbacks();
   match orgauth::endpoints::admin_interface_check(
-    &session,
+    &mut ActixTokener { session: &session },
     &data.orgauth_config,
     &mut cb,
     item.into_inner(),
@@ -156,10 +171,7 @@ async fn admin(
     Ok(sr) => HttpResponse::Ok().json(sr),
     Err(e) => {
       error!("'user' err: {:?}", e);
-      let se = orgauth::data::WhatMessage {
-        what: "server error".to_string(),
-        data: Some(serde_json::Value::String(e.to_string())),
-      };
+      let se = AdminResponse::ArpServerError(e.to_string());
       HttpResponse::Ok().json(se)
     }
   }
@@ -212,7 +224,7 @@ fn timeclonk_interface_check(
         }
         Ok(userdata) => {
           // finally!  processing messages as logged in user.
-          interfaces::timeclonk_interface_loggedin(&config, userdata.id, &msg)
+          interfaces::timeclonk_interface_loggedin(&config, userdata.id.into(), &msg)
         }
       }
     }
@@ -241,6 +253,8 @@ fn defcon() -> Config {
     invite_token_expiration_ms: 1 * 24 * 60 * 60 * 1000,      // 1 day in milliseconds
     open_registration: false,
     non_admin_invite: false,
+    remote_registration: false,
+    send_emails: false,
   };
   Config {
     ip: "127.0.0.1".to_string(),
@@ -256,6 +270,7 @@ pub fn load_config(filename: &str) -> Result<Config, Box<dyn Error>> {
 }
 
 fn main() {
+  env_logger::init();
   match err_main() {
     Err(e) => error!("error: {:?}", e),
     Ok(_) => (),
@@ -343,8 +358,6 @@ async fn err_main() -> Result<(), Box<dyn Error>> {
     }
     None => {
       // normal server ops
-      env_logger::init();
-
       info!("server init!");
 
       if config.static_path == None {
@@ -403,9 +416,22 @@ async fn err_main() -> Result<(), Box<dyn Error>> {
           uid: username.to_string(),
           pwd: pwd.trim().to_string(),
           email: "".to_string(),
+          remote_url: "".to_string(),
         };
 
-        orgauth::dbfun::new_user(&conn, &rd, None, None, true, None, &mut cb.on_new_user)?;
+        orgauth::dbfun::new_user(
+          &conn,
+          &rd,
+          None,
+          None,
+          true,
+          None,
+          None,
+          None,
+          None,
+          None,
+          &mut cb.on_new_user,
+        )?;
 
         println!("admin user created: {}", username);
         return Ok(());
