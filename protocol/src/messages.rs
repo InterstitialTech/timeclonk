@@ -14,19 +14,31 @@ pub struct ServerResponse {
   pub content: Value,
 }
 
-#[derive(Serialize, ElmEncode, Elm)]
-pub enum ServerResponseX {
-  ProjectEdit(ProjectEdit),
-  ProjectEditDenied,
-  SavedProjectEdit(SavedProjectEdit),
-  SavedProjectEditDenied,
-  SavedProjectInvoice(Project),
-  SavedProjectInvoiceDenied,
-  ProjectTime(ProjectTime),
-  ProjectTimeDenied,
-  ProjectList(Vec<ListProject>),
-  UserTime(Vec<TimeEntry>),
-  AllUsers(Vec<User>),
+#[derive(Serialize, ElmDecode, Elm)]
+pub enum TcResponseX {
+  TrProjectEdit(ProjectEdit),
+  TrProjectEditDenied,
+  TrSavedProjectEdit(SavedProjectEdit),
+  TrSavedProjectEditDenied,
+  TrSavedProjectInvoice(Project),
+  TrSavedProjectInvoiceDenied,
+  TrProjectTime(ProjectTime),
+  TrProjectTimeDenied,
+  TrProjectList(Vec<ListProject>),
+  TrUserTime(Vec<TimeEntry>),
+  TrAllUsers(Vec<User>),
+}
+
+#[derive(Elm, ElmEncode, Deserialize, Debug)]
+pub enum TcMessageX {
+  TmGetProjectList,
+  TmSaveProjectEdit(SavedProjectEdit),
+  TmGetProjectEdit(i64),
+  TmSaveProjectInvoice(SaveProjectInvoice),
+  TmGetProjectTime(i64),
+  TmSaveProjectTime(SaveProjectTime),
+  TmGetUserTime,
+  TmGetAllUsers,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -35,25 +47,18 @@ pub struct UserMessage {
   pub data: Option<serde_json::Value>,
 }
 
-#[derive(Elm, ElmDecode, Deserialize, Debug)]
-pub enum UserMessageX {
-  GetProjectList,
-  SaveProjectEdit(SavedProjectEdit),
-  GetProjectEdit(i64),
-  SaveProjectInvoice(SaveProjectInvoice),
-  GetProjectTime(i64),
-  SaveProjectTime(SaveProjectTime),
-  GetUserTime,
-  GetAllUsers,
-}
-
 #[derive(Deserialize, Serialize, Debug)]
 pub struct PublicMessage {
   pub what: String,
   pub data: Option<serde_json::Value>,
 }
 
-#[derive(Elm, ElmDecode, Deserialize, Debug)]
+#[derive(Elm, ElmEncode, Deserialize, Debug)]
 pub enum PublicMessageX {
-  GetProjectTime(i64),
+  PmGetProjectTime(i64),
+}
+
+#[derive(Serialize, ElmDecode, Elm)]
+pub enum PublicResponseX {
+  PrProjectTime(ProjectTime),
 }

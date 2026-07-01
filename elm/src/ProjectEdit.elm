@@ -7,7 +7,8 @@ import Element.Background as EBk
 import Element.Border as EBd
 import Element.Font as EF
 import Element.Input as EI
-import Orgauth.Data exposing (UserId, getUserIdVal, makeUserId)
+import Orgauth.Data exposing (UserId)
+import Orgauth.UserId exposing (getUserIdVal, makeUserId)
 import Route
 import TDict exposing (TDict)
 import TangoColors as TC

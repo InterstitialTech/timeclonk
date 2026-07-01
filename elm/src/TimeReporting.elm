@@ -3,12 +3,14 @@ module TimeReporting exposing (..)
 import Calendar
 import Clock
 import Csv
-import Data exposing (AllocationId, PayEntryId, PayType, TimeEntryId, getProjectIdVal)
+import DataUtil exposing (AllocationId, PayEntryId, TimeEntryId, getProjectIdVal)
 import DateTime exposing (DateTime)
 import Dict exposing (Dict)
-import Orgauth.Data as OD exposing (UserId, getUserIdVal, makeUserId)
+import Orgauth.Data exposing (UserId)
+import Orgauth.UserId exposing (getUserIdVal, makeUserId)
 import Round as R
 import TDict exposing (TDict)
+import TcProtocol as TP exposing (PayType)
 import Time exposing (Zone)
 import Toop
 import Toop.Take as TT
@@ -22,7 +24,7 @@ type alias EditTimeEntry =
     , startdate : Int
     , enddate : Int
     , ignore : Bool
-    , project : Data.ProjectId
+    , project : DataUtil.ProjectId
     , checked : Bool
     }
 
@@ -222,20 +224,20 @@ teamMillisPerDay zone etes =
 payAmount : EditPayEntry -> Int
 payAmount entry =
     case entry.paytype of
-        Data.Paid ->
+        TP.Paid ->
             entry.duration
 
-        Data.Invoiced ->
+        TP.Invoiced ->
             0
 
 
 invoiceAmount : EditPayEntry -> Int
 invoiceAmount entry =
     case entry.paytype of
-        Data.Paid ->
+        TP.Paid ->
             0
 
-        Data.Invoiced ->
+        TP.Invoiced ->
             entry.duration
 
 
@@ -446,7 +448,7 @@ weekTotes zone timeentries =
             Dict.empty
 
 
-emptyUmDict : TDict UserId Int Data.User
+emptyUmDict : TDict UserId Int TP.User
 emptyUmDict =
     TDict.empty getUserIdVal makeUserId
 
@@ -472,7 +474,7 @@ timeTotes entries =
             emptyUserTimeDict
 
 
-csvToEditTimeEntries : Time.Zone -> UserId -> Data.ProjectId -> Csv.Csv -> Result (List String) (List EditTimeEntry)
+csvToEditTimeEntries : Time.Zone -> UserId -> DataUtil.ProjectId -> Csv.Csv -> Result (List String) (List EditTimeEntry)
 csvToEditTimeEntries zone user projectid csv =
     let
         headers =

@@ -1,9 +1,11 @@
 module ProjectView exposing (..)
 
+-- import Data
+
 import Calendar
 import Common
 import Csv
-import Data
+import DataUtil
 import Dict exposing (Dict)
 import Element as E exposing (Element)
 import Element.Background as EBk
@@ -11,7 +13,8 @@ import Element.Border as EBd
 import Element.Events as EE
 import Element.Font as EF
 import Element.Input as EI
-import Orgauth.Data as OD exposing (UserId, getUserIdVal, makeUserId)
+import Orgauth.Data as OD exposing (UserId)
+import Orgauth.UserId exposing (getUserIdVal, makeUserId)
 import Paginator as P
 import Round as R
 import Set
@@ -19,6 +22,7 @@ import TDict exposing (TDict)
 import TSet exposing (TSet)
 import TangoColors as TC
 import TcCommon as TC
+import TcProtocol as TP
 import Time
 import TimeReporting as TR exposing (EditAllocation, EditPayEntry, EditTimeEntry, csvToEditAllocations, csvToEditTimeEntries, eteToCsv, millisAsHours)
 import TimeTotaler exposing (TTotaler, getTes, getTotes, mapTimeentry, mkTToteler, setTes)
@@ -73,8 +77,8 @@ type FocusColumn
 
 
 type alias Model =
-    { project : Data.Project
-    , members : List Data.ProjectMember
+    { project : TP.Project
+    , members : List TP.ProjectMember
     , membernames : Dict Int String
     , teamentries : TTotaler
     , teampaginator : P.Model Msg
@@ -138,38 +142,38 @@ readViewMode str =
             Nothing
 
 
-emptyTimeEntryIdSet : TSet Data.TimeEntryId Int
+emptyTimeEntryIdSet : TSet DataUtil.TimeEntryId Int
 emptyTimeEntryIdSet =
-    TSet.empty Data.getTimeEntryIdVal Data.makeTimeEntryId
+    TSet.empty DataUtil.getTimeEntryIdVal DataUtil.makeTimeEntryId
 
 
-emptyPayEntryIdSet : TSet Data.PayEntryId Int
+emptyPayEntryIdSet : TSet DataUtil.PayEntryId Int
 emptyPayEntryIdSet =
-    TSet.empty Data.getPayEntryIdVal Data.makePayEntryId
+    TSet.empty DataUtil.getPayEntryIdVal DataUtil.makePayEntryId
 
 
-emptyAllocationIdSet : TSet Data.AllocationId Int
+emptyAllocationIdSet : TSet DataUtil.AllocationId Int
 emptyAllocationIdSet =
-    TSet.empty Data.getAllocationIdVal Data.makeAllocationId
+    TSet.empty DataUtil.getAllocationIdVal DataUtil.makeAllocationId
 
 
-toEditTimeEntry : Data.TimeEntry -> EditTimeEntry
+toEditTimeEntry : TP.TimeEntry -> EditTimeEntry
 toEditTimeEntry te =
-    { id = Just te.id
-    , user = te.user
+    { id = Just (DataUtil.makeTimeEntryId te.id)
+    , user = makeUserId te.user
     , description = te.description
     , startdate = te.startdate
     , enddate = te.enddate
     , ignore = te.ignore
-    , project = te.project
+    , project = DataUtil.makeProjectId te.project
     , checked = False
     }
 
 
-toEditPayEntry : Data.PayEntry -> EditPayEntry
+toEditPayEntry : TP.PayEntry -> EditPayEntry
 toEditPayEntry te =
-    { id = Just te.id
-    , user = te.user
+    { id = Just (DataUtil.makePayEntryId te.id)
+    , user = makeUserId te.user
     , description = te.description
     , duration = te.duration
     , paytype = te.paytype
@@ -178,9 +182,9 @@ toEditPayEntry te =
     }
 
 
-toEditAllocation : Data.Allocation -> EditAllocation
+toEditAllocation : TP.Allocation -> EditAllocation
 toEditAllocation e =
-    { id = Just e.id
+    { id = Just (DataUtil.makeAllocationId e.id)
     , description = e.description
     , allocationdate = e.allocationdate
     , duration = e.duration
@@ -188,28 +192,28 @@ toEditAllocation e =
     }
 
 
-toEteDict : List Data.TimeEntry -> Dict Int EditTimeEntry
+toEteDict : List TP.TimeEntry -> Dict Int EditTimeEntry
 toEteDict te =
     te
         |> List.map (toEditTimeEntry >> (\ete -> ( ete.startdate, ete )))
         |> Dict.fromList
 
 
-toEpeDict : List Data.PayEntry -> Dict Int EditPayEntry
+toEpeDict : List TP.PayEntry -> Dict Int EditPayEntry
 toEpeDict pe =
     pe
         |> List.map (toEditPayEntry >> (\epe -> ( epe.paymentdate, epe )))
         |> Dict.fromList
 
 
-toEaDict : List Data.Allocation -> Dict Int EditAllocation
+toEaDict : List TP.Allocation -> Dict Int EditAllocation
 toEaDict a =
     a
         |> List.map (toEditAllocation >> (\ea -> ( ea.allocationdate, ea )))
         |> Dict.fromList
 
 
-init : Time.Zone -> Data.ProjectTime -> Int -> String -> Model
+init : Time.Zone -> TP.ProjectTime -> Int -> String -> Model
 init zone pt pageincrement mode =
     let
         ietes =
@@ -223,7 +227,7 @@ init zone pt pageincrement mode =
     in
     { project = pt.project
     , members = pt.members
-    , membernames = pt.members |> List.map (\m -> ( getUserIdVal m.id, m.name )) |> Dict.fromList
+    , membernames = pt.members |> List.map (\m -> ( m.id, m.name )) |> Dict.fromList
     , teamentries = mkTToteler ietes (always True) zone
     , teampaginator = P.init TeamForward TeamBack TeamToStart TeamToEnd P.End pageincrement
     , payentries = iepes
@@ -261,7 +265,7 @@ setPageIncrement pageincrement model =
     }
 
 
-onProjectTime : Time.Zone -> Data.ProjectTime -> Model -> Model
+onProjectTime : Time.Zone -> TP.ProjectTime -> Model -> Model
 onProjectTime zone pt model =
     let
         nm =
@@ -795,7 +799,7 @@ distributionview size zone model =
         Just dist ->
             let
                 md =
-                    model.members |> List.map (\m -> ( m.id, Data.projectMemberToUser m )) |> TDict.insertList TR.emptyUmDict
+                    model.members |> List.map (\m -> ( m.id, DataUtil.projectMemberToUser m )) |> TDict.insertList TR.emptyUmDict
             in
             E.table [ E.spacing TC.defaultSpacing, E.width E.fill ]
                 { data = dist |> TDict.toList
@@ -1258,7 +1262,7 @@ update msg model zone =
             , SaveCsv
                 ("timeclonk-" ++ model.project.name ++ ".csv")
                 (eteToCsv zone
-                    (Dict.fromList [ ( Data.getProjectIdVal model.project.id, model.project.name ) ])
+                    (Dict.fromList [ ( model.project.id, model.project.name ) ])
                     model.membernames
                     (getTes model.teamentries |> Dict.values)
                 )

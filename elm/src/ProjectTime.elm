@@ -11,7 +11,8 @@ import Element.Border as EBd
 import Element.Events as EE
 import Element.Font as EF
 import Element.Input as EI
-import Orgauth.Data exposing (UserId, getUserIdVal)
+import Orgauth.Data exposing (UserId)
+import Orgauth.UserId exposing (getUserIdVal)
 import Paginator as P
 import Round as R
 import Set

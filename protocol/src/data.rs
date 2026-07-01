@@ -17,7 +17,7 @@ pub struct UserInviteData {
   pub projects: Vec<UserInviteProject>,
 }
 
-#[derive(Elm, ElmEncode, Serialize, Deserialize, Debug, Clone)]
+#[derive(Elm, ElmDecode, Serialize, Deserialize, Debug, Clone)]
 pub struct ListProject {
   pub id: i64,
   pub name: String,
@@ -30,7 +30,7 @@ pub struct ExtraField {
   pub v: String,
 }
 
-#[derive(Elm, ElmDecode, Deserialize, Debug, Clone)]
+#[derive(Elm, ElmEncode, Deserialize, Debug, Clone)]
 pub struct SaveProjectInvoice {
   pub id: i64,
   pub invoice_seq: i64,
@@ -131,13 +131,13 @@ pub struct ProjectMember {
   pub role: Role,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Elm, ElmDecode, Serialize, Deserialize, Debug, Clone)]
 pub struct User {
   pub id: i64,
   pub name: String,
 }
 
-#[derive(Elm, ElmEncode, Serialize, Deserialize, Debug, Clone)]
+#[derive(Elm, ElmDecode, Serialize, Deserialize, Debug, Clone)]
 pub struct ProjectEdit {
   pub project: Project,
   pub members: Vec<ProjectMember>,
@@ -157,7 +157,7 @@ pub struct TimeEntry {
   pub creator: i64,
 }
 
-#[derive(Elm, ElmDecode, Serialize, Deserialize, Debug, Clone)]
+#[derive(Elm, ElmEncode, Serialize, Deserialize, Debug, Clone)]
 pub struct SaveTimeEntry {
   pub id: Option<i64>,
   pub project: i64,
@@ -168,7 +168,7 @@ pub struct SaveTimeEntry {
   pub ignore: bool,
 }
 
-#[derive(Elm, ElmDecode, Serialize, Deserialize, Debug, Clone)]
+#[derive(Elm, ElmEncode, Serialize, Deserialize, Debug, Clone)]
 pub struct SaveProjectTime {
   pub project: i64,
   pub savetimeentries: Vec<SaveTimeEntry>,
@@ -208,7 +208,7 @@ pub struct PayEntry {
   pub creator: i64,
 }
 
-#[derive(Elm, ElmDecode, Serialize, Deserialize, Debug, Clone)]
+#[derive(Elm, ElmEncode, Serialize, Deserialize, Debug, Clone)]
 pub struct SavePayEntry {
   pub id: Option<i64>,
   pub project: i64,
@@ -231,7 +231,7 @@ pub struct Allocation {
   pub creator: i64,
 }
 
-#[derive(Elm, ElmDecode, Serialize, Deserialize, Debug, Clone)]
+#[derive(Elm, ElmEncode, Serialize, Deserialize, Debug, Clone)]
 pub struct SaveAllocation {
   pub id: Option<i64>,
   pub project: i64,
@@ -240,7 +240,7 @@ pub struct SaveAllocation {
   pub description: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Elm, ElmEncode, Serialize, Deserialize, Debug, Clone)]
 pub struct PrintInvoice {
   pub id: String,
   pub payer: String,
@@ -252,7 +252,7 @@ pub struct PrintInvoice {
   pub currency: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Elm, ElmEncode, Serialize, Deserialize, Debug, Clone)]
 pub struct InvoiceItem {
   pub description: String,
   pub duration: f64,

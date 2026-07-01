@@ -11,7 +11,8 @@ import Element.Border as EBd
 import Element.Events as EE
 import Element.Font as EF
 import Element.Input as EI
-import Orgauth.Data as OD exposing (UserId, getUserIdVal, makeUserId)
+import Orgauth.Data exposing (UserId)
+import Orgauth.UserId exposing (getUserIdVal, makeUserId)
 import Paginator as P
 import Round as R
 import Set
@@ -310,7 +311,7 @@ update msg model ld zone =
             , SaveCsv ("timeclonk-" ++ ld.name ++ ".csv")
                 (eteToCsv zone
                     (Dict.map (\_ v -> v.name) model.projects)
-                    (Dict.fromList [ ( OD.getUserIdVal ld.userid, ld.name ) ])
+                    (Dict.fromList [ ( getUserIdVal ld.userid, ld.name ) ])
                     (getTes model.timeentries |> Dict.values)
                 )
             )
