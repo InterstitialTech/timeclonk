@@ -1,7 +1,8 @@
 module UserSettings exposing (..)
 
+-- import Data
+
 import Common exposing (buttonStyle)
-import Data
 import Element as E exposing (Element)
 import Element.Background as EBk
 import Element.Border as EBd

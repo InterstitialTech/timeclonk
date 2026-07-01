@@ -1,11 +1,5 @@
 port module Main exposing (main)
 
--- import NwData
--- import Orgauth.AdminInterface as AI
--- import Orgauth.UserInterface as UI
--- import ServerResponse
--- import Data
-
 import Array
 import Browser
 import Browser.Events
@@ -47,7 +41,6 @@ import ProjectEdit
 import ProjectListing
 import ProjectTime
 import ProjectView
-import PublicInterface as PI
 import Random exposing (Seed, initialSeed)
 import Route exposing (Route(..), parseUrl, routeTitle, routeUrl)
 import SelectString as SS
@@ -59,7 +52,6 @@ import TcCommon
 import TcProtocol as TP
 import Time
 import TimeReporting as TR
-import TimeclonkInterface as TI
 import Toop
 import UUID exposing (UUID)
 import Url exposing (Url)

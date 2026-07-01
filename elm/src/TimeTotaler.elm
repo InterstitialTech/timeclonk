@@ -1,6 +1,5 @@
 module TimeTotaler exposing (TTotaler, getTes, getTotes, mapTimeentry, mkTToteler, setTes)
 
-import Data
 import Dict exposing (Dict(..))
 import Orgauth.Data exposing (UserId)
 import Orgauth.UserId exposing (getUserIdVal, makeUserId)
