@@ -14,7 +14,7 @@ import Element.Events as EE
 import Element.Font as EF
 import Element.Input as EI
 import Orgauth.Data as OD exposing (UserId)
-import Orgauth.UserId exposing (getUserIdVal, makeUserId)
+import Orgauth.UserId as UserId exposing (getUserIdVal, makeUserId)
 import Paginator as P
 import Round as R
 import Set
@@ -160,12 +160,12 @@ emptyAllocationIdSet =
 toEditTimeEntry : TP.TimeEntry -> EditTimeEntry
 toEditTimeEntry te =
     { id = Just (DataUtil.makeTimeEntryId te.id)
-    , user = makeUserId te.user
+    , user = te.user
     , description = te.description
     , startdate = te.startdate
     , enddate = te.enddate
     , ignore = te.ignore
-    , project = DataUtil.makeProjectId te.project
+    , project = te.project
     , checked = False
     }
 
@@ -173,7 +173,7 @@ toEditTimeEntry te =
 toEditPayEntry : TP.PayEntry -> EditPayEntry
 toEditPayEntry te =
     { id = Just (DataUtil.makePayEntryId te.id)
-    , user = makeUserId te.user
+    , user = te.user
     , description = te.description
     , duration = te.duration
     , paytype = te.paytype
@@ -227,7 +227,7 @@ init zone pt pageincrement mode =
     in
     { project = pt.project
     , members = pt.members
-    , membernames = pt.members |> List.map (\m -> ( m.id, m.name )) |> Dict.fromList
+    , membernames = pt.members |> List.map (\m -> ( UserId.getUserIdVal m.id, m.name )) |> Dict.fromList
     , teamentries = mkTToteler ietes (always True) zone
     , teampaginator = P.init TeamForward TeamBack TeamToStart TeamToEnd P.End pageincrement
     , payentries = iepes
@@ -1262,7 +1262,7 @@ update msg model zone =
             , SaveCsv
                 ("timeclonk-" ++ model.project.name ++ ".csv")
                 (eteToCsv zone
-                    (Dict.fromList [ ( model.project.id, model.project.name ) ])
+                    (Dict.fromList [ ( DataUtil.getProjectIdVal model.project.id, model.project.name ) ])
                     model.membernames
                     (getTes model.teamentries |> Dict.values)
                 )

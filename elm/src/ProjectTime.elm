@@ -1,9 +1,11 @@
 module ProjectTime exposing (..)
 
+-- import Data exposing (InvoiceItem, SaveProjectInvoice)
+
 import Calendar
 import Common
 import Csv
-import Data exposing (InvoiceItem, SaveProjectInvoice)
+import DataUtil
 import Dict exposing (Dict)
 import Element as E exposing (Element)
 import Element.Background as EBk
@@ -21,6 +23,7 @@ import TSet exposing (TSet)
 import TangoColors as TC
 import TaskSummary as TS
 import TcCommon as TC
+import TcProtocol as TP
 import Time
 import TimeReporting as TR exposing (EditAllocation, EditPayEntry, EditTimeEntry, csvToEditAllocations, csvToEditTimeEntries, descriptionSummary, eteToCsv, millisAsHours)
 import TimeTotaler exposing (TTotaler, getTes, getTotes, mapTimeentry, mkTToteler, setTes)
@@ -83,10 +86,10 @@ type Msg
     | ClearDistribution
     | CalcDistribution
     | ToClipboardMsg String
-    | PrintInvoiceMsg (List InvoiceItem)
+    | PrintInvoiceMsg (List TP.InvoiceItem)
     | OnPaymentChanged UserId String
-    | AddPaymentPress UserId Int Data.PayType
-    | AddPayment UserId Int Data.PayType Int
+    | AddPaymentPress UserId Int TP.PayType
+    | AddPayment UserId Int TP.PayType Int
     | DateMsgs (List (Int -> Msg)) Int
     | CheckAll Bool
     | CheckItem Int Bool
@@ -145,8 +148,8 @@ type FocusColumn
 
 
 type alias Model =
-    { project : Data.Project
-    , members : List Data.ProjectMember
+    { project : TP.Project
+    , members : List TP.ProjectMember
     , membernames : Dict Int String
     , description : String
     , timeentries : TTotaler
@@ -187,7 +190,7 @@ type alias Model =
 
 
 type Command
-    = Save Data.SaveProjectTime
+    = Save TP.SaveProjectTime
     | Edit
     | Done
     | GetTime (Int -> Msg)
@@ -195,9 +198,9 @@ type Command
     | SaveCsv String String
     | Settings
     | ShowError String
-    | SelectMember (List Data.User)
+    | SelectMember (List TP.User)
     | ToClipboard String
-    | PrintInvoice Data.PrintInvoiceInternal
+    | PrintInvoice DataUtil.PrintInvoiceInternal
     | None
 
 
@@ -213,7 +216,7 @@ onClockTick time model =
     }
 
 
-onSavedProjectInvoice : Data.Project -> Model -> Model
+onSavedProjectInvoice : TP.Project -> Model -> Model
 onSavedProjectInvoice project model =
     { model | project = project }
 
@@ -281,22 +284,22 @@ readViewMode str =
             Nothing
 
 
-emptyTimeEntryIdSet : TSet Data.TimeEntryId Int
+emptyTimeEntryIdSet : TSet DataUtil.TimeEntryId Int
 emptyTimeEntryIdSet =
-    TSet.empty Data.getTimeEntryIdVal Data.makeTimeEntryId
+    TSet.empty DataUtil.getTimeEntryIdVal DataUtil.makeTimeEntryId
 
 
-emptyPayEntryIdSet : TSet Data.PayEntryId Int
+emptyPayEntryIdSet : TSet DataUtil.PayEntryId Int
 emptyPayEntryIdSet =
-    TSet.empty Data.getPayEntryIdVal Data.makePayEntryId
+    TSet.empty DataUtil.getPayEntryIdVal DataUtil.makePayEntryId
 
 
-emptyAllocationIdSet : TSet Data.AllocationId Int
+emptyAllocationIdSet : TSet DataUtil.AllocationId Int
 emptyAllocationIdSet =
-    TSet.empty Data.getAllocationIdVal Data.makeAllocationId
+    TSet.empty DataUtil.getAllocationIdVal DataUtil.makeAllocationId
 
 
-onWkKeyPress : WK.Key -> Model -> Data.LoginData -> Time.Zone -> ( Model, Command )
+onWkKeyPress : WK.Key -> Model -> DataUtil.LoginData -> Time.Zone -> ( Model, Command )
 onWkKeyPress key model ld zone =
     case Toop.T4 key.key key.ctrl key.alt key.shift of
         Toop.T4 "s" True False False ->
@@ -310,7 +313,7 @@ onWkKeyPress key model ld zone =
             ( model, None )
 
 
-toSaveProjectTime : Model -> Data.SaveProjectTime
+toSaveProjectTime : Model -> TP.SaveProjectTime
 toSaveProjectTime model =
     let
         savetimeentries =
@@ -336,7 +339,8 @@ toSaveProjectTime model =
             Dict.diff model.initialtimeentries (getTes model.timeentries)
                 |> Dict.values
                 |> List.filterMap .id
-                |> TSet.insertList emptyTimeEntryIdSet
+                |> List.map DataUtil.getTimeEntryIdVal
+                |> Set.fromList
 
         savepayentries =
             model.payentries
@@ -361,8 +365,10 @@ toSaveProjectTime model =
             Dict.diff model.initialpayentries model.payentries
                 |> Dict.values
                 |> List.filterMap .id
-                |> TSet.insertList emptyPayEntryIdSet
+                |> List.map DataUtil.getPayEntryIdVal
+                |> Set.fromList
 
+        saveallocations : List TP.SaveAllocation
         saveallocations =
             model.allocations
                 |> Dict.values
@@ -386,7 +392,8 @@ toSaveProjectTime model =
             Dict.diff model.initialallocations model.allocations
                 |> Dict.values
                 |> List.filterMap .id
-                |> TSet.insertList emptyAllocationIdSet
+                |> List.map DataUtil.getAllocationIdVal
+                |> Set.fromList
     in
     { project = model.project.id
     , savetimeentries = savetimeentries
@@ -396,14 +403,14 @@ toSaveProjectTime model =
             (\ste dte ->
                 case ste.id of
                     Just id ->
-                        TSet.remove id dte
+                        Set.remove id dte
 
                     Nothing ->
                         dte
             )
             deletetimeentries
             savetimeentries
-            |> TSet.toList
+            |> Set.toList
     , savepayentries = savepayentries
     , deletepayentries =
         List.foldl
@@ -411,14 +418,14 @@ toSaveProjectTime model =
             (\ste dte ->
                 case ste.id of
                     Just id ->
-                        TSet.remove id dte
+                        Set.remove id dte
 
                     Nothing ->
                         dte
             )
             deletepayentries
             savepayentries
-            |> TSet.toList
+            |> Set.toList
     , saveallocations = saveallocations
     , deleteallocations =
         List.foldl
@@ -426,20 +433,20 @@ toSaveProjectTime model =
             (\ste dte ->
                 case ste.id of
                     Just id ->
-                        TSet.remove id dte
+                        Set.remove id dte
 
                     Nothing ->
                         dte
             )
             deleteallocations
             saveallocations
-            |> TSet.toList
+            |> Set.toList
     }
 
 
-toEditTimeEntry : Data.TimeEntry -> EditTimeEntry
+toEditTimeEntry : TP.TimeEntry -> EditTimeEntry
 toEditTimeEntry te =
-    { id = Just te.id
+    { id = Just (DataUtil.makeTimeEntryId te.id)
     , user = te.user
     , description = te.description
     , startdate = te.startdate
@@ -450,9 +457,9 @@ toEditTimeEntry te =
     }
 
 
-toEditPayEntry : Data.PayEntry -> EditPayEntry
+toEditPayEntry : TP.PayEntry -> EditPayEntry
 toEditPayEntry te =
-    { id = Just te.id
+    { id = Just (DataUtil.makePayEntryId te.id)
     , user = te.user
     , description = te.description
     , paymentdate = te.paymentdate
@@ -462,9 +469,9 @@ toEditPayEntry te =
     }
 
 
-toEditAllocation : Data.Allocation -> EditAllocation
+toEditAllocation : TP.Allocation -> EditAllocation
 toEditAllocation e =
-    { id = Just e.id
+    { id = Just (DataUtil.makeAllocationId e.id)
     , description = e.description
     , allocationdate = e.allocationdate
     , duration = e.duration
@@ -472,9 +479,9 @@ toEditAllocation e =
     }
 
 
-toSaveTimeEntry : Model -> EditTimeEntry -> Data.SaveTimeEntry
+toSaveTimeEntry : Model -> EditTimeEntry -> TP.SaveTimeEntry
 toSaveTimeEntry model ete =
-    { id = ete.id
+    { id = Maybe.map DataUtil.getTimeEntryIdVal ete.id
     , project = model.project.id
     , user = ete.user
     , description = ete.description
@@ -484,9 +491,9 @@ toSaveTimeEntry model ete =
     }
 
 
-toSavePayEntry : Model -> EditPayEntry -> Data.SavePayEntry
+toSavePayEntry : Model -> EditPayEntry -> TP.SavePayEntry
 toSavePayEntry model ete =
-    { id = ete.id
+    { id = Maybe.map DataUtil.getPayEntryIdVal ete.id
     , project = model.project.id
     , user = ete.user
     , description = ete.description
@@ -496,9 +503,9 @@ toSavePayEntry model ete =
     }
 
 
-toSaveAllocation : Model -> EditAllocation -> Data.SaveAllocation
+toSaveAllocation : Model -> EditAllocation -> TP.SaveAllocation
 toSaveAllocation model e =
-    { id = e.id
+    { id = Maybe.map DataUtil.getAllocationIdVal e.id
     , project = model.project.id
     , description = e.description
     , allocationdate = e.allocationdate
@@ -506,28 +513,28 @@ toSaveAllocation model e =
     }
 
 
-toEteDict : List Data.TimeEntry -> Dict Int EditTimeEntry
+toEteDict : List TP.TimeEntry -> Dict Int EditTimeEntry
 toEteDict te =
     te
         |> List.map (toEditTimeEntry >> (\ete -> ( ete.startdate, ete )))
         |> Dict.fromList
 
 
-toEpeDict : List Data.PayEntry -> Dict Int EditPayEntry
+toEpeDict : List TP.PayEntry -> Dict Int EditPayEntry
 toEpeDict pe =
     pe
         |> List.map (toEditPayEntry >> (\epe -> ( epe.paymentdate, epe )))
         |> Dict.fromList
 
 
-toEaDict : List Data.Allocation -> Dict Int EditAllocation
+toEaDict : List TP.Allocation -> Dict Int EditAllocation
 toEaDict a =
     a
         |> List.map (toEditAllocation >> (\ea -> ( ea.allocationdate, ea )))
         |> Dict.fromList
 
 
-onSavedProjectTime : List Data.TimeEntry -> Model -> Model
+onSavedProjectTime : List TP.TimeEntry -> Model -> Model
 onSavedProjectTime te model =
     let
         ietes =
@@ -549,7 +556,7 @@ isDirty model =
         /= model.initialallocations
 
 
-init : Time.Zone -> Data.LoginData -> Data.ProjectTime -> Bool -> Int -> String -> Model
+init : Time.Zone -> DataUtil.LoginData -> TP.ProjectTime -> Bool -> Int -> String -> Model
 init zone ld pt saveonclonk pageincrement mode =
     let
         ietes =
@@ -632,7 +639,7 @@ setPageIncrement pageincrement model =
     }
 
 
-onProjectTime : Time.Zone -> Data.LoginData -> Data.ProjectTime -> Model -> Model
+onProjectTime : Time.Zone -> DataUtil.LoginData -> TP.ProjectTime -> Model -> Model
 onProjectTime zone ld pt model =
     let
         nm =
@@ -669,7 +676,7 @@ viewModeBar model =
         ]
 
 
-view : Data.LoginData -> Util.Size -> Time.Zone -> Model -> Element Msg
+view : DataUtil.LoginData -> Util.Size -> Time.Zone -> Model -> Element Msg
 view ld size zone model =
     let
         maxwidth =
@@ -747,7 +754,7 @@ dateTimeWidth =
     200
 
 
-clonkview : Data.LoginData -> Util.Size -> Time.Zone -> Bool -> Model -> List (Element Msg)
+clonkview : DataUtil.LoginData -> Util.Size -> Time.Zone -> Bool -> Model -> List (Element Msg)
 clonkview ld _ zone isdirty model =
     let
         ttotes =
@@ -1292,7 +1299,7 @@ clonkview ld _ zone isdirty model =
     ]
 
 
-teamview : Data.LoginData -> Util.Size -> Time.Zone -> Bool -> Model -> List (Element Msg)
+teamview : DataUtil.LoginData -> Util.Size -> Time.Zone -> Bool -> Model -> List (Element Msg)
 teamview _ _ zone isdirty model =
     let
         ttotes =
@@ -1485,14 +1492,14 @@ type Entry
     | Allocation EditAllocation
 
 
-taskview : Data.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
+taskview : DataUtil.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
 taskview ld _ _ model =
     [ E.map TSMsg <| TS.taskFilterView ld.userid model.tasksummarymod
     , E.map TSMsg <| TS.taskview model.timeentries model.payentries model.membernames model.tasksummarymod
     ]
 
 
-distributionview : Data.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
+distributionview : DataUtil.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
 distributionview _ _ zone model =
     let
         timetotes =
@@ -1745,10 +1752,10 @@ distributionview _ _ zone model =
                                                                 E.text <|
                                                                     s
                                                                         ++ (case epe.paytype of
-                                                                                Data.Invoiced ->
+                                                                                TP.Invoiced ->
                                                                                     " inv"
 
-                                                                                Data.Paid ->
+                                                                                TP.Paid ->
                                                                                     " pmt"
                                                                            )
                                                     in
@@ -1928,7 +1935,7 @@ distributionview _ _ zone model =
                 Just dist ->
                     let
                         md =
-                            model.members |> List.map (\m -> ( m.id, Data.projectMemberToUser m )) |> TDict.insertList TR.emptyUmDict
+                            model.members |> List.map (\m -> ( m.id, DataUtil.projectMemberToUser m )) |> TDict.insertList TR.emptyUmDict
 
                         dl =
                             TDict.toList dist
@@ -2079,10 +2086,10 @@ distributionview _ _ zone model =
                                                 Just millis ->
                                                     E.row [ E.spacing TC.defaultSpacing ]
                                                         [ EI.button Common.buttonStyle
-                                                            { onPress = Just <| AddPaymentPress user millis Data.Invoiced, label = E.text "invoiced" }
+                                                            { onPress = Just <| AddPaymentPress user millis TP.Invoiced, label = E.text "invoiced" }
                                                             |> E.el [ E.centerY ]
                                                         , EI.button Common.buttonStyle
-                                                            { onPress = Just <| AddPaymentPress user millis Data.Paid, label = E.text "paid" }
+                                                            { onPress = Just <| AddPaymentPress user millis TP.Paid, label = E.text "paid" }
                                                             |> E.el [ E.centerY ]
                                                         ]
 
@@ -2115,10 +2122,10 @@ distributionview _ _ zone model =
                       in
                       E.row [ E.spacing TC.defaultSpacing, E.padding TC.defaultSpacing ]
                         [ EI.button Common.buttonStyle
-                            { onPress = Just <| DoEet <| makepes Data.Invoiced, label = E.text "invoiced all" }
+                            { onPress = Just <| DoEet <| makepes TP.Invoiced, label = E.text "invoiced all" }
                             |> E.el [ E.centerY ]
                         , EI.button Common.buttonStyle
-                            { onPress = Just <| DoEet <| makepes Data.Paid, label = E.text "paid all" }
+                            { onPress = Just <| DoEet <| makepes TP.Paid, label = E.text "paid all" }
                             |> E.el [ E.centerY ]
                         ]
                     ]
@@ -2128,7 +2135,7 @@ distributionview _ _ zone model =
            )
 
 
-allocationview : Data.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
+allocationview : DataUtil.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
 allocationview ld size zone model =
     let
         paytote =
@@ -2137,10 +2144,10 @@ allocationview ld size zone model =
                 |> List.foldl
                     (\e t ->
                         case e.paytype of
-                            Data.Paid ->
+                            TP.Paid ->
                                 t + e.duration
 
-                            Data.Invoiced ->
+                            TP.Invoiced ->
                                 t
                     )
                     0
@@ -2151,10 +2158,10 @@ allocationview ld size zone model =
                 |> List.foldl
                     (\e t ->
                         case e.paytype of
-                            Data.Paid ->
+                            TP.Paid ->
                                 t
 
-                            Data.Invoiced ->
+                            TP.Invoiced ->
                                 t + e.duration
                     )
                     0
@@ -2461,7 +2468,7 @@ allocationview ld size zone model =
     ]
 
 
-payview : Data.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
+payview : DataUtil.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
 payview ld size zone model =
     let
         paytote =
@@ -2470,10 +2477,10 @@ payview ld size zone model =
                 |> List.foldl
                     (\e t ->
                         case e.paytype of
-                            Data.Paid ->
+                            TP.Paid ->
                                 t + e.duration
 
-                            Data.Invoiced ->
+                            TP.Invoiced ->
                                 t
                     )
                     0
@@ -2484,10 +2491,10 @@ payview ld size zone model =
                 |> List.foldl
                     (\e t ->
                         case e.paytype of
-                            Data.Paid ->
+                            TP.Paid ->
                                 t
 
-                            Data.Invoiced ->
+                            TP.Invoiced ->
                                 t + e.duration
                     )
                     0
@@ -2653,10 +2660,10 @@ payview ld size zone model =
                                     E.text <|
                                         s
                                             ++ (case a.paytype of
-                                                    Data.Invoiced ->
+                                                    TP.Invoiced ->
                                                         " inv"
 
-                                                    Data.Paid ->
+                                                    TP.Paid ->
                                                         " pmt"
                                                )
                         in
@@ -2741,10 +2748,10 @@ payview ld size zone model =
                     ( Just user, Just millis ) ->
                         E.row [ E.spacing TC.defaultSpacing ]
                             [ EI.button Common.buttonStyle
-                                { onPress = Just <| AddPaymentPress user millis Data.Invoiced, label = E.text "invoiced" }
+                                { onPress = Just <| AddPaymentPress user millis TP.Invoiced, label = E.text "invoiced" }
                                 |> E.el [ E.centerY ]
                             , EI.button Common.buttonStyle
-                                { onPress = Just <| AddPaymentPress user millis Data.Paid, label = E.text "paid" }
+                                { onPress = Just <| AddPaymentPress user millis TP.Paid, label = E.text "paid" }
                                 |> E.el [ E.centerY ]
                             ]
 
@@ -2814,7 +2821,7 @@ payview ld size zone model =
     ]
 
 
-update : Msg -> Model -> Data.LoginData -> Time.Zone -> ( Model, Command )
+update : Msg -> Model -> DataUtil.LoginData -> Time.Zone -> ( Model, Command )
 update msg model ld zone =
     case msg of
         DescriptionChanged t ->
@@ -3009,7 +3016,7 @@ update msg model ld zone =
 
         SelectPaymentUser ->
             ( model
-            , SelectMember (List.map Data.projectMemberToUser model.members)
+            , SelectMember (List.map DataUtil.projectMemberToUser model.members)
             )
 
         AllocDescriptionChanged date text ->
@@ -3764,8 +3771,8 @@ update msg model ld zone =
                         |> Dict.values
                         |> List.filterMap
                             (\pe ->
-                                if pe.paytype == Data.Invoiced && pe.checked then
-                                    Just (AddPayment pe.user pe.duration Data.Paid)
+                                if pe.paytype == TP.Invoiced && pe.checked then
+                                    Just (AddPayment pe.user pe.duration TP.Paid)
 
                                 else
                                     Nothing
@@ -3781,7 +3788,7 @@ update msg model ld zone =
                     Dict.map
                         (\_ pe ->
                             if pe.checked then
-                                { pe | paytype = Data.Invoiced }
+                                { pe | paytype = TP.Invoiced }
 
                             else
                                 pe
@@ -3839,7 +3846,7 @@ update msg model ld zone =
             ( model
             , SaveCsv ("timeclonk-" ++ model.project.name ++ ".csv")
                 (eteToCsv zone
-                    (Dict.fromList [ ( Data.getProjectIdVal model.project.id, model.project.name ) ])
+                    (Dict.fromList [ ( DataUtil.getProjectIdVal model.project.id, model.project.name ) ])
                     model.membernames
                     (case model.viewmode of
                         Clonks ->

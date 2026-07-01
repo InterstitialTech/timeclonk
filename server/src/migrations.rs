@@ -1039,3 +1039,9 @@ pub fn udpate12(dbfile: &Path) -> Result<(), orgauth::error::Error> {
 
   Ok(())
 }
+
+pub fn udpate13(dbfile: &Path) -> Result<(), orgauth::error::Error> {
+  om::udpate8(dbfile)?;
+
+  Ok(())
+}

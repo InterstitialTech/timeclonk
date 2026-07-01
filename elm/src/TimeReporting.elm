@@ -24,7 +24,7 @@ type alias EditTimeEntry =
     , startdate : Int
     , enddate : Int
     , ignore : Bool
-    , project : DataUtil.ProjectId
+    , project : TP.ProjectId
     , checked : Bool
     }
 
@@ -474,7 +474,7 @@ timeTotes entries =
             emptyUserTimeDict
 
 
-csvToEditTimeEntries : Time.Zone -> UserId -> DataUtil.ProjectId -> Csv.Csv -> Result (List String) (List EditTimeEntry)
+csvToEditTimeEntries : Time.Zone -> UserId -> TP.ProjectId -> Csv.Csv -> Result (List String) (List EditTimeEntry)
 csvToEditTimeEntries zone user projectid csv =
     let
         headers =

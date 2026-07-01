@@ -2,8 +2,8 @@ use crate::config::Config;
 use crate::sqldata;
 use actix_session::Session;
 use log::info;
-use protocol::data::{Role, SaveProjectEdit, SaveProjectInvoice, SaveProjectTime};
-use protocol::messages::{PublicMessage, ServerResponse, UserMessage};
+use protocol::data::{ProjectId, Role, SaveProjectEdit, SaveProjectInvoice, SaveProjectTime};
+use protocol::messages::{PublicMessageX, PublicResponseX, TcMessageX, TcResponseX};
 use std::error::Error;
 
 pub fn login_data_for_token(
@@ -30,28 +30,25 @@ pub fn login_data_for_token(
 
 pub fn timeclonk_interface_loggedin(
   config: &Config,
-  uid: i64,
-  msg: &UserMessage,
-) -> Result<ServerResponse, Box<dyn Error>> {
-  match msg.what.as_str() {
-    "GetProjectList" => {
+  uid: orgauth::data::UserId,
+  msg: &TcMessageX,
+) -> Result<TcResponseX, Box<dyn Error>> {
+  match msg {
+    TcMessageX::TmGetProjectList => {
       // user can see all their projects.
       let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
       let projects = sqldata::project_list(&conn, uid)?;
 
-      Ok(ServerResponse {
-        what: "projectlist".to_string(),
-        content: serde_json::to_value(projects)?,
-      })
+      Ok(TcResponseX::TrProjectList(projects))
     }
-    "SaveProjectEdit" => {
-      let msgdata = Option::ok_or(msg.data.as_ref(), "malformed json data")?;
-      let sp: SaveProjectEdit = serde_json::from_value(msgdata.clone())?;
+    TcMessageX::TmSaveProjectEdit(sp) => {
+      // let msgdata = Option::ok_or(msg.data.as_ref(), "malformed json data")?;
+      // let sp: SaveProjectEdit = serde_json::from_value(msgdata.clone())?;
 
       let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
       let allowed = match sp.project.id {
         None => true, // new project
-        Some(pid) => match sqldata::member_role(&conn, uid, pid)? {
+        Some(pid) => match sqldata::member_role(&conn, uid, &pid)? {
           Some(Role::Admin) => true,
           _ => false,
         },
@@ -59,20 +56,14 @@ pub fn timeclonk_interface_loggedin(
 
       if allowed {
         let saved = sqldata::save_project_edit(&conn, uid, sp)?;
-        Ok(ServerResponse {
-          what: "savedprojectedit".to_string(),
-          content: serde_json::to_value(saved)?,
-        })
+        Ok(TcResponseX::TrSavedProjectEdit(saved))
       } else {
-        Ok(ServerResponse {
-          what: "saveprojectedit_denied".to_string(),
-          content: serde_json::Value::Null,
-        })
+        Ok(TcResponseX::TrSavedProjectEditDenied)
       }
     }
-    "GetProjectEdit" => {
-      let msgdata = Option::ok_or(msg.data.as_ref(), "malformed json data")?;
-      let pid: i64 = serde_json::from_value(msgdata.clone())?;
+    TcMessageX::TmGetProjectEdit(pid) => {
+      // let msgdata = Option::ok_or(msg.data.as_ref(), "malformed json data")?;
+      // let pid: ProjectId = serde_json::from_value(msgdata.clone())?;
       let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
       let allowed = match sqldata::member_role(&conn, uid, pid)? {
         Some(_) => true, // any role is ok
@@ -81,23 +72,17 @@ pub fn timeclonk_interface_loggedin(
       if allowed {
         let project = sqldata::read_project_edit(&conn, pid)?;
 
-        Ok(ServerResponse {
-          what: "projectedit".to_string(),
-          content: serde_json::to_value(project)?,
-        })
+        Ok(TcResponseX::TrProjectEdit(project))
       } else {
-        Ok(ServerResponse {
-          what: "projectedit_denied".to_string(),
-          content: serde_json::Value::Null,
-        })
+        Ok(TcResponseX::TrProjectEditDenied)
       }
     }
-    "SaveProjectInvoice" => {
-      let msgdata = Option::ok_or(msg.data.as_ref(), "malformed json data")?;
-      let sp: SaveProjectInvoice = serde_json::from_value(msgdata.clone())?;
+    TcMessageX::TmSaveProjectInvoice(sp) => {
+      // let msgdata = Option::ok_or(msg.data.as_ref(), "malformed json data")?;
+      // let sp: SaveProjectInvoice = serde_json::from_value(msgdata.clone())?;
 
       let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
-      let allowed = match sqldata::member_role(&conn, uid, sp.id)? {
+      let allowed = match sqldata::member_role(&conn, uid, &sp.id)? {
         Some(Role::Admin) => true,
         Some(Role::Member) => true,
         _ => false,
@@ -105,20 +90,14 @@ pub fn timeclonk_interface_loggedin(
 
       if allowed {
         let saved = sqldata::save_project_invoice(&conn, sp)?;
-        Ok(ServerResponse {
-          what: "savedprojectinvoice".to_string(),
-          content: serde_json::to_value(saved)?,
-        })
+        Ok(TcResponseX::TrSavedProjectInvoice(saved))
       } else {
-        Ok(ServerResponse {
-          what: "savedprojectinvoice_denied".to_string(),
-          content: serde_json::Value::Null,
-        })
+        Ok(TcResponseX::TrSavedProjectInvoiceDenied)
       }
     }
-    "GetProjectTime" => {
-      let msgdata = Option::ok_or(msg.data.as_ref(), "malformed json data")?;
-      let pid: i64 = serde_json::from_value(msgdata.clone())?;
+    TcMessageX::TmGetProjectTime(pid) => {
+      // let msgdata = Option::ok_or(msg.data.as_ref(), "malformed json data")?;
+      // let pid: ProjectId = serde_json::from_value(msgdata.clone())?;
       let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
       let allowed = match sqldata::member_role(&conn, uid, pid)? {
         Some(_) => true, // any role is ok
@@ -128,24 +107,18 @@ pub fn timeclonk_interface_loggedin(
       if allowed {
         let project = sqldata::read_project_time(&conn, pid)?;
 
-        Ok(ServerResponse {
-          what: "projecttime".to_string(),
-          content: serde_json::to_value(project)?,
-        })
+        Ok(TcResponseX::TrProjectTime(project))
       } else {
-        Ok(ServerResponse {
-          what: "projecttime_denied".to_string(),
-          content: serde_json::Value::Null,
-        })
+        Ok(TcResponseX::TrProjectTimeDenied)
       }
     }
-    "SaveProjectTime" => {
+    TcMessageX::TmSaveProjectTime(spt) => {
       // TODO:
-      let msgdata = Option::ok_or(msg.data.as_ref(), "malformed json data")?;
-      let spt: SaveProjectTime = serde_json::from_value(msgdata.clone())?;
+      // let msgdata = Option::ok_or(msg.data.as_ref(), "malformed json data")?;
+      // let spt: SaveProjectTime = serde_json::from_value(msgdata.clone())?;
       let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
 
-      let allowed = match sqldata::member_role(&conn, uid, spt.project)? {
+      let allowed = match sqldata::member_role(&conn, uid, &spt.project)? {
         Some(Role::Admin) => true,
         Some(Role::Member) => true,
         _ => false,
@@ -154,70 +127,45 @@ pub fn timeclonk_interface_loggedin(
       if allowed {
         let bak = sqldata::save_project_time(&conn, uid, spt)?;
 
-        Ok(ServerResponse {
-          what: "projecttime".to_string(),
-          content: serde_json::to_value(bak)?,
-        })
+        Ok(TcResponseX::TrProjectTime(bak))
       } else {
-        Ok(ServerResponse {
-          what: "projecttime_denied".to_string(),
-          content: serde_json::Value::Null,
-        })
+        Ok(TcResponseX::TrProjectTimeDenied)
       }
     }
-    "GetUserTime" => {
+    TcMessageX::TmGetUserTime => {
       let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
       let time = sqldata::user_time(&conn, uid)?;
-      Ok(ServerResponse {
-        what: "usertime".to_string(),
-        content: serde_json::to_value(time)?,
-      })
+      Ok(TcResponseX::TrUserTime(time))
     }
-    "GetAllUsers" => {
+    TcMessageX::TmGetAllUsers => {
       // all users can see all users!
       let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
       let members = sqldata::user_list(&conn)?;
 
-      Ok(ServerResponse {
-        what: "allusers".to_string(),
-        content: serde_json::to_value(members)?,
-      })
+      Ok(TcResponseX::TrAllUsers(members))
     }
-    wat => Err(Box::new(simple_error::SimpleError::new(format!(
-      "invalid 'what' code:'{}'",
-      wat
-    )))),
   }
 }
 
 // public json msgs don't require login.
 pub fn public_interface(
   config: &Config,
-  msg: PublicMessage,
-) -> Result<ServerResponse, Box<dyn Error>> {
-  info!("process_public_json, what={}", msg.what.as_str());
-  match msg.what.as_str() {
-    "GetProjectTime" => {
-      let msgdata = Option::ok_or(msg.data.as_ref(), "malformed json data")?;
-      let pid: i64 = serde_json::from_value(msgdata.clone())?;
+  msg: PublicMessageX,
+) -> Result<PublicResponseX, Box<dyn Error>> {
+  match msg {
+    PublicMessageX::PmGetProjectTime(pid) => {
+      // let msgdata = Option::ok_or(msg.data.as_ref(), "malformed json data")?;
+      // let pid: ProjectId = serde_json::from_value(msgdata.clone())?;
       let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
-      let project = sqldata::read_project_time(&conn, pid)?;
+      let project = sqldata::read_project_time(&conn, &pid)?;
 
       if project.project.public {
-        Ok(ServerResponse {
-          what: "projecttime".to_string(),
-          content: serde_json::to_value(project)?,
-        })
+        Ok(PublicResponseX::PrProjectTime(project))
       } else {
-        Ok(ServerResponse {
-          what: "projecttime-denied".to_string(),
-          content: serde_json::Value::Null,
-        })
+        Err(Box::new(simple_error::SimpleError::new(format!(
+          "can't access project!"
+        ))))
       }
     }
-    wat => Err(Box::new(simple_error::SimpleError::new(format!(
-      "invalid 'what' code:'{}'",
-      wat
-    )))),
   }
 }

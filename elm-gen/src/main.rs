@@ -4,10 +4,11 @@ use orgauth::util;
 use protocol::{
   data::{
     Allocation, ExtraField, InvoiceItem, ListProject, PayEntry, PayType, PrintInvoice, Project,
-    ProjectEdit, ProjectMember, ProjectTime, Role, SaveAllocation, SavePayEntry,
-    SaveProjectInvoice, SaveProjectTime, SaveTimeEntry, SavedProjectEdit, TimeEntry, User,
+    ProjectEdit, ProjectId, ProjectMember, ProjectTime, Role, SaveAllocation, SavePayEntry,
+    SaveProject, SaveProjectEdit, SaveProjectInvoice, SaveProjectMember, SaveProjectTime,
+    SaveTimeEntry, SavedProjectEdit, TimeEntry, User,
   },
-  messages::{PublicMessageX, PublicResponseX, TcMessageX, TcResponseX},
+  messages::{PublicMessageX, PublicResponseX, TcMessageX, TcResponseX, TimeClonkError},
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -77,12 +78,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
            Allocation,
            TimeEntry,
            TcMessageX,
+          ProjectId,
            PublicMessageX,
            PrintInvoice,
            InvoiceItem,
            Role,
            PayType,
            ExtraField,
+           SaveProjectEdit,SaveProjectMember, SaveProject,
            SavedProjectEdit,
            SaveProjectInvoice,
            SaveProjectTime,
@@ -93,6 +96,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         decoders: [
           TcResponseX ,PublicResponseX,
           ListProject,
+           TimeClonkError,
+          ProjectId,
            Project,
            ProjectEdit,
            ProjectTime,
@@ -116,18 +121,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let output = String::from_utf8(target).unwrap();
 
     // add line importing Orgauth.Userid
-    //     let uidout = output.replace(
-    //       "import Json.Encode",
-    //       r#"import Json.Encode
-    // import Orgauth.Data exposing (UserId(..), userIdDecoder, userIdEncoder)"#,
-    //     );
+    let uidout = output.replace(
+      "import Json.Encode",
+      r#"import Json.Encode
+import Orgauth.Data exposing (UserId(..), userIdDecoder, userIdEncoder)"#,
+    );
 
     let outf = ed
       .join("TcProtocol.elm")
       .to_str()
       .expect("bad path")
       .to_string();
-    util::write_string(outf.as_str(), output.as_str())?;
+    util::write_string(outf.as_str(), uidout.as_str())?;
     println!("wrote file: {}", outf);
   }
 

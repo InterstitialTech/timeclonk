@@ -1,6 +1,9 @@
 mod config;
 // mod protocol::data;
-use protocol::messages::{PublicMessage, ServerResponse, UserMessage};
+use protocol::messages::{
+  PublicMessage, PublicMessageX, ServerResponse, TcMessageX, TcResponseX, TimeClonkError,
+  UserMessage,
+};
 mod interfaces;
 mod invoice;
 // mod messages;
@@ -86,7 +89,7 @@ async fn mainpage(session: Session, data: web::Data<Config>, req: HttpRequest) -
 
 async fn public(
   data: web::Data<Config>,
-  item: web::Json<PublicMessage>,
+  item: web::Json<PublicMessageX>,
   req: HttpRequest,
 ) -> HttpResponse {
   info!(
@@ -181,18 +184,14 @@ async fn admin(
 async fn private(
   session: Session,
   data: web::Data<Config>,
-  item: web::Json<UserMessage>,
+  item: web::Json<TcMessageX>,
   _req: HttpRequest,
 ) -> HttpResponse {
   match timeclonk_interface_check(&session, &data, item.into_inner()) {
     Ok(sr) => HttpResponse::Ok().json(sr),
     Err(e) => {
       error!("'private' err: {:?}", e);
-      let se = ServerResponse {
-        what: "server error".to_string(),
-        content: serde_json::Value::String(e.to_string()),
-      };
-      HttpResponse::Ok().json(se)
+      HttpResponse::Ok().json(TcResponseX::TrError(TimeClonkError::TeOther(e.to_string())))
     }
   }
 }
@@ -200,13 +199,10 @@ async fn private(
 fn timeclonk_interface_check(
   session: &Session,
   config: &Config,
-  msg: UserMessage,
-) -> Result<ServerResponse, Box<dyn Error>> {
+  msg: TcMessageX,
+) -> Result<TcResponseX, Box<dyn Error>> {
   match session.get::<Uuid>("token")? {
-    None => Ok(ServerResponse {
-      what: "not logged in".to_string(),
-      content: serde_json::Value::Null,
-    }),
+    None => Ok(TcResponseX::TrError(TimeClonkError::TeNotLoggedIn)),
     Some(token) => {
       let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
       match orgauth::dbfun::read_user_by_token_api(
@@ -218,10 +214,7 @@ fn timeclonk_interface_check(
         Err(e) => {
           info!("read_user_by_token_api error: {:?}", e);
 
-          Ok(ServerResponse {
-            what: "invalid user or pwd".to_string(),
-            content: serde_json::Value::Null,
-          })
+          Ok(TcResponseX::TrError(TimeClonkError::TeInvalidLogin))
         }
         Ok(userdata) => {
           // finally!  processing messages as logged in user.

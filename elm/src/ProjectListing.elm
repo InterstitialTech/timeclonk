@@ -1,7 +1,7 @@
 module ProjectListing exposing (..)
 
 import Common
-import Data
+import DataUtil
 import Dialog as D
 import Element as E exposing (Element)
 import Element.Background as EBk
@@ -14,14 +14,14 @@ import ProjectTime
 import Route
 import TangoColors as TC
 import TcCommon as TC
+import TcProtocol as TP
 import Toop
 import Util
 import WindowKeys as WK
 
 
 type Msg
-    = SelectPress Int
-    | NewPress
+    = NewPress
     | UserTimePress
     | DonePress
     | SettingsPress
@@ -30,13 +30,12 @@ type Msg
 
 
 type alias Model =
-    { projects : List Data.ListProject
+    { projects : List TP.ListProject
     }
 
 
 type Command
-    = Selected Int
-    | New
+    = New
     | UserTime
     | Done
     | Settings
@@ -45,12 +44,12 @@ type Command
     | None
 
 
-init : List Data.ListProject -> Model
+init : List TP.ListProject -> Model
 init projects =
     { projects = projects }
 
 
-view : OD.AdminSettings -> Data.LoginData -> Util.Size -> Model -> Element Msg
+view : OD.AdminSettings -> DataUtil.LoginData -> Util.Size -> Model -> Element Msg
 view adminSettings ld size model =
     let
         maxwidth =
@@ -121,7 +120,7 @@ view adminSettings ld size model =
                                             [ E.height <| E.px 30 ]
                                             { url =
                                                 Route.routeUrl
-                                                    (Route.ProjectTimeR (Data.getProjectIdVal n.id)
+                                                    (Route.ProjectTimeR (DataUtil.getProjectIdVal n.id)
                                                         (ProjectTime.showViewMode ProjectTime.Clonks)
                                                     )
                                             , label = E.text n.name
@@ -134,14 +133,9 @@ view adminSettings ld size model =
             ]
 
 
-update : Msg -> Model -> Data.LoginData -> ( Model, Command )
+update : Msg -> Model -> DataUtil.LoginData -> ( Model, Command )
 update msg model ld =
     case msg of
-        SelectPress id ->
-            ( model
-            , Selected id
-            )
-
         NewPress ->
             ( model, New )
 

@@ -1,7 +1,9 @@
 module InviteUser exposing (Command(..), Model, Msg(..), disabledLinkButtonStyle, emptyProjectDict, emptyProjectRoleDict, init, linkButtonStyle, update, view)
 
+-- import Data exposing (ProjectId, Role(..), getProjectIdVal, makeProjectId)
+
 import Common
-import Data exposing (ProjectId, Role(..), getProjectIdVal, makeProjectId)
+import DataUtil exposing (getProjectIdVal, makeProjectId)
 import Dict exposing (Dict(..))
 import Element as E exposing (Element)
 import Element.Background as EBk
@@ -15,6 +17,7 @@ import Orgauth.Data as OD
 import TDict exposing (TDict(..))
 import TangoColors
 import TcCommon as TC
+import TcProtocol exposing (ListProject, ProjectId, Role(..))
 import Time exposing (Zone)
 import Util
 
@@ -28,8 +31,8 @@ disabledLinkButtonStyle =
 
 
 type alias Model =
-    { ld : Data.LoginData
-    , projects : TDict ProjectId Int Data.ListProject
+    { ld : DataUtil.LoginData
+    , projects : TDict ProjectId Int ListProject
     , assignedProjects : TDict ProjectId Int Role
     , email : String
     }
@@ -37,7 +40,7 @@ type alias Model =
 
 type Msg
     = EmailChanged String
-    | Add ProjectId Data.Role
+    | Add ProjectId Role
     | Remove ProjectId
     | OkClick
     | CancelClick
@@ -55,12 +58,12 @@ emptyProjectRoleDict =
     TDict.empty getProjectIdVal makeProjectId
 
 
-emptyProjectDict : TDict ProjectId Int Data.ListProject
+emptyProjectDict : TDict ProjectId Int ListProject
 emptyProjectDict =
     TDict.empty getProjectIdVal makeProjectId
 
 
-init : List Data.ListProject -> Data.LoginData -> Model
+init : List ListProject -> DataUtil.LoginData -> Model
 init projects loginData =
     { ld = loginData
     , email = ""
@@ -93,7 +96,7 @@ view stylePalette mbsize model =
                                     |> Maybe.map (\p -> p.name)
                                     |> Maybe.withDefault ""
                                 )
-                            , E.el [ E.alignRight ] <| E.text (Data.roleToString role)
+                            , E.el [ E.alignRight ] <| E.text (DataUtil.roleToString role)
                             , EI.button (E.alignRight :: Common.buttonStyle)
                                 { onPress = Just <| Remove pid
                                 , label = E.text "x"
@@ -182,7 +185,7 @@ update msg model =
                     else
                         Nothing
                 , data =
-                    Data.encodeUserInviteData
+                    DataUtil.encodeUserInviteData
                         { projects =
                             model.assignedProjects
                                 |> TDict.toList

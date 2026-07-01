@@ -1,11 +1,10 @@
 use elm_rs::{Elm, ElmDecode, ElmEncode};
-use orgauth::data::User;
 use serde_derive::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::data::{
-  ListProject, Project, ProjectEdit, ProjectTime, SaveProjectInvoice, SaveProjectTime,
-  SavedProjectEdit, TimeEntry,
+  ListProject, Project, ProjectEdit, ProjectId, ProjectTime, SaveProjectEdit, SaveProjectInvoice,
+  SaveProjectTime, SavedProjectEdit, TimeEntry, User,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -27,15 +26,23 @@ pub enum TcResponseX {
   TrProjectList(Vec<ListProject>),
   TrUserTime(Vec<TimeEntry>),
   TrAllUsers(Vec<User>),
+  TrError(TimeClonkError),
+}
+
+#[derive(Serialize, ElmDecode, Elm)]
+pub enum TimeClonkError {
+  TeNotLoggedIn,
+  TeInvalidLogin,
+  TeOther(String),
 }
 
 #[derive(Elm, ElmEncode, Deserialize, Debug)]
 pub enum TcMessageX {
   TmGetProjectList,
-  TmSaveProjectEdit(SavedProjectEdit),
-  TmGetProjectEdit(i64),
+  TmSaveProjectEdit(SaveProjectEdit),
+  TmGetProjectEdit(ProjectId),
   TmSaveProjectInvoice(SaveProjectInvoice),
-  TmGetProjectTime(i64),
+  TmGetProjectTime(ProjectId),
   TmSaveProjectTime(SaveProjectTime),
   TmGetUserTime,
   TmGetAllUsers,
@@ -55,7 +62,7 @@ pub struct PublicMessage {
 
 #[derive(Elm, ElmEncode, Deserialize, Debug)]
 pub enum PublicMessageX {
-  PmGetProjectTime(i64),
+  PmGetProjectTime(ProjectId),
 }
 
 #[derive(Serialize, ElmDecode, Elm)]
