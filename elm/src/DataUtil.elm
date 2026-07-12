@@ -160,8 +160,6 @@ toSaveProjectInvoice pi =
 -------------------------------------------
 -- Id types.  They're all ints underneath.
 -------------------------------------------
--- type ProjectId
---     = ProjectId Int
 
 
 makeProjectId : Int -> ProjectId
@@ -222,29 +220,6 @@ getAllocationIdVal uid =
     case uid of
         AllocationId i ->
             i
-
-
-
--- decodePayType : JD.Decoder PayType
--- decodePayType =
---     JD.string
---         |> JD.andThen
---             (\i ->
---                 case i of
---                     "Invoiced" ->
---                         JD.succeed Invoiced
---                     "Paid" ->
---                         JD.succeed Paid
---                     x ->
---                         JD.fail ("invalid paytype: " ++ x)
---             )
--- encodePayType : PayType -> JE.Value
--- encodePayType pt =
---     case pt of
---         Invoiced ->
---             JE.string "Invoiced"
---         Paid ->
---             JE.string "Paid"
 
 
 stringToRole : String -> Result String Role

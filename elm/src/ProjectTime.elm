@@ -25,7 +25,16 @@ import TaskSummary as TS
 import TcCommon as TC
 import TcProtocol as TP
 import Time
-import TimeReporting as TR exposing (EditAllocation, EditPayEntry, EditTimeEntry, csvToEditAllocations, csvToEditTimeEntries, descriptionSummary, eteToCsv, millisAsHours)
+import TimeReporting as TR
+    exposing
+        ( EditAllocation
+        , EditPayEntry
+        , EditTimeEntry
+        , csvToEditAllocations
+        , csvToEditTimeEntries
+        , eteToCsv
+        , millisAsHours
+        )
 import TimeTotaler exposing (TTotaler, getTes, getTotes, mapTimeentry, mkTToteler, setTes)
 import Toop
 import Util
@@ -569,7 +578,13 @@ init zone ld pt saveonclonk pageincrement mode =
             toEaDict pt.allocations
 
         description =
-            ietes |> Dict.toList |> List.filter (\( _, e ) -> e.user == ld.userid) |> List.reverse |> List.head |> Maybe.map (\( _, ete ) -> ete.description) |> Maybe.withDefault ""
+            ietes
+                |> Dict.toList
+                |> List.filter (\( _, e ) -> e.user == ld.userid)
+                |> List.reverse
+                |> List.head
+                |> Maybe.map (\( _, ete ) -> ete.description)
+                |> Maybe.withDefault ""
     in
     { project = pt.project
     , members = pt.members
@@ -1650,7 +1665,11 @@ distributionview _ _ zone model =
                                                             [ E.text <|
                                                                 String.fromInt (Calendar.getYear cdate)
                                                                     ++ "/"
-                                                                    ++ (cdate |> Calendar.getMonth |> Calendar.monthToInt |> String.fromInt)
+                                                                    ++ (cdate
+                                                                            |> Calendar.getMonth
+                                                                            |> Calendar.monthToInt
+                                                                            |> String.fromInt
+                                                                       )
                                                                     ++ "/"
                                                                     ++ String.fromInt
                                                                         (Calendar.getDay cdate)

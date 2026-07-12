@@ -1,26 +1,19 @@
 port module Main exposing (main)
 
-import Array
 import Browser
 import Browser.Events
 import Browser.Navigation
-import Common exposing (buttonStyle)
+import Common
 import DataUtil
-import Dict exposing (Dict)
+import Dict
 import DisplayMessage
 import Element as E exposing (Element)
-import Element.Background as EBk
-import Element.Border as EBd
 import Element.Font as EF
-import Element.Input as EI
-import Element.Region
 import File as F
 import File.Download as FD
 import File.Select as FS
 import GenDialog as GD
-import Html exposing (Attribute, Html)
-import Html.Attributes
-import Html.Events as HE
+import Html exposing (Html)
 import Http
 import InviteUser
 import Json.Decode as JD
@@ -34,7 +27,6 @@ import Orgauth.Login as Login
 import Orgauth.ResetPassword as ResetPassword
 import Orgauth.ShowUrl as ShowUrl
 import Orgauth.UserEdit as UserEdit
-import Orgauth.UserId exposing (getUserIdVal, makeUserId)
 import Orgauth.UserListing as UserListing
 import PrintInvoice as PI
 import ProjectEdit
@@ -45,18 +37,16 @@ import Random exposing (Seed, initialSeed)
 import Route exposing (Route(..), parseUrl, routeTitle, routeUrl)
 import SelectString as SS
 import ShowMessage
-import TDict exposing (TDict)
-import TangoColors as TC
-import Task exposing (Task)
+import TDict
+import Task
 import TcCommon
 import TcProtocol as TP
 import Time
 import TimeReporting as TR
 import Toop
-import UUID exposing (UUID)
+import UUID
 import Url exposing (Url)
-import Url.Builder as UB
-import Url.Parser as UP exposing ((</>))
+import Url.Parser exposing ((</>))
 import UserSettings
 import UserTime
 import Util

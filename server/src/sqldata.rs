@@ -3,7 +3,6 @@ use barrel::backend::Sqlite;
 use log::info;
 use orgauth::data::{RegistrationData, UserId};
 use orgauth::endpoints::Callbacks;
-use orgauth::migrations;
 use orgauth::util::now;
 use protocol::data::{
   Allocation, ListProject, PayEntry, PayType, Project, ProjectEdit, ProjectId, ProjectMember,
@@ -24,12 +23,6 @@ pub fn timeclonk_callbacks() -> Callbacks {
   }
 }
 
-// &Connection,       // <- conn
-// &RegistrationData, // <- rd
-// Option<String>,    // <- extraLoginData
-// Option<String>,    // <- remote_data
-// Option<UserId>,    // <- creator
-// UserId,            // <- uid
 pub fn on_new_user(
   conn: &Connection,
   _rd: &RegistrationData,

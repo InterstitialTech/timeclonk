@@ -2,31 +2,23 @@ module UserTime exposing (..)
 
 import Calendar
 import Common
-import Csv
 import DataUtil
 import Dict exposing (Dict)
 import Element as E exposing (Element)
 import Element.Background as EBk
-import Element.Border as EBd
-import Element.Events as EE
 import Element.Font as EF
 import Element.Input as EI
-import Orgauth.Data exposing (UserId)
-import Orgauth.UserId exposing (getUserIdVal, makeUserId)
+import Orgauth.UserId exposing (getUserIdVal)
 import Paginator as P
-import Round as R
 import Set
-import TDict exposing (TDict)
 import TSet exposing (TSet)
 import TangoColors as TC
 import TcCommon as TC
 import TcProtocol as TP
 import Time
-import TimeReporting as TR exposing (EditAllocation, EditPayEntry, EditTimeEntry, csvToEditAllocations, csvToEditTimeEntries, eteToCsv, millisAsHours)
-import TimeTotaler exposing (TTotaler, getTes, getTotes, mapTimeentry, mkTToteler, setTes)
-import Toop
+import TimeReporting as TR exposing (EditTimeEntry, eteToCsv, millisAsHours)
+import TimeTotaler exposing (TTotaler, getTes, getTotes, mkTToteler)
 import Util
-import WindowKeys as WK
 
 
 type Msg
@@ -64,19 +56,6 @@ headerStyle =
 emptyTimeEntryIdSet : TSet DataUtil.TimeEntryId Int
 emptyTimeEntryIdSet =
     TSet.empty DataUtil.getTimeEntryIdVal DataUtil.makeTimeEntryId
-
-
-
--- type alias EditTimeEntry =
---     { id : Maybe TimeEntryId
---     , user : UserId
---     , description : String
---     , startdate : Int
---     , enddate : Int
---     , ignore : Bool
---     , project : TP.ProjectId
---     , checked : Bool
---     }
 
 
 toEditTimeEntry : TP.TimeEntry -> EditTimeEntry

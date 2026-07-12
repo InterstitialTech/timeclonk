@@ -1,24 +1,17 @@
 module InviteUser exposing (Command(..), Model, Msg(..), disabledLinkButtonStyle, emptyProjectDict, emptyProjectRoleDict, init, linkButtonStyle, update, view)
 
--- import Data exposing (ProjectId, Role(..), getProjectIdVal, makeProjectId)
-
 import Common
 import DataUtil exposing (getProjectIdVal, makeProjectId)
 import Dict exposing (Dict(..))
 import Element as E exposing (Element)
-import Element.Background as EBk
-import Element.Border as EBd
-import Element.Events as EE
 import Element.Font as EF
 import Element.Input as EI
-import Element.Region
 import Json.Encode as JE
 import Orgauth.Data as OD
 import TDict exposing (TDict(..))
 import TangoColors
 import TcCommon as TC
 import TcProtocol exposing (ListProject, ProjectId, Role(..))
-import Time exposing (Zone)
 import Util
 
 

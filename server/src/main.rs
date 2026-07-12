@@ -1,12 +1,7 @@
 mod config;
-// mod protocol::data;
-use protocol::messages::{
-  PublicMessage, PublicMessageX, ServerResponse, TcMessageX, TcResponseX, TimeClonkError,
-  UserMessage,
-};
+use protocol::messages::{PublicMessageX, ServerResponse, TcMessageX, TcResponseX, TimeClonkError};
 mod interfaces;
 mod invoice;
-// mod messages;
 mod migrations;
 mod sqldata;
 use actix_session::{
@@ -19,7 +14,6 @@ use actix_web::{
 use clap::Arg;
 use config::Config;
 use log::{error, info};
-// use messages::{PublicMessage, ServerResponse, UserMessage};
 use orgauth::{data::UserResponse, util};
 use orgauth::{
   data::{AdminResponse, UserRequest},
@@ -117,19 +111,9 @@ async fn user(
   item: web::Json<UserRequest>,
   req: HttpRequest,
 ) -> HttpResponse {
-  info!(
-    "user msg: \n connection_info: {:?}",
-    // &item,
-    req.connection_info()
-  );
+  info!("user msg: \n connection_info: {:?}", req.connection_info());
   let mut cb = sqldata::timeclonk_callbacks();
 
-  // conn: &Connection,
-  // tokener: &mut dyn Tokener,
-  // config: &Config,
-  // callbacks: &mut Callbacks,
-  // user_uri_path: Option<String>,
-  // msg: UserRequest,
   match async {
     let conn = sqldata::connection_open(data.orgauth_config.db.as_path())?;
 
@@ -405,7 +389,7 @@ async fn err_main() -> Result<(), Box<dyn Error>> {
         let mut cb = sqldata::timeclonk_callbacks();
 
         let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
-        // make new registration i
+        // make new registration
         let rd = orgauth::data::RegistrationData {
           uid: username.to_string(),
           pwd: pwd.trim().to_string(),
