@@ -2,6 +2,7 @@
 [workspace]
 members = [
     "server",
-    "orgauth/rustlib",
+    "elm-gen",
+    "orgauth/rustlib", "protocol",
 ]
 resolver = "2"

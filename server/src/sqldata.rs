@@ -1,14 +1,15 @@
-use crate::data::{
-  Allocation, ListProject, PayEntry, PayType, Project, ProjectEdit, ProjectMember, ProjectTime,
-  Role, SaveAllocation, SavePayEntry, SaveProject, SaveProjectEdit, SaveProjectInvoice,
-  SaveProjectTime, SaveTimeEntry, SavedProject, SavedProjectEdit, TimeEntry, User, UserInviteData,
-};
 use crate::migrations as tm;
 use barrel::backend::Sqlite;
 use log::info;
-use orgauth::data::RegistrationData;
+use orgauth::data::{RegistrationData, UserId};
 use orgauth::endpoints::Callbacks;
 use orgauth::util::now;
+use protocol::data::{
+  Allocation, ListProject, PayEntry, PayType, Project, ProjectEdit, ProjectId, ProjectMember,
+  ProjectTime, Role, SaveAllocation, SavePayEntry, SaveProject, SaveProjectEdit,
+  SaveProjectInvoice, SaveProjectTime, SaveTimeEntry, SavedProject, SavedProjectEdit, TimeEntry,
+  User, UserInviteData,
+};
 use rusqlite::{params, Connection};
 use std::path::Path;
 use std::str::FromStr;
@@ -25,23 +26,28 @@ pub fn timeclonk_callbacks() -> Callbacks {
 pub fn on_new_user(
   conn: &Connection,
   _rd: &RegistrationData,
-  data: Option<String>,
-  creator: Option<i64>,
-  uid: i64,
+  extra_login_data: Option<String>,
+  _remote_data: Option<String>,
+  creator: Option<UserId>,
+  uid: UserId,
 ) -> Result<(), orgauth::error::Error> {
-  match data {
+  match extra_login_data {
     Some(d) => {
       let invitedata: UserInviteData = serde_json::from_str(d.as_str())?;
       match creator {
         Some(cuid) => {
           for p in invitedata.projects {
-            match member_role(conn, cuid, p.id)? {
+            match member_role(conn, cuid.into(), &p.id)? {
               Some(Role::Admin) => {
                 conn.execute(
                   "insert into projectmember (project, user, role)
                    values (?1, ?2, ?3)
                    on conflict (project, user) do update set role = ?3",
-                  params![p.id, uid, p.role.to_string().as_str()],
+                  params![
+                    Into::<i64>::into(p.id),
+                    Into::<i64>::into(uid),
+                    p.role.to_string().as_str()
+                  ],
                 )?;
               }
               Some(_) => (),
@@ -58,14 +64,14 @@ pub fn on_new_user(
   }
 }
 
-pub fn on_delete_user(_conn: &Connection, _uid: i64) -> Result<bool, orgauth::error::Error> {
+pub fn on_delete_user(_conn: &Connection, _uid: UserId) -> Result<bool, orgauth::error::Error> {
   Ok(true)
 }
 
 // callback to pass to orgauth
 pub fn extra_login_data_callback(
   _conn: &Connection,
-  _uid: i64,
+  _uid: UserId,
 ) -> Result<Option<serde_json::Value>, orgauth::error::Error> {
   Ok(None)
 }
@@ -199,6 +205,11 @@ pub fn dbinit(
     tm::udpate12(&dbfile)?;
     set_single_value(&conn, "migration_level", "12")?;
   }
+  if nlevel < 13 {
+    info!("udpate13");
+    tm::udpate13(&dbfile)?;
+    set_single_value(&conn, "migration_level", "13")?;
+  }
 
   info!("db up to date.");
 
@@ -213,12 +224,12 @@ pub fn dbinit(
 
 pub fn member_role(
   conn: &Connection,
-  uid: i64,
-  pid: i64,
+  uid: UserId,
+  pid: &ProjectId,
 ) -> Result<Option<Role>, orgauth::error::Error> {
   match conn.query_row(
     "select role from projectmember where project = ?1 and user = ?2",
-    params![pid, uid],
+    params![pid.to_i64(), uid.to_i64()],
     |row| Ok(row.get::<usize, String>(0)?),
   ) {
     Ok(v) => match Role::from_str(v.as_str()) {
@@ -232,7 +243,7 @@ pub fn member_role(
 
 pub fn project_list(
   conn: &Connection,
-  uid: i64,
+  uid: UserId,
 ) -> Result<Vec<ListProject>, orgauth::error::Error> {
   // projects ordered by last clonk.
   let mut pstmt = conn.prepare(
@@ -246,10 +257,10 @@ pub fn project_list(
     ",
   )?;
   let mut r: Vec<ListProject> = pstmt
-    .query_map(params![uid], |row| {
+    .query_map(params![uid.to_i64()], |row| {
       let role: String = row.get(2)?;
       Ok(ListProject {
-        id: row.get(0)?,
+        id: ProjectId::Pid(row.get(0)?),
         name: row.get(1)?,
         role: match Role::from_str(role.as_str()) {
           Ok(r) => r,
@@ -270,10 +281,10 @@ pub fn project_list(
     ",
   )?;
   let mut rempty: Vec<ListProject> = pstmt
-    .query_map(params![uid], |row| {
+    .query_map(params![uid.to_i64()], |row| {
       let role: String = row.get(2)?;
       Ok(ListProject {
-        id: row.get(0)?,
+        id: ProjectId::Pid(row.get(0)?),
         name: row.get(1)?,
         role: match Role::from_str(role.as_str()) {
           Ok(r) => r,
@@ -291,30 +302,31 @@ pub fn project_list(
 
 pub fn save_project_edit(
   conn: &Connection,
-  user: i64,
-  project_edit: SaveProjectEdit,
+  user: UserId,
+  project_edit: &SaveProjectEdit,
 ) -> Result<SavedProjectEdit, orgauth::error::Error> {
-  let sp = save_project(conn, user, project_edit.project)?;
+  let sp = save_project(conn, user, &project_edit.project)?;
 
-  for m in project_edit.members {
+  for m in &project_edit.members {
     if m.delete {
       conn.execute(
         "delete from projectmember
          where user = ?1 and project = ?2",
-        params![sp.id, m.id],
+        params![m.id.to_i64(), sp.id.to_i64()],
+        // wasn't this WRONG??  TODO: test.
       )?;
     } else {
       conn.execute(
         "insert into projectmember (project, user, role)
          values (?1, ?2, ?3)
          on conflict (project, user) do update set role = ?3",
-        params![sp.id, m.id, m.role.to_string().as_str()],
+        params![sp.id.to_i64(), m.id.to_i64(), m.role.to_string().as_str()],
       )?;
     }
   }
 
-  let proj = read_project(conn, sp.id)?;
-  let mems = member_list(conn, sp.id)?;
+  let proj = read_project(conn, &sp.id)?;
+  let mems = member_list(conn, &sp.id)?;
 
   Ok(SavedProjectEdit {
     project: proj,
@@ -324,7 +336,7 @@ pub fn save_project_edit(
 
 pub fn save_project_invoice(
   conn: &Connection,
-  project: SaveProjectInvoice,
+  project: &SaveProjectInvoice,
 ) -> Result<Project, orgauth::error::Error> {
   let now = orgauth::util::now()?;
   conn.execute(
@@ -334,21 +346,21 @@ pub fn save_project_invoice(
           where id = ?4",
     params![
       project.invoice_seq,
-      serde_json::to_value(project.extra_fields)?.to_string(),
+      serde_json::to_value(project.extra_fields.clone())?.to_string(),
       now,
-      project.id
+      project.id.to_i64()
     ],
   )?;
 
-  let proj = read_project(conn, project.id)?;
+  let proj = read_project(conn, &project.id)?;
 
   Ok(proj)
 }
 
 pub fn save_project(
   conn: &Connection,
-  user: i64,
-  project: SaveProject,
+  user: UserId,
+  project: &SaveProject,
 ) -> Result<SavedProject, orgauth::error::Error> {
   let now = now()?;
 
@@ -373,7 +385,7 @@ pub fn save_project(
           project.name,
           project.description,
           project.due_days,
-          serde_json::to_value(project.extra_fields)?.to_string(),
+          serde_json::to_value(project.extra_fields.clone())?.to_string(),
           project.invoice_id_template,
           project.invoice_seq,
           project.payer,
@@ -383,7 +395,7 @@ pub fn save_project(
           project.rate,
           project.currency,
           now,
-          id
+          id.to_i64()
         ],
       )?;
       SavedProject {
@@ -399,7 +411,7 @@ pub fn save_project(
           project.name,
           project.description,
           project.due_days,
-          serde_json::to_value(project.extra_fields)?.to_string(),
+          serde_json::to_value(project.extra_fields.clone())?.to_string(),
           project.invoice_id_template,
           project.invoice_seq,
           project.payer,
@@ -416,10 +428,10 @@ pub fn save_project(
       conn.execute(
         "insert into projectmember (project, user, role)
          values (?1, ?2, 'Admin')",
-        params![id, user],
+        params![id, user.to_i64()],
       )?;
       SavedProject {
-        id: id,
+        id: ProjectId::Pid(id),
         changeddate: now,
       }
     }
@@ -427,7 +439,10 @@ pub fn save_project(
   Ok(proj)
 }
 
-pub fn read_project(conn: &Connection, projectid: i64) -> Result<Project, orgauth::error::Error> {
+pub fn read_project(
+  conn: &Connection,
+  projectid: &ProjectId,
+) -> Result<Project, orgauth::error::Error> {
   let mut pstmt = conn.prepare(
     "select project.id,
             project.name,
@@ -447,9 +462,9 @@ pub fn read_project(conn: &Connection, projectid: i64) -> Result<Project, orgaut
       from project, projectmember where
       project.id = ?1",
   )?;
-  let r = Ok(pstmt.query_row(params![projectid], |row| {
+  let r = Ok(pstmt.query_row(params![projectid.to_i64()], |row| {
     Ok(Project {
-      id: row.get(0)?,
+      id: ProjectId::Pid(row.get(0)?),
       name: row.get(1)?,
       description: row.get(2)?,
       due_days: row.get(3)?,
@@ -477,7 +492,7 @@ pub fn read_project(conn: &Connection, projectid: i64) -> Result<Project, orgaut
 
 pub fn member_list(
   conn: &Connection,
-  projectid: i64,
+  projectid: &ProjectId,
 ) -> Result<Vec<ProjectMember>, orgauth::error::Error> {
   let mut pstmt = conn.prepare(
         "select orgauth_user.id, orgauth_user.name, projectmember.role from orgauth_user, projectmember where
@@ -485,10 +500,10 @@ pub fn member_list(
           projectmember.project = ?1",
       )?;
   let r = pstmt
-    .query_map(params![projectid], |row| {
+    .query_map(params![projectid.to_i64()], |row| {
       match Role::from_str(row.get::<usize, String>(2)?.as_str()) {
         Ok(role) => Ok(ProjectMember {
-          id: row.get(0)?,
+          id: UserId::Uid(row.get(0)?),
           name: row.get(1)?,
           role: role,
         }),
@@ -515,7 +530,7 @@ pub fn user_list(conn: &Connection) -> Result<Vec<User>, orgauth::error::Error> 
   let r = pstmt
     .query_map(params![], |row| {
       Ok(User {
-        id: row.get(0)?,
+        id: UserId::Uid(row.get(0)?),
         name: row.get(1)?,
       })
     })?
@@ -529,7 +544,7 @@ pub fn user_list(conn: &Connection) -> Result<Vec<User>, orgauth::error::Error> 
 
 pub fn read_project_edit(
   conn: &Connection,
-  projectid: i64,
+  projectid: &ProjectId,
 ) -> Result<ProjectEdit, orgauth::error::Error> {
   let proj = read_project(conn, projectid)?;
   let members = member_list(conn, projectid)?;
@@ -539,7 +554,10 @@ pub fn read_project_edit(
   })
 }
 
-pub fn user_time(conn: &Connection, userid: i64) -> Result<Vec<TimeEntry>, orgauth::error::Error> {
+pub fn user_time(
+  conn: &Connection,
+  userid: UserId,
+) -> Result<Vec<TimeEntry>, orgauth::error::Error> {
   let mut pstmt = conn.prepare(
     "select te.id, te.project, te.user, te.description, te.startdate, te.enddate, te.ignore, te.createdate, te.changeddate, te.creator
           from timeentry te where
@@ -547,18 +565,18 @@ pub fn user_time(conn: &Connection, userid: i64) -> Result<Vec<TimeEntry>, orgau
   )?;
   let r = Ok(
     pstmt
-      .query_map(params![userid], |row| {
+      .query_map(params![userid.to_i64()], |row| {
         Ok(TimeEntry {
           id: row.get(0)?,
-          project: row.get(1)?,
-          user: row.get(2)?,
+          project: ProjectId::Pid(row.get(1)?),
+          user: UserId::Uid(row.get(2)?),
           description: row.get(3)?,
           startdate: row.get(4)?,
           enddate: row.get(5)?,
           ignore: row.get(6)?,
           createdate: row.get(7)?,
           changeddate: row.get(8)?,
-          creator: row.get(9)?,
+          creator: UserId::Uid(row.get(9)?),
         })
       })?
       .filter_map(|x| x.ok())
@@ -569,7 +587,7 @@ pub fn user_time(conn: &Connection, userid: i64) -> Result<Vec<TimeEntry>, orgau
 
 pub fn time_entries(
   conn: &Connection,
-  projectid: i64,
+  projectid: &ProjectId,
 ) -> Result<Vec<TimeEntry>, orgauth::error::Error> {
   let mut pstmt = conn.prepare(
     "select te.id, te.project, te.user, te.description, te.startdate, te.enddate, te.ignore, te.createdate, te.changeddate, te.creator
@@ -578,18 +596,18 @@ pub fn time_entries(
   )?;
   let r = Ok(
     pstmt
-      .query_map(params![projectid], |row| {
+      .query_map(params![projectid.to_i64()], |row| {
         Ok(TimeEntry {
           id: row.get(0)?,
-          project: row.get(1)?,
-          user: row.get(2)?,
+          project: ProjectId::Pid(row.get(1)?),
+          user: UserId::Uid(row.get(2)?),
           description: row.get(3)?,
           startdate: row.get(4)?,
           enddate: row.get(5)?,
           ignore: row.get(6)?,
           createdate: row.get(7)?,
           changeddate: row.get(8)?,
-          creator: row.get(9)?,
+          creator: UserId::Uid(row.get(9)?),
         })
       })?
       .filter_map(|x| x.ok())
@@ -600,7 +618,7 @@ pub fn time_entries(
 
 pub fn pay_entries(
   conn: &Connection,
-  projectid: i64,
+  projectid: &ProjectId,
 ) -> Result<Vec<PayEntry>, orgauth::error::Error> {
   let mut pstmt = conn.prepare(
     "select  pe.id, pe.project, pe.user, pe.duration, pe.type, pe.paymentdate, pe.description, pe.createdate, pe.changeddate, pe.creator
@@ -609,11 +627,11 @@ pub fn pay_entries(
   )?;
   let r = Ok(
     pstmt
-      .query_map(params![projectid], |row| {
+      .query_map(params![projectid.to_i64()], |row| {
         Ok(PayEntry {
           id: row.get(0)?,
-          project: row.get(1)?,
-          user: row.get(2)?,
+          project: ProjectId::Pid(row.get(1)?),
+          user: UserId::Uid(row.get(2)?),
           duration: row.get(3)?,
           paytype: {
             let pt: i64 = row.get(4)?;
@@ -627,7 +645,7 @@ pub fn pay_entries(
           description: row.get(6)?,
           createdate: row.get(7)?,
           changeddate: row.get(8)?,
-          creator: row.get(9)?,
+          creator: UserId::Uid(row.get(9)?),
         })
       })?
       .filter_map(|x| x.ok())
@@ -638,8 +656,8 @@ pub fn pay_entries(
 
 pub fn save_pay_entry(
   conn: &Connection,
-  uid: i64,
-  spe: SavePayEntry,
+  uid: UserId,
+  spe: &SavePayEntry,
 ) -> Result<i64, orgauth::error::Error> {
   let now = now()?;
   let pt = match spe.paytype {
@@ -658,13 +676,13 @@ pub fn save_pay_entry(
             , paymentdate =?6
             , changeddate =?7
               where id = ?8 ",
-          params![spe.project, spe.user, spe.description, spe.duration,  pt, spe.paymentdate, now, id],
+          params![spe.project.to_i64(), spe.user.to_i64(), spe.description, spe.duration,  pt, spe.paymentdate, now, id],
         )?,
     None =>
       conn.execute(
         "insert into payentry (project, user, description, duration, type, paymentdate, createdate, changeddate, creator)
          values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-        params![spe.project, spe.user, spe.description, spe.duration, pt, spe.paymentdate, now, now, uid],
+        params![spe.project.to_i64(), spe.user.to_i64(), spe.description, spe.duration, pt, spe.paymentdate, now, now, uid.to_i64()],
       )?,
   };
   let id = conn.last_insert_rowid();
@@ -674,7 +692,7 @@ pub fn save_pay_entry(
 // check for user membership before calling!
 pub fn delete_pay_entry(
   conn: &Connection,
-  _uid: i64,
+  _uid: UserId,
   peid: i64,
 ) -> Result<(), orgauth::error::Error> {
   conn.execute("delete from payentry where id = ?1", params![peid])?;
@@ -683,7 +701,7 @@ pub fn delete_pay_entry(
 
 pub fn allocations(
   conn: &Connection,
-  projectid: i64,
+  projectid: &ProjectId,
 ) -> Result<Vec<Allocation>, orgauth::error::Error> {
   let mut pstmt = conn.prepare(
     "select  a.id, a.project, a.duration, a.allocationdate, a.description, a.createdate, a.changeddate, a.creator
@@ -692,16 +710,16 @@ pub fn allocations(
   )?;
   let r = Ok(
     pstmt
-      .query_map(params![projectid], |row| {
+      .query_map(params![projectid.to_i64()], |row| {
         Ok(Allocation {
           id: row.get(0)?,
-          project: row.get(1)?,
+          project: ProjectId::Pid(row.get(1)?),
           duration: row.get(2)?,
           allocationdate: row.get(3)?,
           description: row.get(4)?,
           createdate: row.get(5)?,
           changeddate: row.get(6)?,
-          creator: row.get(7)?,
+          creator: UserId::Uid(row.get(7)?),
         })
       })?
       .filter_map(|x| x.ok())
@@ -712,8 +730,8 @@ pub fn allocations(
 
 pub fn save_allocation(
   conn: &Connection,
-  uid: i64,
-  sa: SaveAllocation,
+  uid: UserId,
+  sa: &SaveAllocation,
 ) -> Result<i64, orgauth::error::Error> {
   let now = now()?;
   match sa.id {
@@ -726,13 +744,13 @@ pub fn save_allocation(
             , allocationdate =?4
             , changeddate =?5
               where id = ?6 ",
-          params![sa.project, sa.description, sa.duration, sa.allocationdate, now, id],
+          params![sa.project.to_i64(), sa.description, sa.duration, sa.allocationdate, now, id],
         )?,
     None =>
       conn.execute(
         "insert into allocation (project, description, duration, allocationdate, createdate, changeddate, creator)
          values (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-        params![sa.project, sa.description, sa.duration, sa.allocationdate, now, now, uid],
+        params![sa.project.to_i64(), sa.description, sa.duration, sa.allocationdate, now, now, uid.to_i64()],
       )?,
   };
   let id = conn.last_insert_rowid();
@@ -742,7 +760,7 @@ pub fn save_allocation(
 // check for user membership before calling!
 pub fn delete_allocation(
   conn: &Connection,
-  _uid: i64,
+  _uid: UserId,
   id: i64,
 ) -> Result<(), orgauth::error::Error> {
   conn.execute("delete from allocation where id = ?1", params![id])?;
@@ -751,12 +769,12 @@ pub fn delete_allocation(
 
 pub fn is_project_member(
   conn: &Connection,
-  uid: i64,
-  projectid: i64,
+  uid: UserId,
+  projectid: ProjectId,
 ) -> Result<bool, orgauth::error::Error> {
   match conn.query_row(
     "select user from projectmember where user = ?1 and project = ?2",
-    params![uid, projectid],
+    params![uid.to_i64(), projectid.to_i64()],
     |_row| Ok(()),
   ) {
     Ok(_v) => Ok(true),
@@ -767,7 +785,7 @@ pub fn is_project_member(
 
 pub fn read_project_time(
   conn: &Connection,
-  projectid: i64,
+  projectid: &ProjectId,
 ) -> Result<ProjectTime, orgauth::error::Error> {
   let proj = read_project(conn, projectid)?;
   let members = member_list(conn, projectid)?;
@@ -785,8 +803,8 @@ pub fn read_project_time(
 
 pub fn save_time_entry(
   conn: &Connection,
-  uid: i64,
-  spt: SaveTimeEntry,
+  uid: UserId,
+  spt: &SaveTimeEntry,
 ) -> Result<i64, orgauth::error::Error> {
   let now = now()?;
   match spt.id {
@@ -801,13 +819,13 @@ pub fn save_time_entry(
             ignore = ?6,
             changeddate = ?7
           where id = ?8",
-        params![spt.project, spt.user, spt.description, spt.startdate, spt.enddate, spt.ignore, now, id],
+        params![spt.project.to_i64(), spt.user.to_i64(), spt.description, spt.startdate, spt.enddate, spt.ignore, now, id],
       )?,
     None =>
       conn.execute(
         "insert into timeentry (project, user, description, startdate, enddate, ignore, createdate, changeddate, creator)
          values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-        params![spt.project, spt.user, spt.description, spt.startdate, spt.enddate, spt.ignore, now, now, uid],
+        params![spt.project.to_i64(), spt.user.to_i64(), spt.description, spt.startdate, spt.enddate, spt.ignore, now, now, uid.to_i64()],
       )?,
   };
   let id = conn.last_insert_rowid();
@@ -817,7 +835,7 @@ pub fn save_time_entry(
 // check for user membership before calling!
 pub fn delete_time_entry(
   conn: &Connection,
-  _uid: i64,
+  _uid: UserId,
   teid: i64,
 ) -> Result<(), orgauth::error::Error> {
   conn.execute("delete from timeentry where id = ?1", params![teid])?;
@@ -826,30 +844,30 @@ pub fn delete_time_entry(
 
 pub fn save_project_time(
   conn: &Connection,
-  uid: i64,
-  spt: SaveProjectTime,
+  uid: UserId,
+  spt: &SaveProjectTime,
 ) -> Result<ProjectTime, orgauth::error::Error> {
   // is user a member of this project?
   if is_project_member(conn, uid, spt.project)? {
-    for te in spt.savetimeentries {
+    for te in &spt.savetimeentries {
       save_time_entry(conn, uid, te)?;
     }
-    for id in spt.deletetimeentries {
-      delete_time_entry(conn, uid, id)?;
+    for id in &spt.deletetimeentries {
+      delete_time_entry(conn, uid, id.clone())?;
     }
-    for te in spt.savepayentries {
+    for te in &spt.savepayentries {
       save_pay_entry(conn, uid, te)?;
     }
-    for id in spt.deletepayentries {
-      delete_pay_entry(conn, uid, id)?;
+    for id in &spt.deletepayentries {
+      delete_pay_entry(conn, uid, id.clone())?;
     }
-    for te in spt.saveallocations {
+    for te in &spt.saveallocations {
       save_allocation(conn, uid, te)?;
     }
-    for id in spt.deleteallocations {
-      delete_allocation(conn, uid, id)?;
+    for id in &spt.deleteallocations {
+      delete_allocation(conn, uid, id.clone())?;
     }
   }
 
-  read_project_time(conn, spt.project)
+  read_project_time(conn, &spt.project)
 }

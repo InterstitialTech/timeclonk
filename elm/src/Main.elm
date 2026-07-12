@@ -1,64 +1,52 @@
 port module Main exposing (main)
 
-import Array
 import Browser
 import Browser.Events
 import Browser.Navigation
-import Common exposing (buttonStyle)
-import Data
-import Dict exposing (Dict)
+import Common
+import DataUtil
+import Dict
 import DisplayMessage
 import Element as E exposing (Element)
-import Element.Background as EBk
-import Element.Border as EBd
 import Element.Font as EF
-import Element.Input as EI
-import Element.Region
 import File as F
 import File.Download as FD
 import File.Select as FS
 import GenDialog as GD
-import Html exposing (Attribute, Html)
-import Html.Attributes
-import Html.Events as HE
+import Html exposing (Html)
 import Http
 import InviteUser
 import Json.Decode as JD
 import Json.Encode as JE
 import LocalStorage as LS
-import Orgauth.AdminInterface as AI
 import Orgauth.ChangeEmail as CE
 import Orgauth.ChangePassword as CP
-import Orgauth.Data as OD exposing (AdminSettings, UserId, getUserIdVal, makeUserId)
+import Orgauth.Data as OD exposing (AdminSettings, UserId)
 import Orgauth.Invited as Invited
 import Orgauth.Login as Login
 import Orgauth.ResetPassword as ResetPassword
 import Orgauth.ShowUrl as ShowUrl
 import Orgauth.UserEdit as UserEdit
-import Orgauth.UserInterface as UI
 import Orgauth.UserListing as UserListing
 import PrintInvoice as PI
 import ProjectEdit
 import ProjectListing
 import ProjectTime
 import ProjectView
-import PublicInterface as PI
 import Random exposing (Seed, initialSeed)
 import Route exposing (Route(..), parseUrl, routeTitle, routeUrl)
 import SelectString as SS
 import ShowMessage
-import TDict exposing (TDict)
-import TangoColors as TC
-import Task exposing (Task)
+import TDict
+import Task
 import TcCommon
+import TcProtocol as TP
 import Time
 import TimeReporting as TR
-import TimeclonkInterface as TI
 import Toop
-import UUID exposing (UUID)
+import UUID
 import Url exposing (Url)
-import Url.Builder as UB
-import Url.Parser as UP exposing ((</>))
+import Url.Parser exposing ((</>))
 import UserSettings
 import UserTime
 import Util
@@ -75,13 +63,13 @@ type Msg
     | UserTimeMsg UserTime.Msg
     | ShowUrlMsg ShowUrl.Msg
     | ShowMessageMsg ShowMessage.Msg
-    | UserReplyData (Result Http.Error UI.ServerResponse)
-    | AdminReplyData (Result Http.Error AI.ServerResponse)
-    | TimeclonkReplyData (Result Http.Error TI.ServerResponse)
-    | PublicReplyData (Result Http.Error PI.ServerResponse)
-    | ProjectTimeData String (Result Http.Error TI.ServerResponse)
-    | ProjectViewData String (Result Http.Error PI.ServerResponse)
-    | TProjectViewData String (Result Http.Error TI.ServerResponse)
+    | UserReplyData (Result Http.Error OD.UserResponse)
+    | AdminReplyData (Result Http.Error OD.AdminResponse)
+    | TimeclonkReplyData (Result Http.Error TP.TcResponseX)
+    | PublicReplyData (Result Http.Error TP.PublicResponseX)
+    | ProjectTimeData String (Result Http.Error TP.TcResponseX)
+    | ProjectViewData String (Result Http.Error TP.PublicResponseX)
+    | TProjectViewData String (Result Http.Error TP.TcResponseX)
     | PrintInvoiceReplyData (Result Http.Error (Cmd Msg))
     | LoadUrl String
     | InternalUrl Url
@@ -90,8 +78,8 @@ type Msg
     | WindowSize Util.Size
     | PrintInvoiceDialogMsg (GD.Msg PI.Msg)
     | DisplayMessageMsg (GD.Msg DisplayMessage.Msg)
-    | SelectUserDialogMsg (GD.Msg (SS.Msg Data.User))
-    | SelectRoleDialogMsg (GD.Msg (SS.Msg ( UserId, Data.Role )))
+    | SelectUserDialogMsg (GD.Msg (SS.Msg TP.User))
+    | SelectRoleDialogMsg (GD.Msg (SS.Msg ( UserId, TP.Role )))
     | ChangePasswordDialogMsg (GD.Msg CP.Msg)
     | ChangeEmailDialogMsg (GD.Msg CE.Msg)
     | ResetPasswordMsg ResetPassword.Msg
@@ -105,34 +93,34 @@ type Msg
     | ProjectTimeMsg ProjectTime.Msg
     | FileLoaded (String -> Msg) F.File
     | TimeCmd (Time.Posix -> Cmd Msg) Time.Posix
-    | PrintInvoiceInit Data.PrintInvoiceInternal String String
+    | PrintInvoiceInit DataUtil.PrintInvoiceInternal String String
     | Noop
 
 
 type State
     = Login Login.Model
     | Invited Invited.Model
-    | InviteUser InviteUser.Model Data.LoginData
-    | UserSettings UserSettings.Model Data.LoginData State
-    | UserListing UserListing.Model Data.LoginData
-    | UserEdit UserEdit.Model Data.LoginData
-    | UserTime UserTime.Model Data.LoginData
-    | ShowUrl ShowUrl.Model Data.LoginData
-    | ShowMessage ShowMessage.Model Data.LoginData (Maybe State)
+    | InviteUser InviteUser.Model DataUtil.LoginData
+    | UserSettings UserSettings.Model DataUtil.LoginData State
+    | UserListing UserListing.Model DataUtil.LoginData
+    | UserEdit UserEdit.Model DataUtil.LoginData
+    | UserTime UserTime.Model DataUtil.LoginData
+    | ShowUrl ShowUrl.Model DataUtil.LoginData
+    | ShowMessage ShowMessage.Model DataUtil.LoginData (Maybe State)
     | PubShowMessage ShowMessage.Model (Maybe State)
-    | LoginShowMessage ShowMessage.Model Data.LoginData Url
+    | LoginShowMessage ShowMessage.Model DataUtil.LoginData Url
     | PrintInvoiceDialog PI.GDModel State
-    | SelectUserDialog (SS.GDModel Data.User) State
-    | SelectRoleDialog (SS.GDModel ( UserId, Data.Role )) State
+    | SelectUserDialog (SS.GDModel TP.User) State
+    | SelectRoleDialog (SS.GDModel ( UserId, TP.Role )) State
     | ChangePasswordDialog CP.GDModel State
     | ChangeEmailDialog CE.GDModel State
     | ResetPassword ResetPassword.Model
     | DisplayMessage DisplayMessage.GDModel State
     | Wait State (Model -> Msg -> ( Model, Cmd Msg ))
-    | ProjectListing ProjectListing.Model Data.LoginData
-    | ProjectEdit ProjectEdit.Model Data.LoginData
-    | ProjectView ProjectView.Model (Maybe Data.LoginData)
-    | ProjectTime ProjectTime.Model Data.LoginData
+    | ProjectListing ProjectListing.Model DataUtil.LoginData
+    | ProjectEdit ProjectEdit.Model DataUtil.LoginData
+    | ProjectView ProjectView.Model (Maybe DataUtil.LoginData)
+    | ProjectTime ProjectTime.Model DataUtil.LoginData
 
 
 type alias Flags =
@@ -214,7 +202,7 @@ routeState model route =
         SettingsR ->
             case stateLogin model.state of
                 Just login ->
-                    ( UserSettings (UserSettings.init (Data.ldToOdLd login) model.fontsize model.saveonclonk model.pageincrement) login model.state, Cmd.none )
+                    ( UserSettings (UserSettings.init (DataUtil.ldToOdLd login) model.fontsize model.saveonclonk model.pageincrement) login model.state, Cmd.none )
 
                 Nothing ->
                     ( (displayMessageDialog { model | state = initLoginState model } "can't view user settings; you're not logged in!").state, Cmd.none )
@@ -233,29 +221,29 @@ routeState model route =
 
         ProjectEditR id ->
             ( (displayMessageDialog model "loading project").state
-            , sendTIMsg model.location <| TI.GetProjectEdit id
+            , sendTcMsg model.location <| TP.TmGetProjectEdit (DataUtil.makeProjectId id)
             )
 
         ProjectTimeR id mode ->
             ( (displayMessageDialog model "loading project").state
-            , sendTIMsgExp model.location (TI.GetProjectTime id) (ProjectTimeData mode)
+            , sendTcMsgExp model.location (TP.TmGetProjectTime (DataUtil.makeProjectId id)) (ProjectTimeData mode)
             )
 
         ProjectViewR id mode ->
             case stateLogin model.state of
                 Just login ->
                     ( (displayMessageDialog model "loading project").state
-                    , sendTIMsgExp model.location (TI.GetProjectTime id) (TProjectViewData mode)
+                    , sendTcMsgExp model.location (TP.TmGetProjectTime (DataUtil.makeProjectId id)) (TProjectViewData mode)
                     )
 
                 Nothing ->
                     ( (displayMessageDialog model "loading project").state
-                    , sendPIMsgExp model.location (PI.GetProjectTime id) (ProjectViewData mode)
+                    , sendPIMsgExp model.location (TP.PmGetProjectTime (DataUtil.makeProjectId id)) (ProjectViewData mode)
                     )
 
         Invite token ->
             ( PubShowMessage { message = "retrieving invite" } Nothing
-            , sendUIMsg model.location (UI.ReadInvite token)
+            , sendUIMsg model.location (OD.UrqReadInvite token)
             )
 
 
@@ -272,7 +260,7 @@ stateRoute state =
             , save = True
             }
 
-        ResetPassword mod ->
+        ResetPassword _ ->
             { route = Top
             , save = False
             }
@@ -281,7 +269,7 @@ stateRoute state =
             { route =
                 case mod.id of
                     Just pid ->
-                        ProjectEditR (Data.getProjectIdVal pid)
+                        ProjectEditR (DataUtil.getProjectIdVal pid)
 
                     Nothing ->
                         Top
@@ -289,12 +277,12 @@ stateRoute state =
             }
 
         ProjectTime mod _ ->
-            { route = ProjectTimeR (Data.getProjectIdVal mod.project.id) (ProjectTime.showViewMode mod.viewmode)
+            { route = ProjectTimeR (DataUtil.getProjectIdVal mod.project.id) (ProjectTime.showViewMode mod.viewmode)
             , save = True
             }
 
         ProjectView mod _ ->
-            { route = ProjectViewR (Data.getProjectIdVal mod.project.id) (ProjectView.showViewMode mod.viewmode)
+            { route = ProjectViewR (DataUtil.getProjectIdVal mod.project.id) (ProjectView.showViewMode mod.viewmode)
             , save = True
             }
 
@@ -339,105 +327,98 @@ showMessage msg =
 
         UserReplyData urd ->
             "UserReplyData: "
-                ++ (Result.map UI.showServerResponse urd
-                        |> Result.mapError Util.httpErrorString
-                        |> (\r ->
-                                case r of
-                                    Ok m ->
-                                        "message: " ++ m
 
-                                    Err e ->
-                                        "error: " ++ e
-                           )
-                   )
-
+        -- ++ (Result.map UI.showServerResponse urd
+        --         |> Result.mapError Util.httpErrorString
+        --         |> (\r ->
+        --                 case r of
+        --                     Ok m ->
+        --                         "message: " ++ m
+        --                     Err e ->
+        --                         "error: " ++ e
+        --            )
+        --    )
         AdminReplyData urd ->
             "AdminReplyData: "
-                ++ (Result.map AI.showServerResponse urd
-                        |> Result.mapError Util.httpErrorString
-                        |> (\r ->
-                                case r of
-                                    Ok m ->
-                                        "message: " ++ m
 
-                                    Err e ->
-                                        "error: " ++ e
-                           )
-                   )
-
+        -- ++ (Result.map AI.showServerResponse urd
+        --         |> Result.mapError Util.httpErrorString
+        --         |> (\r ->
+        --                 case r of
+        --                     Ok m ->
+        --                         "message: " ++ m
+        --                     Err e ->
+        --                         "error: " ++ e
+        --            )
+        --    )
         TimeclonkReplyData urd ->
             "TimeclonkReplyData: "
-                ++ (Result.map TI.showServerResponse urd
-                        |> Result.mapError Util.httpErrorString
-                        |> (\r ->
-                                case r of
-                                    Ok m ->
-                                        "message: " ++ m
 
-                                    Err e ->
-                                        "error: " ++ e
-                           )
-                   )
-
+        -- ++ (Result.map TP.TmshowServerResponse urd
+        --         |> Result.mapError Util.httpErrorString
+        --         |> (\r ->
+        --                 case r of
+        --                     Ok m ->
+        --                         "message: " ++ m
+        --                     Err e ->
+        --                         "error: " ++ e
+        --            )
+        --    )
         PublicReplyData urd ->
             "PublicReplyData: "
-                ++ (Result.map PI.showServerResponse urd
-                        |> Result.mapError Util.httpErrorString
-                        |> (\r ->
-                                case r of
-                                    Ok m ->
-                                        "message: " ++ m
 
-                                    Err e ->
-                                        "error: " ++ e
-                           )
-                   )
-
+        -- ++ (Result.map PI.showServerResponse urd
+        --         |> Result.mapError Util.httpErrorString
+        --         |> (\r ->
+        --                 case r of
+        --                     Ok m ->
+        --                         "message: " ++ m
+        --                     Err e ->
+        --                         "error: " ++ e
+        --            )
+        --    )
         ProjectTimeData mode urd ->
             "ProjectTimeData: "
-                ++ (Result.map TI.showServerResponse urd
-                        |> Result.mapError Util.httpErrorString
-                        |> (\r ->
-                                case r of
-                                    Ok m ->
-                                        "message: " ++ m
-
-                                    Err e ->
-                                        "error: " ++ e
-                           )
-                   )
+                -- ++ (Result.map TP.TmshowServerResponse urd
+                --         |> Result.mapError Util.httpErrorString
+                --         |> (\r ->
+                --                 case r of
+                --                     Ok m ->
+                --                         "message: " ++ m
+                --                     Err e ->
+                --                         "error: " ++ e
+                --            )
+                --    )
                 ++ "\nmode: "
                 ++ mode
 
         ProjectViewData mode urd ->
             "ProjectViewData: "
-                ++ (Result.map PI.showServerResponse urd
-                        |> Result.mapError Util.httpErrorString
-                        |> (\r ->
-                                case r of
-                                    Ok m ->
-                                        "message: " ++ m
-
-                                    Err e ->
-                                        "error: " ++ e
-                           )
-                   )
+                -- ++ (Result.map PI.showServerResponse urd
+                --         |> Result.mapError Util.httpErrorString
+                --         |> (\r ->
+                --                 case r of
+                --                     Ok m ->
+                --                         "message: " ++ m
+                --                     Err e ->
+                --                         "error: " ++ e
+                --            )
+                --    )
                 ++ "\nmode: "
                 ++ mode
 
         TProjectViewData mode urd ->
             "TProjectViewData: "
-                ++ (Result.map TI.showServerResponse urd
-                        |> Result.mapError Util.httpErrorString
-                        |> (\r ->
-                                case r of
-                                    Ok m ->
-                                        "message: " ++ m
-
-                                    Err e ->
-                                        "error: " ++ e
-                           )
-                   )
+                -- ++ (Result.map TP.TmshowServerResponse urd
+                --         |> Result.mapError Util.httpErrorString
+                --         |> (\r ->
+                --                 case r of
+                --                     Ok m ->
+                --                         "message: " ++ m
+                --                     Err e ->
+                --                         "error: " ++ e
+                --            )
+                --    )
                 ++ "\nmode: "
                 ++ mode
 
@@ -677,7 +658,7 @@ viewState size state model =
             E.map ProjectViewMsg <| ProjectView.view (Util.isJust ld) size model.timezone em
 
 
-stateLogin : State -> Maybe Data.LoginData
+stateLogin : State -> Maybe DataUtil.LoginData
 stateLogin state =
     case state of
         Login _ ->
@@ -750,59 +731,59 @@ stateLogin state =
             Nothing
 
 
-sendTIMsg : String -> TI.SendMsg -> Cmd Msg
-sendTIMsg location msg =
-    sendTIMsgExp location msg TimeclonkReplyData
+sendTcMsg : String -> TP.TcMessageX -> Cmd Msg
+sendTcMsg location msg =
+    sendTcMsgExp location msg TimeclonkReplyData
 
 
-sendTIMsgExp : String -> TI.SendMsg -> (Result Http.Error TI.ServerResponse -> Msg) -> Cmd Msg
-sendTIMsgExp location msg tomsg =
+sendTcMsgExp : String -> TP.TcMessageX -> (Result Http.Error TP.TcResponseX -> Msg) -> Cmd Msg
+sendTcMsgExp location msg tomsg =
     Http.post
         { url = location ++ "/private"
-        , body = Http.jsonBody (TI.encodeSendMsg msg)
-        , expect = Http.expectJson tomsg TI.serverResponseDecoder
+        , body = Http.jsonBody (TP.tcMessageXEncoder msg)
+        , expect = Http.expectJson tomsg TP.tcResponseXDecoder
         }
 
 
-sendPIMsg : String -> PI.SendMsg -> Cmd Msg
+sendPIMsg : String -> TP.PublicMessageX -> Cmd Msg
 sendPIMsg location msg =
     sendPIMsgExp location msg PublicReplyData
 
 
-sendPIMsgExp : String -> PI.SendMsg -> (Result Http.Error PI.ServerResponse -> Msg) -> Cmd Msg
+sendPIMsgExp : String -> TP.PublicMessageX -> (Result Http.Error TP.PublicResponseX -> Msg) -> Cmd Msg
 sendPIMsgExp location msg tomsg =
     Http.post
         { url = location ++ "/public"
-        , body = Http.jsonBody (PI.encodeSendMsg msg)
-        , expect = Http.expectJson tomsg PI.serverResponseDecoder
+        , body = Http.jsonBody (TP.publicMessageXEncoder msg)
+        , expect = Http.expectJson tomsg TP.publicResponseXDecoder
         }
 
 
-sendUIMsg : String -> UI.SendMsg -> Cmd Msg
+sendUIMsg : String -> OD.UserRequest -> Cmd Msg
 sendUIMsg location msg =
     sendUIMsgExp location msg UserReplyData
 
 
-sendUIMsgExp : String -> UI.SendMsg -> (Result Http.Error UI.ServerResponse -> Msg) -> Cmd Msg
+sendUIMsgExp : String -> OD.UserRequest -> (Result Http.Error OD.UserResponse -> Msg) -> Cmd Msg
 sendUIMsgExp location msg tomsg =
     Http.post
         { url = location ++ "/user"
-        , body = Http.jsonBody (UI.encodeSendMsg msg)
-        , expect = Http.expectJson tomsg UI.serverResponseDecoder
+        , body = Http.jsonBody (OD.userRequestEncoder msg)
+        , expect = Http.expectJson tomsg OD.userResponseDecoder
         }
 
 
-sendAIMsg : String -> AI.SendMsg -> Cmd Msg
+sendAIMsg : String -> OD.AdminRequest -> Cmd Msg
 sendAIMsg location msg =
     sendAIMsgExp location msg AdminReplyData
 
 
-sendAIMsgExp : String -> AI.SendMsg -> (Result Http.Error AI.ServerResponse -> Msg) -> Cmd Msg
+sendAIMsgExp : String -> OD.AdminRequest -> (Result Http.Error OD.AdminResponse -> Msg) -> Cmd Msg
 sendAIMsgExp location msg tomsg =
     Http.post
         { url = location ++ "/admin"
-        , body = Http.jsonBody (AI.encodeSendMsg msg)
-        , expect = Http.expectJson tomsg AI.serverResponseDecoder
+        , body = Http.jsonBody (OD.adminRequestEncoder msg)
+        , expect = Http.expectJson tomsg OD.adminResponseDecoder
         }
 
 
@@ -1050,7 +1031,7 @@ displayMessageDialog model message =
     }
 
 
-openProjectTime : Model -> String -> Data.ProjectTime -> ( Model, Cmd Msg )
+openProjectTime : Model -> String -> TP.ProjectTime -> ( Model, Cmd Msg )
 openProjectTime model mode pt =
     case stateLogin model.state of
         Just login ->
@@ -1070,13 +1051,13 @@ openProjectTime model mode pt =
             let
                 obs =
                     case mbrole of
-                        Just Data.Observer ->
+                        Just TP.Observer ->
                             True
 
-                        Just Data.Member ->
+                        Just TP.Member ->
                             False
 
-                        Just Data.Admin ->
+                        Just TP.Admin ->
                             False
 
                         Nothing ->
@@ -1134,7 +1115,9 @@ actualupdate msg model =
 
                 GD.Ok return ->
                     ( { model | state = instate }
-                    , sendUIMsg model.location <| UI.ChangePassword return
+                    , sendUIMsg model.location <|
+                        OD.UrqAuthedRequest <|
+                            OD.AthChangePassword return
                     )
 
                 GD.Cancel ->
@@ -1147,7 +1130,7 @@ actualupdate msg model =
 
                 GD.Ok return ->
                     ( { model | state = instate }
-                    , sendUIMsg model.location <| UI.ChangeEmail return
+                    , sendUIMsg model.location <| OD.UrqAuthedRequest <| OD.AthChangeEmail return
                     )
 
                 GD.Cancel ->
@@ -1162,7 +1145,7 @@ actualupdate msg model =
                 ResetPassword.Ok ->
                     ( { model | state = ResetPassword nst }
                     , sendUIMsg model.location
-                        (UI.SetPassword { uid = nst.userId, newpwd = nst.password, reset_key = nst.reset_key })
+                        (OD.UrqSetPassword { uid = nst.userId, newpwd = nst.password, resetKey = UUID.toString nst.reset_key })
                     )
 
                 ResetPassword.None ->
@@ -1193,14 +1176,14 @@ actualupdate msg model =
                     , Cmd.batch
                         [ Http.post
                             { url = model.location ++ "/invoice"
-                            , body = Http.jsonBody (Data.encodePrintInvoice pi)
+                            , body = Http.jsonBody (TP.printInvoiceEncoder pi)
                             , expect =
                                 Http.expectBytesResponse PrintInvoiceReplyData <|
                                     resolve <|
                                         \bytes ->
                                             Ok <| FD.bytes (pi.id ++ ".pdf") "application/pdf" bytes
                             }
-                        , sendTIMsg model.location (TI.SaveProjectInvoice spi)
+                        , sendTcMsg model.location (TP.TmSaveProjectInvoice spi)
                         ]
                     )
 
@@ -1234,13 +1217,13 @@ actualupdate msg model =
 
                 UserSettings.LogOut ->
                     ( { model | state = initLoginState model }
-                    , sendUIMsg model.location UI.Logout
+                    , sendUIMsg model.location OD.UrqLogout
                     )
 
                 UserSettings.ChangePassword ->
                     ( { model
                         | state =
-                            ChangePasswordDialog (CP.init (Data.ldToOdLd login) Common.buttonStyle (UserSettings.view numod |> E.map (always ())))
+                            ChangePasswordDialog (CP.init (DataUtil.ldToOdLd login) Common.buttonStyle (UserSettings.view numod |> E.map (always ())))
                                 (UserSettings numod login prevstate)
                       }
                     , Cmd.none
@@ -1249,7 +1232,7 @@ actualupdate msg model =
                 UserSettings.ChangeEmail ->
                     ( { model
                         | state =
-                            ChangeEmailDialog (CE.init (Data.ldToOdLd login) Common.buttonStyle (UserSettings.view numod |> E.map (always ())))
+                            ChangeEmailDialog (CE.init (DataUtil.ldToOdLd login) Common.buttonStyle (UserSettings.view numod |> E.map (always ())))
                                 (UserSettings numod login prevstate)
                       }
                     , Cmd.none
@@ -1326,15 +1309,15 @@ actualupdate msg model =
 
                 Ok uiresponse ->
                     case uiresponse of
-                        TI.ProjectTime x ->
+                        TP.TrProjectTime x ->
                             openProjectTime model mode x
 
-                        TI.NotLoggedIn ->
+                        TP.TrProjectTimeDenied ->
+                            -- TODO: something else?
                             ( { model | state = initLoginState model }, Cmd.none )
 
-                        TI.InvalidUserOrPwd ->
-                            ( { model | state = initLoginState model }, Cmd.none )
-
+                        -- TP.TrInvalidUserOrPwd ->
+                        --     ( { model | state = initLoginState model }, Cmd.none )
                         _ ->
                             ( unexpectedMsg model msg
                             , Cmd.none
@@ -1347,18 +1330,13 @@ actualupdate msg model =
 
                 Ok uiresponse ->
                     case uiresponse of
-                        PI.ProjectTime x ->
+                        TP.PrProjectTime x ->
                             ( { model
                                 | state =
                                     ProjectView
                                         (ProjectView.init model.timezone x model.pageincrement mode)
                                         (stateLogin state)
                               }
-                            , Cmd.none
-                            )
-
-                        _ ->
-                            ( unexpectedMsg model msg
                             , Cmd.none
                             )
 
@@ -1369,7 +1347,7 @@ actualupdate msg model =
 
                 Ok uiresponse ->
                     case uiresponse of
-                        TI.ProjectTime x ->
+                        TP.TrProjectTime x ->
                             ( { model
                                 | state =
                                     ProjectView
@@ -1379,7 +1357,8 @@ actualupdate msg model =
                             , Cmd.none
                             )
 
-                        TI.NotLoggedIn ->
+                        TP.TrProjectTimeDenied ->
+                            -- TODO: something else?
                             ( { model | state = initLoginState model }, Cmd.none )
 
                         _ ->
@@ -1394,19 +1373,19 @@ actualupdate msg model =
 
                 Ok uiresponse ->
                     case uiresponse of
-                        UI.ServerError e ->
+                        OD.UrpServerError e ->
                             ( displayMessageDialog model <| e, Cmd.none )
 
-                        UI.RegistrationSent ->
+                        OD.UrpRegistrationSent ->
                             ( model, Cmd.none )
 
-                        UI.LoggedIn login ->
+                        OD.UrpLoggedIn login ->
                             let
                                 lgmod =
                                     { model
                                         | state =
                                             ShowMessage { message = "logged in" }
-                                                (Data.odLdToLd login)
+                                                (DataUtil.odLdToLd login)
                                                 Nothing
                                     }
                             in
@@ -1436,10 +1415,10 @@ actualupdate msg model =
                                 _ ->
                                     initialPage lgmod
 
-                        UI.LoggedOut ->
+                        OD.UrpLoggedOut ->
                             ( model, Cmd.none )
 
-                        UI.ResetPasswordAck ->
+                        OD.UrpResetPasswordAck ->
                             let
                                 nmod =
                                     { model
@@ -1451,7 +1430,7 @@ actualupdate msg model =
                             , Cmd.none
                             )
 
-                        UI.SetPasswordAck ->
+                        OD.UrpSetPasswordAck ->
                             let
                                 nmod =
                                     { model
@@ -1463,12 +1442,12 @@ actualupdate msg model =
                             , Cmd.none
                             )
 
-                        UI.ChangedPassword ->
+                        OD.UrpChangedPassword ->
                             ( displayMessageDialog model "password changed"
                             , Cmd.none
                             )
 
-                        UI.ChangedEmail ->
+                        OD.UrpChangedEmail ->
                             ( displayMessageDialog model <|
                                 "email change confirmation sent!  check your inbox (or spam folder) for an email with title 'change "
                                     ++ model.appname
@@ -1476,27 +1455,27 @@ actualupdate msg model =
                             , Cmd.none
                             )
 
-                        UI.UserExists ->
+                        OD.UrpUserExists ->
                             case state of
                                 Login lmod ->
                                     ( { model | state = Login <| Login.userExists lmod }, Cmd.none )
 
                                 _ ->
-                                    ( unexpectedMessage model (UI.showServerResponse uiresponse)
+                                    ( unexpectedMessage model (showMessage msg)
                                     , Cmd.none
                                     )
 
-                        UI.UnregisteredUser ->
+                        OD.UrpUnregisteredUser ->
                             case state of
                                 Login lmod ->
                                     ( { model | state = Login <| Login.unregisteredUser lmod }, Cmd.none )
 
                                 _ ->
-                                    ( unexpectedMessage model (UI.showServerResponse uiresponse)
+                                    ( unexpectedMessage model (showMessage msg)
                                     , Cmd.none
                                     )
 
-                        UI.NotLoggedIn ->
+                        OD.UrpNotLoggedIn ->
                             case state of
                                 Login lmod ->
                                     ( { model | state = Login lmod }, Cmd.none )
@@ -1504,18 +1483,18 @@ actualupdate msg model =
                                 _ ->
                                     ( { model | state = initLoginState model }, Cmd.none )
 
-                        UI.InvalidUserOrPwd ->
+                        OD.UrpInvalidUserOrPwd ->
                             case state of
                                 Login lmod ->
                                     ( { model | state = Login <| Login.invalidUserOrPwd lmod }, Cmd.none )
 
                                 _ ->
                                     ( unexpectedMessage { model | state = initLoginState model }
-                                        (UI.showServerResponse uiresponse)
+                                        (showMessage msg)
                                     , Cmd.none
                                     )
 
-                        UI.BlankUserName ->
+                        OD.UrpBlankUserName ->
                             case state of
                                 Invited lmod ->
                                     ( { model | state = Invited <| Invited.blankUserName lmod }, Cmd.none )
@@ -1525,11 +1504,11 @@ actualupdate msg model =
 
                                 _ ->
                                     ( unexpectedMessage { model | state = initLoginState model }
-                                        (UI.showServerResponse uiresponse)
+                                        (showMessage msg)
                                     , Cmd.none
                                     )
 
-                        UI.BlankPassword ->
+                        OD.UrpBlankPassword ->
                             case state of
                                 Invited lmod ->
                                     ( { model | state = Invited <| Invited.blankPassword lmod }, Cmd.none )
@@ -1539,11 +1518,11 @@ actualupdate msg model =
 
                                 _ ->
                                     ( unexpectedMessage { model | state = initLoginState model }
-                                        (UI.showServerResponse uiresponse)
+                                        (showMessage msg)
                                     , Cmd.none
                                     )
 
-                        UI.Invite invite ->
+                        OD.UrpInvite invite ->
                             case model.state of
                                 InviteUser mdl login ->
                                     ( { model
@@ -1560,6 +1539,27 @@ actualupdate msg model =
                                     , Cmd.none
                                     )
 
+                        OD.UrpInvalidUserId ->
+                            ( displayMessageDialog model <| "invalid user id", Cmd.none )
+
+                        OD.UrpInvalidUserUuid ->
+                            ( displayMessageDialog model <| "invalid user uuid", Cmd.none )
+
+                        OD.UrpAccountDeactivated ->
+                            ( displayMessageDialog model <| "account deactivated", Cmd.none )
+
+                        OD.UrpChangedRemoteUrl _ ->
+                            ( displayMessageDialog model <| "changed remote url", Cmd.none )
+
+                        OD.UrpRemoteRegistrationFailed ->
+                            ( displayMessageDialog model <| "remote registration failed", Cmd.none )
+
+                        OD.UrpRemoteUser _ ->
+                            ( displayMessageDialog model <| "remote user", Cmd.none )
+
+                        OD.UrpNoData ->
+                            ( displayMessageDialog model <| "no data", Cmd.none )
+
         ( AdminReplyData ard, state ) ->
             case ard of
                 Err e ->
@@ -1567,7 +1567,7 @@ actualupdate msg model =
 
                 Ok airesponse ->
                     case airesponse of
-                        AI.NotLoggedIn ->
+                        OD.ArpNotLoggedIn ->
                             case state of
                                 Login lmod ->
                                     ( { model | state = Login lmod }, Cmd.none )
@@ -1575,7 +1575,7 @@ actualupdate msg model =
                                 _ ->
                                     ( { model | state = initLoginState model }, Cmd.none )
 
-                        AI.Users users ->
+                        OD.ArpUsers users ->
                             case stateLogin model.state of
                                 Just login ->
                                     ( { model | state = UserListing (UserListing.init users) login }, Cmd.none )
@@ -1583,12 +1583,12 @@ actualupdate msg model =
                                 Nothing ->
                                     ( displayMessageDialog model "not logged in", Cmd.none )
 
-                        AI.UserDeleted id ->
+                        OD.ArpUserDeleted id ->
                             ( displayMessageDialog model "user deleted!"
-                            , sendAIMsg model.location AI.GetUsers
+                            , sendAIMsg model.location OD.ArqGetUsers
                             )
 
-                        AI.UserUpdated ld ->
+                        OD.ArpUserUpdated ld ->
                             case model.state of
                                 UserEdit ue login ->
                                     ( displayMessageDialog { model | state = UserEdit (UserEdit.onUserUpdated ue ld) login } "user updated"
@@ -1598,7 +1598,7 @@ actualupdate msg model =
                                 _ ->
                                     ( model, Cmd.none )
 
-                        AI.UserInvite ui ->
+                        OD.ArpUserInvite ui ->
                             case stateLogin model.state of
                                 Just login ->
                                     ( { model
@@ -1615,7 +1615,7 @@ actualupdate msg model =
                                     , Cmd.none
                                     )
 
-                        AI.PwdReset pr ->
+                        OD.ArpPwdReset pr ->
                             case state of
                                 UserEdit uem login ->
                                     ( { model
@@ -1630,7 +1630,22 @@ actualupdate msg model =
                                 _ ->
                                     ( model, Cmd.none )
 
-                        AI.ServerError e ->
+                        OD.ArpUserNotDeleted _ ->
+                            ( displayMessageDialog model "user not deleted", Cmd.none )
+
+                        OD.ArpNoUserId ->
+                            ( displayMessageDialog model "no user id", Cmd.none )
+
+                        OD.ArpNoData ->
+                            ( displayMessageDialog model "no data", Cmd.none )
+
+                        OD.ArpInvalidUserOrPassword ->
+                            ( displayMessageDialog model "invalid user or password", Cmd.none )
+
+                        OD.ArpAccessDenied ->
+                            ( displayMessageDialog model "access denied", Cmd.none )
+
+                        OD.ArpServerError e ->
                             ( displayMessageDialog model <| e, Cmd.none )
 
         ( UserListingMsg umsg, UserListing umod login ) ->
@@ -1645,7 +1660,7 @@ actualupdate msg model =
                 UserListing.InviteUser ->
                     -- get project listing, so we can add users to a specific project.
                     ( model
-                    , sendTIMsg model.location <| TI.GetProjectList login.userid
+                    , sendTcMsg model.location <| TP.TmGetProjectList
                     )
 
                 UserListing.EditUser ld ->
@@ -1662,22 +1677,22 @@ actualupdate msg model =
             case c of
                 UserEdit.Done ->
                     ( model
-                    , sendAIMsg model.location AI.GetUsers
+                    , sendAIMsg model.location OD.ArqGetUsers
                     )
 
                 UserEdit.Delete id ->
                     ( model
-                    , sendAIMsg model.location <| AI.DeleteUser id
+                    , sendAIMsg model.location <| OD.ArqDeleteUser id
                     )
 
                 UserEdit.ResetPwd id ->
                     ( model
-                    , sendAIMsg model.location <| AI.GetPwdReset id
+                    , sendAIMsg model.location <| OD.ArqGetPwdReset id
                     )
 
                 UserEdit.Save ld ->
                     ( model
-                    , sendAIMsg model.location <| AI.UpdateUser ld
+                    , sendAIMsg model.location <| OD.ArqUpdateUser ld
                     )
 
                 UserEdit.None ->
@@ -1691,7 +1706,7 @@ actualupdate msg model =
             case c of
                 UserTime.Done ->
                     ( model
-                    , sendTIMsg model.location <| TI.GetProjectList login.userid
+                    , sendTcMsg model.location <| TP.TmGetProjectList
                     )
 
                 UserTime.SaveCsv filename csvstring ->
@@ -1702,7 +1717,7 @@ actualupdate msg model =
                 UserTime.Settings ->
                     ( { model
                         | state =
-                            UserSettings (UserSettings.init (Data.ldToOdLd login) model.fontsize model.saveonclonk model.pageincrement) login model.state
+                            UserSettings (UserSettings.init (DataUtil.ldToOdLd login) model.fontsize model.saveonclonk model.pageincrement) login model.state
                       }
                     , Cmd.none
                     )
@@ -1722,10 +1737,10 @@ actualupdate msg model =
                 ShowUrl.Done ->
                     ( model
                     , if login.admin then
-                        sendAIMsg model.location AI.GetUsers
+                        sendAIMsg model.location OD.ArqGetUsers
 
                       else
-                        sendTIMsg model.location <| TI.GetProjectList login.userid
+                        sendTcMsg model.location <| TP.TmGetProjectList
                     )
 
                 ShowUrl.None ->
@@ -1738,16 +1753,23 @@ actualupdate msg model =
 
                 Ok uiresponse ->
                     case uiresponse of
-                        TI.ServerError e ->
-                            ( displayMessageDialog model <| e, Cmd.none )
+                        -- TP.TrServerError e ->
+                        --     ( displayMessageDialog model <| e, Cmd.none )
+                        -- TP.TrNotLoggedIn ->
+                        --     ( { model | state = initLoginState model }, Cmd.none )
+                        TP.TrProjectEditDenied ->
+                            ( displayMessageDialog model <| "Project Edit Denied", Cmd.none )
 
-                        TI.NotLoggedIn ->
-                            ( { model | state = initLoginState model }, Cmd.none )
+                        TP.TrSavedProjectEditDenied ->
+                            ( displayMessageDialog model <| "Saved Project Edit Denied", Cmd.none )
 
-                        TI.InvalidUserOrPwd ->
-                            ( { model | state = initLoginState model }, Cmd.none )
+                        TP.TrSavedProjectInvoiceDenied ->
+                            ( displayMessageDialog model <| "Saved Project Invoice Denied", Cmd.none )
 
-                        TI.ProjectList x ->
+                        TP.TrProjectTimeDenied ->
+                            ( displayMessageDialog model <| "Project Time Denied", Cmd.none )
+
+                        TP.TrProjectList x ->
                             case state of
                                 UserListing ulst login ->
                                     ( { model | state = InviteUser (InviteUser.init x login) login }, Cmd.none )
@@ -1760,7 +1782,7 @@ actualupdate msg model =
                                         Nothing ->
                                             ( model, Cmd.none )
 
-                        TI.ProjectEdit x ->
+                        TP.TrProjectEdit x ->
                             case stateLogin state of
                                 Just login ->
                                     ( { model | state = ProjectEdit (ProjectEdit.initEdit x.project x.members) login }, Cmd.none )
@@ -1768,7 +1790,7 @@ actualupdate msg model =
                                 Nothing ->
                                     ( model, Cmd.none )
 
-                        TI.ProjectTime x ->
+                        TP.TrProjectTime x ->
                             case state of
                                 ProjectTime st login ->
                                     ( { model | state = ProjectTime (ProjectTime.onProjectTime model.timezone login x st) login }, Cmd.none )
@@ -1776,7 +1798,7 @@ actualupdate msg model =
                                 _ ->
                                     openProjectTime model "" x
 
-                        TI.UserTime telist ->
+                        TP.TrUserTime telist ->
                             case state of
                                 ProjectListing plst ld ->
                                     ( { model
@@ -1786,7 +1808,7 @@ actualupdate msg model =
                                                     ld
                                                     telist
                                                     (plst.projects
-                                                        |> List.map (\p -> ( Data.getProjectIdVal p.id, p ))
+                                                        |> List.map (\p -> ( DataUtil.getProjectIdVal p.id, p ))
                                                         |> Dict.fromList
                                                     )
                                                     model.pageincrement
@@ -1799,7 +1821,7 @@ actualupdate msg model =
                                 _ ->
                                     ( model, Cmd.none )
 
-                        TI.SavedProjectInvoice p ->
+                        TP.TrSavedProjectInvoice p ->
                             case state of
                                 ProjectEdit s l ->
                                     ( { model | state = ProjectEdit (ProjectEdit.onSavedProjectInvoice p s) l }, Cmd.none )
@@ -1810,7 +1832,7 @@ actualupdate msg model =
                                 _ ->
                                     ( model, Cmd.none )
 
-                        TI.SavedProjectEdit x ->
+                        TP.TrSavedProjectEdit x ->
                             case state of
                                 ProjectEdit s l ->
                                     ( { model | state = ProjectEdit (ProjectEdit.onSavedProjectEdit x s) l }, Cmd.none )
@@ -1818,7 +1840,7 @@ actualupdate msg model =
                                 _ ->
                                     ( model, Cmd.none )
 
-                        TI.AllUsers x ->
+                        TP.TrAllUsers x ->
                             case state of
                                 ProjectEdit s l ->
                                     let
@@ -1840,6 +1862,7 @@ actualupdate msg model =
                                                     { choices = somems |> TDict.values |> List.map (\m -> ( m, m.name ))
                                                     , selected = Nothing
                                                     , search = ""
+                                                    , mobile = False
                                                     }
                                                     Common.buttonStyle
                                                     (E.map (always ()) (ProjectEdit.view l model.size s))
@@ -1852,6 +1875,9 @@ actualupdate msg model =
                                 _ ->
                                     ( model, Cmd.none )
 
+                        TP.TrError tce ->
+                            ( displayMessageDialog model <| DataUtil.showTimeClonkError tce, Cmd.none )
+
         ( PublicReplyData urd, state ) ->
             case urd of
                 Err e ->
@@ -1859,10 +1885,7 @@ actualupdate msg model =
 
                 Ok uiresponse ->
                     case uiresponse of
-                        PI.ServerError e ->
-                            ( displayMessageDialog model <| e, Cmd.none )
-
-                        PI.ProjectTime x ->
+                        TP.PrProjectTime x ->
                             case state of
                                 ProjectView st mblogin ->
                                     ( { model | state = ProjectView (ProjectView.onProjectTime model.timezone x st) mblogin }, Cmd.none )
@@ -1906,7 +1929,7 @@ actualupdate msg model =
                 GD.Ok return ->
                     case instate of
                         ProjectEdit pemod login ->
-                            ( { model | state = ProjectEdit (ProjectEdit.addMember return Data.Member pemod) login }
+                            ( { model | state = ProjectEdit (ProjectEdit.addMember return TP.Member pemod) login }
                             , Cmd.none
                             )
 
@@ -1957,11 +1980,6 @@ actualupdate msg model =
                     ProjectListing.update ms st login
             in
             case cmd of
-                ProjectListing.Selected id ->
-                    ( { model | state = ProjectListing nm login }
-                    , sendTIMsg model.location <| TI.GetProjectEdit id
-                    )
-
                 ProjectListing.New ->
                     ( { model | state = ProjectEdit (ProjectEdit.initNew login) login }
                     , Cmd.none
@@ -1977,8 +1995,8 @@ actualupdate msg model =
                                         millis =
                                             Time.posixToMillis now
                                     in
-                                    sendTIMsg model.location <|
-                                        TI.GetUserTime
+                                    sendTcMsg model.location <|
+                                        TP.TmGetUserTime
                                 )
                             )
                     )
@@ -1989,14 +2007,14 @@ actualupdate msg model =
                 ProjectListing.Settings ->
                     ( { model
                         | state =
-                            UserSettings (UserSettings.init (Data.ldToOdLd login) model.fontsize model.saveonclonk model.pageincrement) login model.state
+                            UserSettings (UserSettings.init (DataUtil.ldToOdLd login) model.fontsize model.saveonclonk model.pageincrement) login model.state
                       }
                     , Cmd.none
                     )
 
                 ProjectListing.Admin ->
                     ( model
-                    , sendAIMsg model.location AI.GetUsers
+                    , sendAIMsg model.location OD.ArqGetUsers
                     )
 
                 ProjectListing.Invite ->
@@ -2038,12 +2056,12 @@ actualupdate msg model =
             )
 
 
-handleProjectEdit : Model -> ( ProjectEdit.Model, ProjectEdit.Command ) -> Data.LoginData -> ( Model, Cmd Msg )
+handleProjectEdit : Model -> ( ProjectEdit.Model, ProjectEdit.Command ) -> DataUtil.LoginData -> ( Model, Cmd Msg )
 handleProjectEdit model ( nm, cmd ) login =
     case cmd of
         ProjectEdit.Save s ->
             ( { model | state = ProjectEdit nm login }
-            , sendTIMsg model.location <| TI.SaveProjectEdit s
+            , sendTcMsg model.location <| TP.TmSaveProjectEdit s
             )
 
         ProjectEdit.New ->
@@ -2053,7 +2071,7 @@ handleProjectEdit model ( nm, cmd ) login =
 
         ProjectEdit.AddMember ->
             ( { model | state = ProjectEdit nm login }
-            , sendTIMsg model.location <| TI.GetAllUsers
+            , sendTcMsg model.location <| TP.TmGetAllUsers
             )
 
         ProjectEdit.SelectRole id ->
@@ -2062,13 +2080,14 @@ handleProjectEdit model ( nm, cmd ) login =
                     SelectRoleDialog
                         (SS.init
                             { choices =
-                                [ Data.Member
-                                , Data.Admin
-                                , Data.Observer
+                                [ TP.Member
+                                , TP.Admin
+                                , TP.Observer
                                 ]
-                                    |> List.map (\r -> ( ( id, r ), Data.showRole r ))
+                                    |> List.map (\r -> ( ( id, r ), DataUtil.showRole r ))
                             , selected = Nothing
                             , search = ""
+                            , mobile = False
                             }
                             Common.buttonStyle
                             (E.map (always ()) (ProjectEdit.view login model.size nm))
@@ -2080,13 +2099,13 @@ handleProjectEdit model ( nm, cmd ) login =
 
         ProjectEdit.Done ->
             ( { model | state = ProjectEdit nm login }
-            , sendTIMsg model.location <| TI.GetProjectList login.userid
+            , sendTcMsg model.location <| TP.TmGetProjectList
             )
 
         ProjectEdit.Settings ->
             ( { model
                 | state =
-                    UserSettings (UserSettings.init (Data.ldToOdLd login) model.fontsize model.saveonclonk model.pageincrement) login model.state
+                    UserSettings (UserSettings.init (DataUtil.ldToOdLd login) model.fontsize model.saveonclonk model.pageincrement) login model.state
               }
             , Cmd.none
             )
@@ -2095,12 +2114,12 @@ handleProjectEdit model ( nm, cmd ) login =
             ( { model | state = ProjectEdit nm login }, Cmd.none )
 
 
-handleProjectTime : Model -> ( ProjectTime.Model, ProjectTime.Command ) -> Data.LoginData -> ( Model, Cmd Msg )
+handleProjectTime : Model -> ( ProjectTime.Model, ProjectTime.Command ) -> DataUtil.LoginData -> ( Model, Cmd Msg )
 handleProjectTime model ( nm, cmd ) login =
     case cmd of
         ProjectTime.Save s ->
             ( { model | state = ProjectTime nm login }
-            , sendTIMsg model.location <| TI.SaveProjectTime s
+            , sendTcMsg model.location <| TP.TmSaveProjectTime s
             )
 
         ProjectTime.Edit ->
@@ -2115,13 +2134,13 @@ handleProjectTime model ( nm, cmd ) login =
 
         ProjectTime.Done ->
             ( { model | state = ProjectTime nm login }
-            , sendTIMsg model.location <| TI.GetProjectList login.userid
+            , sendTcMsg model.location <| TP.TmGetProjectList
             )
 
         ProjectTime.Settings ->
             ( { model
                 | state =
-                    UserSettings (UserSettings.init (Data.ldToOdLd login) model.fontsize model.saveonclonk model.pageincrement) login model.state
+                    UserSettings (UserSettings.init (DataUtil.ldToOdLd login) model.fontsize model.saveonclonk model.pageincrement) login model.state
               }
             , Cmd.none
             )
@@ -2147,6 +2166,7 @@ handleProjectTime model ( nm, cmd ) login =
                             { choices = members |> List.map (\m -> ( m, m.name ))
                             , selected = Nothing
                             , search = ""
+                            , mobile = False
                             }
                             Common.buttonStyle
                             (E.map (always ()) (ProjectTime.view login model.size model.timezone nm))
@@ -2168,11 +2188,11 @@ handleProjectTime model ( nm, cmd ) login =
                 |> Task.perform
                     (\now ->
                         PrintInvoiceInit pi
-                            (Data.piDate now model.timezone)
+                            (DataUtil.piDate now model.timezone)
                             (pi.duedays
                                 |> Maybe.map
                                     (\dd ->
-                                        Data.piDate
+                                        DataUtil.piDate
                                             (now
                                                 |> Time.posixToMillis
                                                 |> (+) (dd * 24 * 60 * 60 * 1000)
@@ -2205,14 +2225,14 @@ resolve toResult response =
             Result.mapError Http.BadBody (toResult body)
 
 
-handleProjectView : Model -> ( ProjectView.Model, ProjectView.Command ) -> Maybe Data.LoginData -> ( Model, Cmd Msg )
+handleProjectView : Model -> ( ProjectView.Model, ProjectView.Command ) -> Maybe DataUtil.LoginData -> ( Model, Cmd Msg )
 handleProjectView model ( nm, cmd ) mblogin =
     case cmd of
         ProjectView.Done ->
             case mblogin of
                 Just login ->
                     ( { model | state = ProjectView nm mblogin }
-                    , sendTIMsg model.location <| TI.GetProjectList login.userid
+                    , sendTcMsg model.location <| TP.TmGetProjectList
                     )
 
                 Nothing ->
@@ -2223,7 +2243,7 @@ handleProjectView model ( nm, cmd ) mblogin =
                 Just login ->
                     ( { model
                         | state =
-                            UserSettings (UserSettings.init (Data.ldToOdLd login) model.fontsize model.saveonclonk model.pageincrement) login model.state
+                            UserSettings (UserSettings.init (DataUtil.ldToOdLd login) model.fontsize model.saveonclonk model.pageincrement) login model.state
                       }
                     , Cmd.none
                     )
@@ -2252,10 +2272,11 @@ handleLogin model ( lmod, lcmd ) =
         Login.Register ->
             ( { model | state = Login lmod }
             , sendUIMsg model.location
-                (UI.Register
+                (OD.UrqRegister
                     { uid = lmod.userId
                     , pwd = lmod.password
                     , email = lmod.email
+                    , remoteUrl = lmod.remoteUrl
                     }
                 )
             )
@@ -2263,7 +2284,7 @@ handleLogin model ( lmod, lcmd ) =
         Login.Login ->
             ( { model | state = Login lmod }
             , sendUIMsg model.location <|
-                UI.Login
+                OD.UrqLogin
                     { uid = lmod.userId
                     , pwd = lmod.password
                     }
@@ -2272,7 +2293,7 @@ handleLogin model ( lmod, lcmd ) =
         Login.Reset ->
             ( { model | state = Login lmod }
             , sendUIMsg model.location <|
-                UI.ResetPassword
+                OD.UrqResetPassword
                     { uid = lmod.userId
                     }
             )
@@ -2287,7 +2308,7 @@ handleInvited model ( lmod, lcmd ) =
         Invited.RSVP ->
             ( { model | state = Invited lmod }
             , sendUIMsg model.location
-                (UI.RSVP
+                (OD.UrqRsvp
                     { uid = lmod.userId
                     , pwd = lmod.password
                     , email = lmod.email
@@ -2297,7 +2318,7 @@ handleInvited model ( lmod, lcmd ) =
             )
 
 
-handleInviteUser : Model -> ( InviteUser.Model, InviteUser.Command ) -> Data.LoginData -> ( Model, Cmd Msg )
+handleInviteUser : Model -> ( InviteUser.Model, InviteUser.Command ) -> DataUtil.LoginData -> ( Model, Cmd Msg )
 handleInviteUser model ( lmod, lcmd ) ld =
     case lcmd of
         InviteUser.None ->
@@ -2307,17 +2328,17 @@ handleInviteUser model ( lmod, lcmd ) ld =
             ( { model | state = InviteUser lmod ld }
             , if ld.admin then
                 sendAIMsg model.location
-                    (AI.GetInvite invite)
+                    (OD.ArqGetInvite invite)
 
               else
                 sendUIMsg model.location
-                    (UI.GetInvite invite)
+                    (OD.UrqAuthedRequest <| OD.AthGetInvite invite)
             )
 
         InviteUser.Cancel ->
             ( model
             , sendAIMsg model.location
-                AI.GetUsers
+                OD.ArqGetUsers
             )
 
 
@@ -2348,7 +2369,7 @@ initialPage curmodel =
             ( { curmodel
                 | state = ShowMessage { message = "congrats, you are logged in!" } login Nothing
               }
-            , sendTIMsg curmodel.location <| TI.GetProjectList login.userid
+            , sendTcMsg curmodel.location <| TP.TmGetProjectList
             )
 
         Nothing ->
@@ -2375,12 +2396,14 @@ init flags url key zone fontsize saveonclonk pageincrement =
             flags.adminsettings
                 |> Maybe.andThen
                     (\v ->
-                        JD.decodeValue OD.decodeAdminSettings v
+                        JD.decodeValue OD.adminSettingsDecoder v
                             |> Result.toMaybe
                     )
                 |> Maybe.withDefault
                     { openRegistration = False
-                    , nonAdminInvite = False
+                    , sendEmails = False
+                    , nonAdminInvite = False -- TODO true?
+                    , remoteRegistration = False
                     }
 
         imodel =
@@ -2391,10 +2414,10 @@ init flags url key zone fontsize saveonclonk pageincrement =
 
                     Just v ->
                         case
-                            JD.decodeValue OD.decodeLoginData v
+                            JD.decodeValue OD.loginDataDecoder v
                         of
                             Ok l ->
-                                ShowMessage { message = "loading..." } (Data.odLdToLd l) Nothing
+                                ShowMessage { message = "loading..." } (DataUtil.odLdToLd l) Nothing
 
                             Err e ->
                                 PubShowMessage { message = JD.errorToString e } Nothing

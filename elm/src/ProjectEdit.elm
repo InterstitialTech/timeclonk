@@ -1,17 +1,19 @@
 module ProjectEdit exposing (..)
 
 import Common
-import Data
+import DataUtil
 import Element as E exposing (Element)
 import Element.Background as EBk
 import Element.Border as EBd
 import Element.Font as EF
 import Element.Input as EI
-import Orgauth.Data exposing (UserId, getUserIdVal, makeUserId)
+import Orgauth.Data exposing (UserId)
+import Orgauth.UserId exposing (getUserIdVal, makeUserId)
 import Route
 import TDict exposing (TDict)
 import TangoColors as TC
 import TcCommon as TC
+import TcProtocol as TP
 import Toop
 import Util
 import WindowKeys as WK
@@ -40,11 +42,11 @@ type Msg
 
 
 type alias Model =
-    { id : Maybe Data.ProjectId
+    { id : Maybe TP.ProjectId
     , name : String
     , description : String
     , dueDays : Maybe Int
-    , extraFields : List Data.ExtraField
+    , extraFields : List TP.ExtraField
     , invoiceIdTemplate : String
     , invoiceSeq : Int
     , payer : String
@@ -55,14 +57,14 @@ type alias Model =
     , currency : String
     , createdate : Maybe Int
     , changeddate : Maybe Int
-    , members : TDict UserId Int Data.ProjectMember
-    , initialProject : Maybe Data.Project
-    , initialMembers : TDict UserId Int Data.ProjectMember
+    , members : TDict UserId Int TP.ProjectMember
+    , initialProject : Maybe TP.Project
+    , initialMembers : TDict UserId Int TP.ProjectMember
     }
 
 
 type Command
-    = Save Data.SaveProjectEdit
+    = Save TP.SaveProjectEdit
     | New
     | AddMember
     | SelectRole UserId
@@ -71,7 +73,7 @@ type Command
     | None
 
 
-onWkKeyPress : WK.Key -> Model -> Data.LoginData -> ( Model, Command )
+onWkKeyPress : WK.Key -> Model -> DataUtil.LoginData -> ( Model, Command )
 onWkKeyPress key model ld =
     case Toop.T4 key.key key.ctrl key.alt key.shift of
         Toop.T4 "s" True False False ->
@@ -85,7 +87,7 @@ onWkKeyPress key model ld =
             ( model, None )
 
 
-toSaveProject : Model -> Data.SaveProject
+toSaveProject : Model -> TP.SaveProject
 toSaveProject model =
     let
         ( r, c ) =
@@ -122,7 +124,7 @@ toSaveProject model =
     }
 
 
-toSaveProjectEdit : Model -> Data.SaveProjectEdit
+toSaveProjectEdit : Model -> TP.SaveProjectEdit
 toSaveProjectEdit model =
     { project = toSaveProject model
     , members =
@@ -153,12 +155,12 @@ toSaveProjectEdit model =
     }
 
 
-emptyUmDict : TDict UserId Int Data.ProjectMember
+emptyUmDict : TDict UserId Int TP.ProjectMember
 emptyUmDict =
     TDict.empty getUserIdVal makeUserId
 
 
-onSavedProjectInvoice : Data.Project -> Model -> Model
+onSavedProjectInvoice : TP.Project -> Model -> Model
 onSavedProjectInvoice project model =
     let
         members =
@@ -167,7 +169,7 @@ onSavedProjectInvoice project model =
     initEdit project members
 
 
-onSavedProjectEdit : Data.SavedProjectEdit -> Model -> Model
+onSavedProjectEdit : TP.SavedProjectEdit -> Model -> Model
 onSavedProjectEdit spe model =
     let
         mbrs =
@@ -186,12 +188,12 @@ onSavedProjectEdit spe model =
     }
 
 
-addMember : Data.User -> Data.Role -> Model -> Model
+addMember : TP.User -> TP.Role -> Model -> Model
 addMember pm role model =
     { model | members = TDict.insert pm.id { id = pm.id, name = pm.name, role = role } model.members }
 
 
-setRole : ( UserId, Data.Role ) -> Model -> Model
+setRole : ( UserId, TP.Role ) -> Model -> Model
 setRole ( id, role ) model =
     { model
         | members =
@@ -239,7 +241,7 @@ isDirty model =
     projdirty || membersdirty
 
 
-initNew : Data.LoginData -> Model
+initNew : DataUtil.LoginData -> Model
 initNew ld =
     { id = Nothing
     , name = ""
@@ -256,13 +258,13 @@ initNew ld =
     , currency = ""
     , createdate = Nothing
     , changeddate = Nothing
-    , members = TDict.insert ld.userid { id = ld.userid, name = ld.name, role = Data.Admin } emptyUmDict
+    , members = TDict.insert ld.userid { id = ld.userid, name = ld.name, role = TP.Admin } emptyUmDict
     , initialProject = Nothing
     , initialMembers = emptyUmDict
     }
 
 
-initEdit : Data.Project -> List Data.ProjectMember -> Model
+initEdit : TP.Project -> List TP.ProjectMember -> Model
 initEdit proj members =
     let
         mbs =
@@ -291,7 +293,7 @@ initEdit proj members =
     }
 
 
-view : Data.LoginData -> Util.Size -> Model -> Element Msg
+view : DataUtil.LoginData -> Util.Size -> Model -> Element Msg
 view ld size model =
     let
         maxwidth =
@@ -388,7 +390,7 @@ view ld size model =
                         ( True, Just id ) ->
                             let
                                 u =
-                                    Route.routeUrl <| Route.ProjectViewR (Data.getProjectIdVal id) "team"
+                                    Route.routeUrl <| Route.ProjectViewR (DataUtil.getProjectIdVal id) "team"
                             in
                             E.link Common.linkStyle
                                 { url = u
@@ -560,7 +562,7 @@ view ld size model =
                                 \m ->
                                     EI.button Common.buttonStyle
                                         { onPress = Just <| SelectRolePress m.id
-                                        , label = E.text (Data.showRole m.role)
+                                        , label = E.text (DataUtil.showRole m.role)
                                         }
                           }
                         ]
@@ -569,7 +571,7 @@ view ld size model =
             ]
 
 
-update : Msg -> Model -> Data.LoginData -> ( Model, Command )
+update : Msg -> Model -> DataUtil.LoginData -> ( Model, Command )
 update msg model ld =
     case msg of
         NameChanged t ->
