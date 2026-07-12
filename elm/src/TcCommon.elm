@@ -1,7 +1,5 @@
 module TcCommon exposing (..)
 
--- import Data as D
-
 import Element as E exposing (Element)
 import Element.Background as EBk
 import Element.Border as EBd
