@@ -17,18 +17,6 @@ type alias LoginData =
     }
 
 
-
--- { userid : UserId
--- , uuid : String
--- , name : String
--- , email : String
--- , admin : Bool
--- , active : Bool
--- , remoteUrl : Maybe (String)
--- , data : Maybe (String)
--- }
-
-
 ldToOdLd : LoginData -> OD.LoginData
 ldToOdLd ld =
     { userid = ld.userid
@@ -40,17 +28,6 @@ ldToOdLd ld =
     , remoteUrl = Nothing
     , data = Nothing
     }
-
-
-
--- { userid : UserId
--- , uuid : String
--- , name : String
--- , email : String
--- , admin : Bool
--- , active : Bool
--- , data : Maybe (String)
--- }
 
 
 odLdToLd : OD.LoginData -> LoginData
@@ -84,7 +61,7 @@ type alias UserInviteProject =
 encodeUserInviteProject : UserInviteProject -> JE.Value
 encodeUserInviteProject p =
     JE.object
-        [ ( "id", JE.int <| getProjectIdVal p.id )
+        [ ( "id", TcProtocol.projectIdEncoder p.id )
         , ( "role", roleEncoder p.role )
         ]
 
