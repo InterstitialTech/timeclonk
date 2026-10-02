@@ -29,12 +29,13 @@ import LocalStorage as LS
 import Orgauth.AdminInterface as AI
 import Orgauth.ChangeEmail as CE
 import Orgauth.ChangePassword as CP
-import Orgauth.Data as OD exposing (AdminSettings, UserId, getUserIdVal, makeUserId)
+import Orgauth.Data as OD exposing (AdminSettings, UserId)
 import Orgauth.Invited as Invited
 import Orgauth.Login as Login
 import Orgauth.ResetPassword as ResetPassword
 import Orgauth.ShowUrl as ShowUrl
 import Orgauth.UserEdit as UserEdit
+import Orgauth.UserId exposing (getUserIdVal, makeUserId)
 import Orgauth.UserInterface as UI
 import Orgauth.UserListing as UserListing
 import PrintInvoice as PI
@@ -1162,7 +1163,12 @@ actualupdate msg model =
                 ResetPassword.Ok ->
                     ( { model | state = ResetPassword nst }
                     , sendUIMsg model.location
-                        (UI.SetPassword { uid = nst.userId, newpwd = nst.password, reset_key = nst.reset_key })
+                        (UI.SetPassword
+                            { uid = nst.userId
+                            , newpwd = nst.password
+                            , resetKey = UUID.toString nst.reset_key
+                            }
+                        )
                     )
 
                 ResetPassword.None ->
@@ -1840,6 +1846,7 @@ actualupdate msg model =
                                                     { choices = somems |> TDict.values |> List.map (\m -> ( m, m.name ))
                                                     , selected = Nothing
                                                     , search = ""
+                                                    , mobile = False
                                                     }
                                                     Common.buttonStyle
                                                     (E.map (always ()) (ProjectEdit.view l model.size s))
@@ -2069,6 +2076,7 @@ handleProjectEdit model ( nm, cmd ) login =
                                     |> List.map (\r -> ( ( id, r ), Data.showRole r ))
                             , selected = Nothing
                             , search = ""
+                            , mobile = False
                             }
                             Common.buttonStyle
                             (E.map (always ()) (ProjectEdit.view login model.size nm))
@@ -2147,6 +2155,7 @@ handleProjectTime model ( nm, cmd ) login =
                             { choices = members |> List.map (\m -> ( m, m.name ))
                             , selected = Nothing
                             , search = ""
+                            , mobile = False
                             }
                             Common.buttonStyle
                             (E.map (always ()) (ProjectTime.view login model.size model.timezone nm))
@@ -2256,6 +2265,7 @@ handleLogin model ( lmod, lcmd ) =
                     { uid = lmod.userId
                     , pwd = lmod.password
                     , email = lmod.email
+                    , remoteUrl = lmod.remoteUrl
                     }
                 )
             )
@@ -2375,12 +2385,14 @@ init flags url key zone fontsize saveonclonk pageincrement =
             flags.adminsettings
                 |> Maybe.andThen
                     (\v ->
-                        JD.decodeValue OD.decodeAdminSettings v
+                        JD.decodeValue OD.adminSettingsDecoder v
                             |> Result.toMaybe
                     )
                 |> Maybe.withDefault
                     { openRegistration = False
+                    , sendEmails = False
                     , nonAdminInvite = False
+                    , remoteRegistration = False
                     }
 
         imodel =
@@ -2391,7 +2403,7 @@ init flags url key zone fontsize saveonclonk pageincrement =
 
                     Just v ->
                         case
-                            JD.decodeValue OD.decodeLoginData v
+                            JD.decodeValue OD.loginDataDecoder v
                         of
                             Ok l ->
                                 ShowMessage { message = "loading..." } (Data.odLdToLd l) Nothing

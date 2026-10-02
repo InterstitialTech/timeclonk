@@ -6,7 +6,8 @@ import Csv
 import Data exposing (AllocationId, PayEntryId, PayType, TimeEntryId, getProjectIdVal)
 import DateTime exposing (DateTime)
 import Dict exposing (Dict)
-import Orgauth.Data as OD exposing (UserId, getUserIdVal, makeUserId)
+import Orgauth.Data as OD exposing (UserId)
+import Orgauth.UserId exposing (getUserIdVal, makeUserId)
 import Round as R
 import TDict exposing (TDict)
 import Time exposing (Zone)

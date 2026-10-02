@@ -78,19 +78,31 @@ module Data exposing
 
 import Json.Decode as JD
 import Json.Encode as JE
-import Orgauth.Data as OD exposing (UserId, getUserIdVal, makeUserId)
+import Orgauth.Data as OD exposing (UserId(..))
+import Orgauth.UserId exposing (getUserIdVal, makeUserId)
 import Time
 import UUID exposing (UUID)
-import Url.Builder as UB
 import Util exposing (andMap)
+
+
+
+-- type alias LoginData =
+--     { userid : UserId
+--     , name : String
+--     , email : String
+--     , admin : Bool
+--     , active : Bool
+--     }
 
 
 type alias LoginData =
     { userid : UserId
+    , uuid : String
     , name : String
     , email : String
     , admin : Bool
     , active : Bool
+    , remoteUrl : Maybe String
     }
 
 
@@ -101,7 +113,9 @@ ldToOdLd ld =
     , email = ld.email
     , admin = ld.admin
     , active = ld.active
-    , data = JE.null
+    , data = Nothing
+    , uuid = ld.uuid
+    , remoteUrl = ld.remoteUrl
     }
 
 
@@ -112,6 +126,8 @@ odLdToLd ld =
     , email = ld.email
     , admin = ld.admin
     , active = ld.active
+    , uuid = ld.uuid
+    , remoteUrl = ld.remoteUrl
     }
 
 

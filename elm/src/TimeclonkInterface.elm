@@ -3,7 +3,8 @@ module TimeclonkInterface exposing (SendMsg(..), ServerResponse(..), encodeEmail
 import Data
 import Json.Decode as JD
 import Json.Encode as JE
-import Orgauth.Data as OD exposing (UserId, getUserIdVal, makeUserId)
+import Orgauth.Data as OD exposing (UserId)
+import Orgauth.UserId exposing (getUserIdVal, makeUserId)
 
 
 type SendMsg

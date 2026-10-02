@@ -2,7 +2,8 @@
   description = "timeclonk";
 
   inputs = {
-    nixpkgs = { url = "github:nixos/nixpkgs/nixos-25.11"; };
+    nixpkgs = { url = "github:nixos/nixpkgs/nixos-unstable"; };
+    # nixpkgs = { url = "github:nixos/nixpkgs/nixos-26.05"; };
     flake-utils.url = "github:numtide/flake-utils";
     naersk.url = "github:nmattia/naersk";
     naersk.inputs.nixpkgs.follows = "nixpkgs";  # needed so we don't get obsolete rustc!
@@ -98,8 +99,8 @@
               openssl.dev
               elm2nix
               elmPackages.elm
-              elmPackages.elm-analyse
-              elmPackages.elm-doc-preview
+              # elmPackages.elm-analyse
+              # elmPackages.elm-doc-preview
               elmPackages.elm-format
               elmPackages.elm-live
               elmPackages.elm-test
