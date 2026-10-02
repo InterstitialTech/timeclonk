@@ -206,6 +206,11 @@ pub fn dbinit(
     tm::udpate12(&dbfile)?;
     set_single_value(&conn, "migration_level", "12")?;
   }
+  if nlevel < 13 {
+    info!("udpate13");
+    tm::udpate13(&dbfile)?;
+    set_single_value(&conn, "migration_level", "13")?;
+  }
 
   info!("db up to date.");
 
