@@ -1,29 +1,21 @@
 port module Main exposing (main)
 
--- import Orgauth.UserInterface as UI
--- import Orgauth.AdminInterface as AI
+-- import PublicInterface as PI
 
-import Array
 import Browser
 import Browser.Events
 import Browser.Navigation
-import Common exposing (buttonStyle)
+import Common
 import Data
-import Dict exposing (Dict)
+import Dict
 import DisplayMessage
 import Element as E exposing (Element)
-import Element.Background as EBk
-import Element.Border as EBd
 import Element.Font as EF
-import Element.Input as EI
-import Element.Region
 import File as F
 import File.Download as FD
 import File.Select as FS
 import GenDialog as GD
-import Html exposing (Attribute, Html)
-import Html.Attributes
-import Html.Events as HE
+import Html exposing (Html)
 import Http
 import InviteUser
 import Json.Decode as JD
@@ -31,37 +23,33 @@ import Json.Encode as JE
 import LocalStorage as LS
 import Orgauth.ChangeEmail as CE
 import Orgauth.ChangePassword as CP
-import Orgauth.Data as OD exposing (AdminSettings, UserId, adminResponseEncoder)
+import Orgauth.Data as OD exposing (AdminSettings, UserId)
 import Orgauth.DataUtil
 import Orgauth.Invited as Invited
 import Orgauth.Login as Login
 import Orgauth.ResetPassword as ResetPassword
 import Orgauth.ShowUrl as ShowUrl
 import Orgauth.UserEdit as UserEdit
-import Orgauth.UserId as UserId exposing (getUserIdVal, makeUserId)
+import Orgauth.UserId as UserId
 import Orgauth.UserListing as UserListing
 import PrintInvoice as PI
 import ProjectEdit
 import ProjectListing
 import ProjectTime
 import ProjectView
-import PublicInterface as PI
 import Random exposing (Seed, initialSeed)
 import Route exposing (Route(..), parseUrl, routeTitle, routeUrl)
 import SelectString as SS
 import ShowMessage
-import TDict exposing (TDict)
-import TangoColors as TC
-import Task exposing (Task)
+import TDict
+import Task
 import TcCommon
 import Time
 import TimeReporting as TR
 import TimeclonkInterface as TI
 import Toop
-import UUID exposing (UUID)
 import Url exposing (Url)
-import Url.Builder as UB
-import Url.Parser as UP exposing ((</>))
+import Url.Parser exposing ((</>))
 import UserSettings
 import UserTime
 import Util
@@ -246,7 +234,7 @@ routeState model route =
 
         ProjectViewR id mode ->
             case stateLogin model.state of
-                Just login ->
+                Just _ ->
                     ( (displayMessageDialog model "loading project").state
                     , sendTIMsgExp model.location (TI.GetProjectTime id) (TProjectViewData mode)
                     )
@@ -275,7 +263,7 @@ stateRoute state =
             , save = True
             }
 
-        ResetPassword mod ->
+        ResetPassword _ ->
             { route = Top
             , save = False
             }
@@ -610,19 +598,19 @@ viewState size state model =
         Invited em ->
             E.map InvitedMsg <| Invited.view model.stylePalette size em
 
-        InviteUser em login ->
+        InviteUser em _ ->
             E.map InviteUserMsg <| InviteUser.view model.stylePalette (Just size) em
 
-        UserEdit em login ->
+        UserEdit em _ ->
             E.map UserEditMsg <| UserEdit.view [] em
 
         UserTime em ld ->
             E.map UserTimeMsg <| UserTime.view ld size model.timezone em
 
-        UserListing em login ->
+        UserListing em _ ->
             E.map UserListingMsg <| UserListing.view [] em
 
-        ShowUrl em login ->
+        ShowUrl em _ ->
             E.map ShowUrlMsg <| ShowUrl.view [] em
 
         ShowMessage em _ _ ->

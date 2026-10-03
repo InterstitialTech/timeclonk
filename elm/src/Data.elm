@@ -85,16 +85,6 @@ import UUID exposing (UUID)
 import Util exposing (andMap)
 
 
-
--- type alias LoginData =
---     { userid : UserId
---     , name : String
---     , email : String
---     , admin : Bool
---     , active : Bool
---     }
-
-
 type alias LoginData =
     { userid : UserId
     , uuid : String
