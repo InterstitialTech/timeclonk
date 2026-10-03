@@ -29,6 +29,131 @@ resultDecoder errDecoder okDecoder =
         ]
 
 
+type alias Allocation =
+    { id : Int
+    , project : ProjectId
+    , duration : Int
+    , allocationdate : Int
+    , description : String
+    , createdate : Int
+    , changeddate : Int
+    , creator : UserId
+    }
+
+
+allocationEncoder : Allocation -> Json.Encode.Value
+allocationEncoder struct =
+    Json.Encode.object
+        [ ( "id", (Json.Encode.int) struct.id )
+        , ( "project", (projectIdEncoder) struct.project )
+        , ( "duration", (Json.Encode.int) struct.duration )
+        , ( "allocationdate", (Json.Encode.int) struct.allocationdate )
+        , ( "description", (Json.Encode.string) struct.description )
+        , ( "createdate", (Json.Encode.int) struct.createdate )
+        , ( "changeddate", (Json.Encode.int) struct.changeddate )
+        , ( "creator", (userIdEncoder) struct.creator )
+        ]
+
+
+type alias ExtraField =
+    { n : String
+    , v : String
+    }
+
+
+extraFieldEncoder : ExtraField -> Json.Encode.Value
+extraFieldEncoder struct =
+    Json.Encode.object
+        [ ( "n", (Json.Encode.string) struct.n )
+        , ( "v", (Json.Encode.string) struct.v )
+        ]
+
+
+type alias InvoiceItem =
+    { description : String
+    , duration : Float
+    , rate : Float
+    }
+
+
+invoiceItemEncoder : InvoiceItem -> Json.Encode.Value
+invoiceItemEncoder struct =
+    Json.Encode.object
+        [ ( "description", (Json.Encode.string) struct.description )
+        , ( "duration", (Json.Encode.float) struct.duration )
+        , ( "rate", (Json.Encode.float) struct.rate )
+        ]
+
+
+type alias PayEntry =
+    { id : Int
+    , project : ProjectId
+    , user : UserId
+    , duration : Int
+    , paytype : PayType
+    , paymentdate : Int
+    , description : String
+    , createdate : Int
+    , changeddate : Int
+    , creator : UserId
+    }
+
+
+payEntryEncoder : PayEntry -> Json.Encode.Value
+payEntryEncoder struct =
+    Json.Encode.object
+        [ ( "id", (Json.Encode.int) struct.id )
+        , ( "project", (projectIdEncoder) struct.project )
+        , ( "user", (userIdEncoder) struct.user )
+        , ( "duration", (Json.Encode.int) struct.duration )
+        , ( "paytype", (payTypeEncoder) struct.paytype )
+        , ( "paymentdate", (Json.Encode.int) struct.paymentdate )
+        , ( "description", (Json.Encode.string) struct.description )
+        , ( "createdate", (Json.Encode.int) struct.createdate )
+        , ( "changeddate", (Json.Encode.int) struct.changeddate )
+        , ( "creator", (userIdEncoder) struct.creator )
+        ]
+
+
+type PayType
+    = Invoiced
+    | Paid
+
+
+payTypeEncoder : PayType -> Json.Encode.Value
+payTypeEncoder enum =
+    case enum of
+        Invoiced ->
+            Json.Encode.string "Invoiced"
+        Paid ->
+            Json.Encode.string "Paid"
+
+type alias PrintInvoice =
+    { id : String
+    , payer : String
+    , payee : String
+    , items : List (InvoiceItem)
+    , date : String
+    , dueDate : Maybe (String)
+    , extraFields : List (ExtraField)
+    , currency : String
+    }
+
+
+printInvoiceEncoder : PrintInvoice -> Json.Encode.Value
+printInvoiceEncoder struct =
+    Json.Encode.object
+        [ ( "id", (Json.Encode.string) struct.id )
+        , ( "payer", (Json.Encode.string) struct.payer )
+        , ( "payee", (Json.Encode.string) struct.payee )
+        , ( "items", (Json.Encode.list (invoiceItemEncoder)) struct.items )
+        , ( "date", (Json.Encode.string) struct.date )
+        , ( "due_date", (Maybe.withDefault Json.Encode.null << Maybe.map (Json.Encode.string)) struct.dueDate )
+        , ( "extra_fields", (Json.Encode.list (extraFieldEncoder)) struct.extraFields )
+        , ( "currency", (Json.Encode.string) struct.currency )
+        ]
+
+
 type alias Project =
     { id : ProjectId
     , name : String
@@ -69,6 +194,32 @@ projectEncoder struct =
         ]
 
 
+type ProjectId
+    = Pid (Int)
+
+
+projectIdEncoder : ProjectId -> Json.Encode.Value
+projectIdEncoder enum =
+    case enum of
+        Pid inner ->
+            Json.Encode.object [ ( "Pid", Json.Encode.int inner ) ]
+
+type alias ProjectMember =
+    { id : UserId
+    , name : String
+    , role : Role
+    }
+
+
+projectMemberEncoder : ProjectMember -> Json.Encode.Value
+projectMemberEncoder struct =
+    Json.Encode.object
+        [ ( "id", (userIdEncoder) struct.id )
+        , ( "name", (Json.Encode.string) struct.name )
+        , ( "role", (roleEncoder) struct.role )
+        ]
+
+
 type alias ProjectTime =
     { project : Project
     , members : List (ProjectMember)
@@ -89,149 +240,6 @@ projectTimeEncoder struct =
         ]
 
 
-type alias PayEntry =
-    { id : Int
-    , project : ProjectId
-    , user : UserId
-    , duration : Int
-    , paytype : PayType
-    , paymentdate : Int
-    , description : String
-    , createdate : Int
-    , changeddate : Int
-    , creator : UserId
-    }
-
-
-payEntryEncoder : PayEntry -> Json.Encode.Value
-payEntryEncoder struct =
-    Json.Encode.object
-        [ ( "id", (Json.Encode.int) struct.id )
-        , ( "project", (projectIdEncoder) struct.project )
-        , ( "user", (userIdEncoder) struct.user )
-        , ( "duration", (Json.Encode.int) struct.duration )
-        , ( "paytype", (payTypeEncoder) struct.paytype )
-        , ( "paymentdate", (Json.Encode.int) struct.paymentdate )
-        , ( "description", (Json.Encode.string) struct.description )
-        , ( "createdate", (Json.Encode.int) struct.createdate )
-        , ( "changeddate", (Json.Encode.int) struct.changeddate )
-        , ( "creator", (userIdEncoder) struct.creator )
-        ]
-
-
-type alias ProjectMember =
-    { id : UserId
-    , name : String
-    , role : Role
-    }
-
-
-projectMemberEncoder : ProjectMember -> Json.Encode.Value
-projectMemberEncoder struct =
-    Json.Encode.object
-        [ ( "id", (userIdEncoder) struct.id )
-        , ( "name", (Json.Encode.string) struct.name )
-        , ( "role", (roleEncoder) struct.role )
-        ]
-
-
-type alias Allocation =
-    { id : Int
-    , project : ProjectId
-    , duration : Int
-    , allocationdate : Int
-    , description : String
-    , createdate : Int
-    , changeddate : Int
-    , creator : UserId
-    }
-
-
-allocationEncoder : Allocation -> Json.Encode.Value
-allocationEncoder struct =
-    Json.Encode.object
-        [ ( "id", (Json.Encode.int) struct.id )
-        , ( "project", (projectIdEncoder) struct.project )
-        , ( "duration", (Json.Encode.int) struct.duration )
-        , ( "allocationdate", (Json.Encode.int) struct.allocationdate )
-        , ( "description", (Json.Encode.string) struct.description )
-        , ( "createdate", (Json.Encode.int) struct.createdate )
-        , ( "changeddate", (Json.Encode.int) struct.changeddate )
-        , ( "creator", (userIdEncoder) struct.creator )
-        ]
-
-
-type alias TimeEntry =
-    { id : Int
-    , project : ProjectId
-    , user : UserId
-    , description : String
-    , startdate : Int
-    , enddate : Int
-    , ignore : Bool
-    , createdate : Int
-    , changeddate : Int
-    , creator : UserId
-    }
-
-
-timeEntryEncoder : TimeEntry -> Json.Encode.Value
-timeEntryEncoder struct =
-    Json.Encode.object
-        [ ( "id", (Json.Encode.int) struct.id )
-        , ( "project", (projectIdEncoder) struct.project )
-        , ( "user", (userIdEncoder) struct.user )
-        , ( "description", (Json.Encode.string) struct.description )
-        , ( "startdate", (Json.Encode.int) struct.startdate )
-        , ( "enddate", (Json.Encode.int) struct.enddate )
-        , ( "ignore", (Json.Encode.bool) struct.ignore )
-        , ( "createdate", (Json.Encode.int) struct.createdate )
-        , ( "changeddate", (Json.Encode.int) struct.changeddate )
-        , ( "creator", (userIdEncoder) struct.creator )
-        ]
-
-
-type TcMessageX
-    = TmGetProjectList
-    | TmSaveProjectEdit (SaveProjectEdit)
-    | TmGetProjectEdit (ProjectId)
-    | TmSaveProjectInvoice (SaveProjectInvoice)
-    | TmGetProjectTime (ProjectId)
-    | TmSaveProjectTime (SaveProjectTime)
-    | TmGetUserTime
-    | TmGetAllUsers
-
-
-tcMessageXEncoder : TcMessageX -> Json.Encode.Value
-tcMessageXEncoder enum =
-    case enum of
-        TmGetProjectList ->
-            Json.Encode.string "TmGetProjectList"
-        TmSaveProjectEdit inner ->
-            Json.Encode.object [ ( "TmSaveProjectEdit", saveProjectEditEncoder inner ) ]
-        TmGetProjectEdit inner ->
-            Json.Encode.object [ ( "TmGetProjectEdit", projectIdEncoder inner ) ]
-        TmSaveProjectInvoice inner ->
-            Json.Encode.object [ ( "TmSaveProjectInvoice", saveProjectInvoiceEncoder inner ) ]
-        TmGetProjectTime inner ->
-            Json.Encode.object [ ( "TmGetProjectTime", projectIdEncoder inner ) ]
-        TmSaveProjectTime inner ->
-            Json.Encode.object [ ( "TmSaveProjectTime", saveProjectTimeEncoder inner ) ]
-        TmGetUserTime ->
-            Json.Encode.string "TmGetUserTime"
-        TmGetAllUsers ->
-            Json.Encode.string "TmGetAllUsers"
-
-type ProjectId
-    = Pid (Int)
-
-
-projectIdEncoder : ProjectId -> Json.Encode.Value
-projectIdEncoder enum =
-    case enum of
-        Pid inner ->
-            Json.Encode.object [ ( "Pid", Json.Encode.int inner ) ]
-
 type PublicMessageX
     = PmGetProjectTime (ProjectId)
 
@@ -241,48 +249,6 @@ publicMessageXEncoder enum =
     case enum of
         PmGetProjectTime inner ->
             Json.Encode.object [ ( "PmGetProjectTime", projectIdEncoder inner ) ]
-
-type alias PrintInvoice =
-    { id : String
-    , payer : String
-    , payee : String
-    , items : List (InvoiceItem)
-    , date : String
-    , dueDate : Maybe (String)
-    , extraFields : List (ExtraField)
-    , currency : String
-    }
-
-
-printInvoiceEncoder : PrintInvoice -> Json.Encode.Value
-printInvoiceEncoder struct =
-    Json.Encode.object
-        [ ( "id", (Json.Encode.string) struct.id )
-        , ( "payer", (Json.Encode.string) struct.payer )
-        , ( "payee", (Json.Encode.string) struct.payee )
-        , ( "items", (Json.Encode.list (invoiceItemEncoder)) struct.items )
-        , ( "date", (Json.Encode.string) struct.date )
-        , ( "due_date", (Maybe.withDefault Json.Encode.null << Maybe.map (Json.Encode.string)) struct.dueDate )
-        , ( "extra_fields", (Json.Encode.list (extraFieldEncoder)) struct.extraFields )
-        , ( "currency", (Json.Encode.string) struct.currency )
-        ]
-
-
-type alias InvoiceItem =
-    { description : String
-    , duration : Float
-    , rate : Float
-    }
-
-
-invoiceItemEncoder : InvoiceItem -> Json.Encode.Value
-invoiceItemEncoder struct =
-    Json.Encode.object
-        [ ( "description", (Json.Encode.string) struct.description )
-        , ( "duration", (Json.Encode.float) struct.duration )
-        , ( "rate", (Json.Encode.float) struct.rate )
-        ]
-
 
 type Role
     = Member
@@ -300,60 +266,47 @@ roleEncoder enum =
         Observer ->
             Json.Encode.string "Observer"
 
-type PayType
-    = Invoiced
-    | Paid
-
-
-payTypeEncoder : PayType -> Json.Encode.Value
-payTypeEncoder enum =
-    case enum of
-        Invoiced ->
-            Json.Encode.string "Invoiced"
-        Paid ->
-            Json.Encode.string "Paid"
-
-type alias ExtraField =
-    { n : String
-    , v : String
+type alias SaveAllocation =
+    { id : Maybe (Int)
+    , project : ProjectId
+    , duration : Int
+    , allocationdate : Int
+    , description : String
     }
 
 
-extraFieldEncoder : ExtraField -> Json.Encode.Value
-extraFieldEncoder struct =
+saveAllocationEncoder : SaveAllocation -> Json.Encode.Value
+saveAllocationEncoder struct =
     Json.Encode.object
-        [ ( "n", (Json.Encode.string) struct.n )
-        , ( "v", (Json.Encode.string) struct.v )
+        [ ( "id", (Maybe.withDefault Json.Encode.null << Maybe.map (Json.Encode.int)) struct.id )
+        , ( "project", (projectIdEncoder) struct.project )
+        , ( "duration", (Json.Encode.int) struct.duration )
+        , ( "allocationdate", (Json.Encode.int) struct.allocationdate )
+        , ( "description", (Json.Encode.string) struct.description )
         ]
 
 
-type alias SaveProjectEdit =
-    { project : SaveProject
-    , members : List (SaveProjectMember)
+type alias SavePayEntry =
+    { id : Maybe (Int)
+    , project : ProjectId
+    , user : UserId
+    , duration : Int
+    , paytype : PayType
+    , paymentdate : Int
+    , description : String
     }
 
 
-saveProjectEditEncoder : SaveProjectEdit -> Json.Encode.Value
-saveProjectEditEncoder struct =
+savePayEntryEncoder : SavePayEntry -> Json.Encode.Value
+savePayEntryEncoder struct =
     Json.Encode.object
-        [ ( "project", (saveProjectEncoder) struct.project )
-        , ( "members", (Json.Encode.list (saveProjectMemberEncoder)) struct.members )
-        ]
-
-
-type alias SaveProjectMember =
-    { id : UserId
-    , delete : Bool
-    , role : Role
-    }
-
-
-saveProjectMemberEncoder : SaveProjectMember -> Json.Encode.Value
-saveProjectMemberEncoder struct =
-    Json.Encode.object
-        [ ( "id", (userIdEncoder) struct.id )
-        , ( "delete", (Json.Encode.bool) struct.delete )
-        , ( "role", (roleEncoder) struct.role )
+        [ ( "id", (Maybe.withDefault Json.Encode.null << Maybe.map (Json.Encode.int)) struct.id )
+        , ( "project", (projectIdEncoder) struct.project )
+        , ( "user", (userIdEncoder) struct.user )
+        , ( "duration", (Json.Encode.int) struct.duration )
+        , ( "paytype", (payTypeEncoder) struct.paytype )
+        , ( "paymentdate", (Json.Encode.int) struct.paymentdate )
+        , ( "description", (Json.Encode.string) struct.description )
         ]
 
 
@@ -393,17 +346,17 @@ saveProjectEncoder struct =
         ]
 
 
-type alias SavedProjectEdit =
-    { project : Project
-    , members : List (ProjectMember)
+type alias SaveProjectEdit =
+    { project : SaveProject
+    , members : List (SaveProjectMember)
     }
 
 
-savedProjectEditEncoder : SavedProjectEdit -> Json.Encode.Value
-savedProjectEditEncoder struct =
+saveProjectEditEncoder : SaveProjectEdit -> Json.Encode.Value
+saveProjectEditEncoder struct =
     Json.Encode.object
-        [ ( "project", (projectEncoder) struct.project )
-        , ( "members", (Json.Encode.list (projectMemberEncoder)) struct.members )
+        [ ( "project", (saveProjectEncoder) struct.project )
+        , ( "members", (Json.Encode.list (saveProjectMemberEncoder)) struct.members )
         ]
 
 
@@ -420,6 +373,22 @@ saveProjectInvoiceEncoder struct =
         [ ( "id", (projectIdEncoder) struct.id )
         , ( "invoice_seq", (Json.Encode.int) struct.invoiceSeq )
         , ( "extra_fields", (Json.Encode.list (extraFieldEncoder)) struct.extraFields )
+        ]
+
+
+type alias SaveProjectMember =
+    { id : UserId
+    , delete : Bool
+    , role : Role
+    }
+
+
+saveProjectMemberEncoder : SaveProjectMember -> Json.Encode.Value
+saveProjectMemberEncoder struct =
+    Json.Encode.object
+        [ ( "id", (userIdEncoder) struct.id )
+        , ( "delete", (Json.Encode.bool) struct.delete )
+        , ( "role", (roleEncoder) struct.role )
         ]
 
 
@@ -471,48 +440,258 @@ saveTimeEntryEncoder struct =
         ]
 
 
-type alias SaveAllocation =
-    { id : Maybe (Int)
-    , project : ProjectId
-    , duration : Int
-    , allocationdate : Int
-    , description : String
+type alias SavedProjectEdit =
+    { project : Project
+    , members : List (ProjectMember)
     }
 
 
-saveAllocationEncoder : SaveAllocation -> Json.Encode.Value
-saveAllocationEncoder struct =
+savedProjectEditEncoder : SavedProjectEdit -> Json.Encode.Value
+savedProjectEditEncoder struct =
     Json.Encode.object
-        [ ( "id", (Maybe.withDefault Json.Encode.null << Maybe.map (Json.Encode.int)) struct.id )
-        , ( "project", (projectIdEncoder) struct.project )
-        , ( "duration", (Json.Encode.int) struct.duration )
-        , ( "allocationdate", (Json.Encode.int) struct.allocationdate )
-        , ( "description", (Json.Encode.string) struct.description )
+        [ ( "project", (projectEncoder) struct.project )
+        , ( "members", (Json.Encode.list (projectMemberEncoder)) struct.members )
         ]
 
 
-type alias SavePayEntry =
-    { id : Maybe (Int)
+type TcMessageX
+    = TmGetProjectList
+    | TmSaveProjectEdit (SaveProjectEdit)
+    | TmGetProjectEdit (ProjectId)
+    | TmSaveProjectInvoice (SaveProjectInvoice)
+    | TmGetProjectTime (ProjectId)
+    | TmSaveProjectTime (SaveProjectTime)
+    | TmGetUserTime
+    | TmGetAllUsers
+
+
+tcMessageXEncoder : TcMessageX -> Json.Encode.Value
+tcMessageXEncoder enum =
+    case enum of
+        TmGetProjectList ->
+            Json.Encode.string "TmGetProjectList"
+        TmSaveProjectEdit inner ->
+            Json.Encode.object [ ( "TmSaveProjectEdit", saveProjectEditEncoder inner ) ]
+        TmGetProjectEdit inner ->
+            Json.Encode.object [ ( "TmGetProjectEdit", projectIdEncoder inner ) ]
+        TmSaveProjectInvoice inner ->
+            Json.Encode.object [ ( "TmSaveProjectInvoice", saveProjectInvoiceEncoder inner ) ]
+        TmGetProjectTime inner ->
+            Json.Encode.object [ ( "TmGetProjectTime", projectIdEncoder inner ) ]
+        TmSaveProjectTime inner ->
+            Json.Encode.object [ ( "TmSaveProjectTime", saveProjectTimeEncoder inner ) ]
+        TmGetUserTime ->
+            Json.Encode.string "TmGetUserTime"
+        TmGetAllUsers ->
+            Json.Encode.string "TmGetAllUsers"
+
+type alias TimeEntry =
+    { id : Int
     , project : ProjectId
     , user : UserId
-    , duration : Int
-    , paytype : PayType
-    , paymentdate : Int
     , description : String
+    , startdate : Int
+    , enddate : Int
+    , ignore : Bool
+    , createdate : Int
+    , changeddate : Int
+    , creator : UserId
     }
 
 
-savePayEntryEncoder : SavePayEntry -> Json.Encode.Value
-savePayEntryEncoder struct =
+timeEntryEncoder : TimeEntry -> Json.Encode.Value
+timeEntryEncoder struct =
     Json.Encode.object
-        [ ( "id", (Maybe.withDefault Json.Encode.null << Maybe.map (Json.Encode.int)) struct.id )
+        [ ( "id", (Json.Encode.int) struct.id )
         , ( "project", (projectIdEncoder) struct.project )
         , ( "user", (userIdEncoder) struct.user )
-        , ( "duration", (Json.Encode.int) struct.duration )
-        , ( "paytype", (payTypeEncoder) struct.paytype )
-        , ( "paymentdate", (Json.Encode.int) struct.paymentdate )
         , ( "description", (Json.Encode.string) struct.description )
+        , ( "startdate", (Json.Encode.int) struct.startdate )
+        , ( "enddate", (Json.Encode.int) struct.enddate )
+        , ( "ignore", (Json.Encode.bool) struct.ignore )
+        , ( "createdate", (Json.Encode.int) struct.createdate )
+        , ( "changeddate", (Json.Encode.int) struct.changeddate )
+        , ( "creator", (userIdEncoder) struct.creator )
         ]
+
+
+allocationDecoder : Json.Decode.Decoder Allocation
+allocationDecoder =
+    Json.Decode.succeed Allocation
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "id" (Json.Decode.int)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "project" (projectIdDecoder)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "duration" (Json.Decode.int)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "allocationdate" (Json.Decode.int)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "description" (Json.Decode.string)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "createdate" (Json.Decode.int)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "changeddate" (Json.Decode.int)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "creator" (userIdDecoder)))
+
+
+extraFieldDecoder : Json.Decode.Decoder ExtraField
+extraFieldDecoder =
+    Json.Decode.succeed ExtraField
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "n" (Json.Decode.string)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "v" (Json.Decode.string)))
+
+
+type alias ListProject =
+    { id : ProjectId
+    , name : String
+    , role : Role
+    }
+
+
+listProjectDecoder : Json.Decode.Decoder ListProject
+listProjectDecoder =
+    Json.Decode.succeed ListProject
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "id" (projectIdDecoder)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "name" (Json.Decode.string)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "role" (roleDecoder)))
+
+
+payEntryDecoder : Json.Decode.Decoder PayEntry
+payEntryDecoder =
+    Json.Decode.succeed PayEntry
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "id" (Json.Decode.int)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "project" (projectIdDecoder)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "user" (userIdDecoder)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "duration" (Json.Decode.int)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "paytype" (payTypeDecoder)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "paymentdate" (Json.Decode.int)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "description" (Json.Decode.string)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "createdate" (Json.Decode.int)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "changeddate" (Json.Decode.int)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "creator" (userIdDecoder)))
+
+
+payTypeDecoder : Json.Decode.Decoder PayType
+payTypeDecoder = 
+    Json.Decode.oneOf
+        [ Json.Decode.string
+            |> Json.Decode.andThen
+                (\x ->
+                    case x of
+                        "Invoiced" ->
+                            Json.Decode.succeed Invoiced
+                        unexpected ->
+                            Json.Decode.fail <| "Unexpected variant " ++ unexpected
+                )
+        , Json.Decode.string
+            |> Json.Decode.andThen
+                (\x ->
+                    case x of
+                        "Paid" ->
+                            Json.Decode.succeed Paid
+                        unexpected ->
+                            Json.Decode.fail <| "Unexpected variant " ++ unexpected
+                )
+        ]
+
+projectDecoder : Json.Decode.Decoder Project
+projectDecoder =
+    Json.Decode.succeed Project
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "id" (projectIdDecoder)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "name" (Json.Decode.string)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "description" (Json.Decode.string)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "due_days" (Json.Decode.nullable (Json.Decode.int))))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "extra_fields" (Json.Decode.list (extraFieldDecoder))))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "invoice_id_template" (Json.Decode.string)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "invoice_seq" (Json.Decode.int)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "payer" (Json.Decode.string)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "payee" (Json.Decode.string)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "generic_task" (Json.Decode.string)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "public" (Json.Decode.bool)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "rate" (Json.Decode.nullable (Json.Decode.float))))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "currency" (Json.Decode.nullable (Json.Decode.string))))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "createdate" (Json.Decode.int)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "changeddate" (Json.Decode.int)))
+
+
+type alias ProjectEdit =
+    { project : Project
+    , members : List (ProjectMember)
+    }
+
+
+projectEditDecoder : Json.Decode.Decoder ProjectEdit
+projectEditDecoder =
+    Json.Decode.succeed ProjectEdit
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "project" (projectDecoder)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "members" (Json.Decode.list (projectMemberDecoder))))
+
+
+projectIdDecoder : Json.Decode.Decoder ProjectId
+projectIdDecoder = 
+    Json.Decode.oneOf
+        [ Json.Decode.map Pid (Json.Decode.field "Pid" (Json.Decode.int))
+        ]
+
+projectMemberDecoder : Json.Decode.Decoder ProjectMember
+projectMemberDecoder =
+    Json.Decode.succeed ProjectMember
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "id" (userIdDecoder)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "name" (Json.Decode.string)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "role" (roleDecoder)))
+
+
+projectTimeDecoder : Json.Decode.Decoder ProjectTime
+projectTimeDecoder =
+    Json.Decode.succeed ProjectTime
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "project" (projectDecoder)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "members" (Json.Decode.list (projectMemberDecoder))))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "timeentries" (Json.Decode.list (timeEntryDecoder))))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "payentries" (Json.Decode.list (payEntryDecoder))))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "allocations" (Json.Decode.list (allocationDecoder))))
+
+
+type PublicResponseX
+    = PrProjectTime (ProjectTime)
+
+
+publicResponseXDecoder : Json.Decode.Decoder PublicResponseX
+publicResponseXDecoder = 
+    Json.Decode.oneOf
+        [ Json.Decode.map PrProjectTime (Json.Decode.field "PrProjectTime" (projectTimeDecoder))
+        ]
+
+roleDecoder : Json.Decode.Decoder Role
+roleDecoder = 
+    Json.Decode.oneOf
+        [ Json.Decode.string
+            |> Json.Decode.andThen
+                (\x ->
+                    case x of
+                        "Member" ->
+                            Json.Decode.succeed Member
+                        unexpected ->
+                            Json.Decode.fail <| "Unexpected variant " ++ unexpected
+                )
+        , Json.Decode.string
+            |> Json.Decode.andThen
+                (\x ->
+                    case x of
+                        "Admin" ->
+                            Json.Decode.succeed Admin
+                        unexpected ->
+                            Json.Decode.fail <| "Unexpected variant " ++ unexpected
+                )
+        , Json.Decode.string
+            |> Json.Decode.andThen
+                (\x ->
+                    case x of
+                        "Observer" ->
+                            Json.Decode.succeed Observer
+                        unexpected ->
+                            Json.Decode.fail <| "Unexpected variant " ++ unexpected
+                )
+        ]
+
+savedProjectEditDecoder : Json.Decode.Decoder SavedProjectEdit
+savedProjectEditDecoder =
+    Json.Decode.succeed SavedProjectEdit
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "project" (projectDecoder)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "members" (Json.Decode.list (projectMemberDecoder))))
 
 
 type TcResponseX
@@ -579,31 +758,6 @@ tcResponseXDecoder =
         , Json.Decode.map TrError (Json.Decode.field "TrError" (timeClonkErrorDecoder))
         ]
 
-type PublicResponseX
-    = PrProjectTime (ProjectTime)
-
-
-publicResponseXDecoder : Json.Decode.Decoder PublicResponseX
-publicResponseXDecoder = 
-    Json.Decode.oneOf
-        [ Json.Decode.map PrProjectTime (Json.Decode.field "PrProjectTime" (projectTimeDecoder))
-        ]
-
-type alias ListProject =
-    { id : ProjectId
-    , name : String
-    , role : Role
-    }
-
-
-listProjectDecoder : Json.Decode.Decoder ListProject
-listProjectDecoder =
-    Json.Decode.succeed ListProject
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "id" (projectIdDecoder)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "name" (Json.Decode.string)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "role" (roleDecoder)))
-
-
 type TimeClonkError
     = TeNotLoggedIn
     | TeInvalidLogin
@@ -634,98 +788,6 @@ timeClonkErrorDecoder =
         , Json.Decode.map TeOther (Json.Decode.field "TeOther" (Json.Decode.string))
         ]
 
-projectIdDecoder : Json.Decode.Decoder ProjectId
-projectIdDecoder = 
-    Json.Decode.oneOf
-        [ Json.Decode.map Pid (Json.Decode.field "Pid" (Json.Decode.int))
-        ]
-
-projectDecoder : Json.Decode.Decoder Project
-projectDecoder =
-    Json.Decode.succeed Project
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "id" (projectIdDecoder)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "name" (Json.Decode.string)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "description" (Json.Decode.string)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "due_days" (Json.Decode.nullable (Json.Decode.int))))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "extra_fields" (Json.Decode.list (extraFieldDecoder))))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "invoice_id_template" (Json.Decode.string)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "invoice_seq" (Json.Decode.int)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "payer" (Json.Decode.string)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "payee" (Json.Decode.string)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "generic_task" (Json.Decode.string)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "public" (Json.Decode.bool)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "rate" (Json.Decode.nullable (Json.Decode.float))))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "currency" (Json.Decode.nullable (Json.Decode.string))))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "createdate" (Json.Decode.int)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "changeddate" (Json.Decode.int)))
-
-
-type alias ProjectEdit =
-    { project : Project
-    , members : List (ProjectMember)
-    }
-
-
-projectEditDecoder : Json.Decode.Decoder ProjectEdit
-projectEditDecoder =
-    Json.Decode.succeed ProjectEdit
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "project" (projectDecoder)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "members" (Json.Decode.list (projectMemberDecoder))))
-
-
-projectTimeDecoder : Json.Decode.Decoder ProjectTime
-projectTimeDecoder =
-    Json.Decode.succeed ProjectTime
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "project" (projectDecoder)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "members" (Json.Decode.list (projectMemberDecoder))))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "timeentries" (Json.Decode.list (timeEntryDecoder))))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "payentries" (Json.Decode.list (payEntryDecoder))))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "allocations" (Json.Decode.list (allocationDecoder))))
-
-
-payEntryDecoder : Json.Decode.Decoder PayEntry
-payEntryDecoder =
-    Json.Decode.succeed PayEntry
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "id" (Json.Decode.int)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "project" (projectIdDecoder)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "user" (userIdDecoder)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "duration" (Json.Decode.int)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "paytype" (payTypeDecoder)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "paymentdate" (Json.Decode.int)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "description" (Json.Decode.string)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "createdate" (Json.Decode.int)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "changeddate" (Json.Decode.int)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "creator" (userIdDecoder)))
-
-
-projectMemberDecoder : Json.Decode.Decoder ProjectMember
-projectMemberDecoder =
-    Json.Decode.succeed ProjectMember
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "id" (userIdDecoder)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "name" (Json.Decode.string)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "role" (roleDecoder)))
-
-
-allocationDecoder : Json.Decode.Decoder Allocation
-allocationDecoder =
-    Json.Decode.succeed Allocation
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "id" (Json.Decode.int)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "project" (projectIdDecoder)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "duration" (Json.Decode.int)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "allocationdate" (Json.Decode.int)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "description" (Json.Decode.string)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "createdate" (Json.Decode.int)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "changeddate" (Json.Decode.int)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "creator" (userIdDecoder)))
-
-
-savedProjectEditDecoder : Json.Decode.Decoder SavedProjectEdit
-savedProjectEditDecoder =
-    Json.Decode.succeed SavedProjectEdit
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "project" (projectDecoder)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "members" (Json.Decode.list (projectMemberDecoder))))
-
-
 timeEntryDecoder : Json.Decode.Decoder TimeEntry
 timeEntryDecoder =
     Json.Decode.succeed TimeEntry
@@ -753,66 +815,4 @@ userDecoder =
         |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "id" (userIdDecoder)))
         |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "name" (Json.Decode.string)))
 
-
-roleDecoder : Json.Decode.Decoder Role
-roleDecoder = 
-    Json.Decode.oneOf
-        [ Json.Decode.string
-            |> Json.Decode.andThen
-                (\x ->
-                    case x of
-                        "Member" ->
-                            Json.Decode.succeed Member
-                        unexpected ->
-                            Json.Decode.fail <| "Unexpected variant " ++ unexpected
-                )
-        , Json.Decode.string
-            |> Json.Decode.andThen
-                (\x ->
-                    case x of
-                        "Admin" ->
-                            Json.Decode.succeed Admin
-                        unexpected ->
-                            Json.Decode.fail <| "Unexpected variant " ++ unexpected
-                )
-        , Json.Decode.string
-            |> Json.Decode.andThen
-                (\x ->
-                    case x of
-                        "Observer" ->
-                            Json.Decode.succeed Observer
-                        unexpected ->
-                            Json.Decode.fail <| "Unexpected variant " ++ unexpected
-                )
-        ]
-
-extraFieldDecoder : Json.Decode.Decoder ExtraField
-extraFieldDecoder =
-    Json.Decode.succeed ExtraField
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "n" (Json.Decode.string)))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "v" (Json.Decode.string)))
-
-
-payTypeDecoder : Json.Decode.Decoder PayType
-payTypeDecoder = 
-    Json.Decode.oneOf
-        [ Json.Decode.string
-            |> Json.Decode.andThen
-                (\x ->
-                    case x of
-                        "Invoiced" ->
-                            Json.Decode.succeed Invoiced
-                        unexpected ->
-                            Json.Decode.fail <| "Unexpected variant " ++ unexpected
-                )
-        , Json.Decode.string
-            |> Json.Decode.andThen
-                (\x ->
-                    case x of
-                        "Paid" ->
-                            Json.Decode.succeed Paid
-                        unexpected ->
-                            Json.Decode.fail <| "Unexpected variant " ++ unexpected
-                )
-        ]
 
