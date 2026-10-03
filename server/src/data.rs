@@ -131,7 +131,7 @@ pub struct ProjectMember {
   pub role: Role,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Elm, ElmDecode, ElmEncode, Serialize, Deserialize, Debug, Clone)]
 pub struct User {
   pub id: i64,
   pub name: String,

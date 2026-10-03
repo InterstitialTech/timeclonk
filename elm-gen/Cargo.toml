@@ -6,4 +6,5 @@ edition = "2021"
 [dependencies]
 elm_rs = { version = "0.2.3", features = ["uuid"] }
 orgauth = { path = "../orgauth/rustlib" }
+timeclonk-server = { path = "../server" }
 # zkprotocol = { path = "../" }

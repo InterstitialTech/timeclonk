@@ -16,17 +16,17 @@ pub struct ServerResponse {
 
 #[derive(Serialize, ElmDecode, Elm)]
 pub enum ServerResponseX {
-  ProjectEdit(ProjectEdit),
-  ProjectEditDenied,
-  SavedProjectEdit(SavedProjectEdit),
-  SavedProjectEditDenied,
-  SavedProjectInvoice(Project),
-  SavedProjectInvoiceDenied,
-  ProjectTime(ProjectTime),
-  ProjectTimeDenied,
-  ProjectList(Vec<ListProject>),
-  UserTime(Vec<TimeEntry>),
-  AllUsers(Vec<User>),
+  SrProjectEdit(ProjectEdit),
+  SrProjectEditDenied,
+  SrSavedProjectEdit(SavedProjectEdit),
+  SrSavedProjectEditDenied,
+  SrSavedProjectInvoice(Project),
+  SrSavedProjectInvoiceDenied,
+  SrProjectTime(ProjectTime),
+  SrProjectTimeDenied,
+  SrProjectList(Vec<ListProject>),
+  SrUserTime(Vec<TimeEntry>),
+  SrAllUsers(Vec<User>),
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -37,14 +37,14 @@ pub struct UserMessage {
 
 #[derive(Elm, ElmEncode, Deserialize, Debug)]
 pub enum UserMessageX {
-  GetProjectList,
-  SaveProjectEdit(SavedProjectEdit),
-  GetProjectEdit(i64),
-  SaveProjectInvoice(SaveProjectInvoice),
-  GetProjectTime(i64),
-  SaveProjectTime(SaveProjectTime),
-  GetUserTime,
-  GetAllUsers,
+  UmGetProjectList,
+  UmSaveProjectEdit(SavedProjectEdit),
+  UmGetProjectEdit(i64),
+  UmSaveProjectInvoice(SaveProjectInvoice),
+  UmGetProjectTime(i64),
+  UmSaveProjectTime(SaveProjectTime),
+  UmGetUserTime,
+  UmGetAllUsers,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -55,5 +55,5 @@ pub struct PublicMessage {
 
 #[derive(Elm, ElmEncode, Deserialize, Debug)]
 pub enum PublicMessageX {
-  GetProjectTime(i64),
+  PmGetProjectTime(i64),
 }

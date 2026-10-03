@@ -1,10 +1,17 @@
 use std::path::Path;
 
 use orgauth::util;
-use ::{PublicMessageX, ServerResponseX, UserMessageX};
+use timeclonk_server::{
+  data::{
+    Allocation, ExtraField, ListProject, PayEntry, PayType, Project, ProjectEdit, ProjectMember,
+    ProjectTime, Role, SaveAllocation, SavePayEntry, SaveProjectInvoice, SaveProjectTime,
+    SaveTimeEntry, SavedProjectEdit, TimeEntry, User,
+  },
+  messages::{PublicMessageX, ServerResponseX, UserMessageX},
+};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-  let ed = Path::new("../../elm/src");
+  let ed = Path::new("../elm/src/");
 
   // --------------------------------------------------------------------------
   // Data.elm
@@ -14,10 +21,40 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     elm_rs::export!(
         "Data",
         &mut target,
-        {        // generates types and encoders for types implementing ElmEncoder
-        encoders: [ServerResponseX],
-        // generates types and decoders for types implementing ElmDecoder
-        decoders: [PublicMessageX, UserMessageX],
+        {
+        encoders: [
+          Allocation,
+          ExtraField,
+          PayEntry,
+          PayType,
+          Project,
+          ProjectMember,
+          PublicMessageX,
+          Role,
+          SaveAllocation,
+          SavePayEntry,
+          SaveProjectInvoice,
+          SaveProjectTime,
+          SaveTimeEntry,
+          SavedProjectEdit,
+          UserMessageX
+        ],
+        decoders: [
+          Allocation,
+          ExtraField,
+          ListProject,
+          PayEntry,
+          PayType,
+          Project,
+          ProjectEdit,
+          ProjectMember,
+          ProjectTime,
+          Role,
+          SavedProjectEdit,
+          ServerResponseX,
+          TimeEntry,
+          User
+        ],
         // generates types and functions for forming queries for types implementing ElmQuery
         queries: [],
         // generates types and functions for forming queries for types implementing ElmQueryField
@@ -35,7 +72,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 import Orgauth.Data exposing (UserId(..), userIdDecoder, userIdEncoder)"#,
     );
 
-    let outf = ed.join("Data.elm").to_str().expect("bad path").to_string();
+    let outf = ed.join("DataX.elm").to_str().expect("bad path").to_string();
+    println!("writing file: {}", outf);
     util::write_string(outf.as_str(), uidout.as_str())?;
     println!("wrote file: {}", outf);
   }
