@@ -14,7 +14,6 @@ use protocol::{
 fn main() -> Result<(), Box<dyn std::error::Error>> {
   let ed = Path::new("../elm/src");
 
-  // TcMessage.elm
   {
     let mut target = vec![];
     // elm_rs provides a macro for conveniently creating an Elm module with everything needed
@@ -23,30 +22,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &mut target,
         {        // generates types and encoders for types implementing ElmEncoder
         encoders: [
-           Allocation,
-           ExtraField,
-           InvoiceItem,
-           PayEntry,
-           PayType,
-           PrintInvoice,
-           Project,
-           ProjectId,
-           ProjectMember,
-           ProjectTime,
-           PublicMessageX,
-           Role,
-           SaveAllocation,
-           SavePayEntry,
-           SaveProject,
-           SaveProjectEdit,
-           SaveProjectInvoice,
-           SaveProjectMember,
-           SaveProjectTime,
-           SaveTimeEntry,
-           SavedProjectEdit,
-           TcMessageX,
-           TimeEntry,
-         ],
+          Allocation,
+          ExtraField,
+          InvoiceItem,
+          PayEntry,
+          PayType,
+          PrintInvoice,
+          Project,
+          ProjectId,
+          ProjectMember,
+          ProjectTime,
+          PublicMessageX,
+          Role,
+          SaveAllocation,
+          SavePayEntry,
+          SaveProject,
+          SaveProjectEdit,
+          SaveProjectInvoice,
+          SaveProjectMember,
+          SaveProjectTime,
+          SaveTimeEntry,
+          SavedProjectEdit,
+          TcMessageX,
+          TimeEntry,
+        ],
         // generates types and decoders for types implementing ElmDecoder
         decoders: [
           Allocation,
@@ -66,7 +65,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
           TimeClonkError,
           TimeEntry,
           User,
-         ],
+        ],
         // generates types and functions for forming queries for types implementing ElmQuery
         queries: [],
         // generates types and functions for forming queries for types implementing ElmQueryField
