@@ -3,7 +3,7 @@ use crate::sqldata;
 use actix_session::Session;
 // use log::info;
 use protocol::data::Role;
-use protocol::messages::{PublicMessageX, PublicResponseX, TcMessageX, TcResponseX};
+use protocol::messages::{PublicMessage, PublicResponse, TcMessage, TcResponse};
 use std::error::Error;
 
 pub fn login_data_for_token(
@@ -31,17 +31,17 @@ pub fn login_data_for_token(
 pub fn timeclonk_interface_loggedin(
   config: &Config,
   uid: orgauth::data::UserId,
-  msg: &TcMessageX,
-) -> Result<TcResponseX, Box<dyn Error>> {
+  msg: &TcMessage,
+) -> Result<TcResponse, Box<dyn Error>> {
   match msg {
-    TcMessageX::TmGetProjectList => {
+    TcMessage::TmGetProjectList => {
       // user can see all their projects.
       let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
       let projects = sqldata::project_list(&conn, uid)?;
 
-      Ok(TcResponseX::TrProjectList(projects))
+      Ok(TcResponse::TrProjectList(projects))
     }
-    TcMessageX::TmSaveProjectEdit(sp) => {
+    TcMessage::TmSaveProjectEdit(sp) => {
       let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
       let allowed = match sp.project.id {
         None => true, // new project
@@ -53,12 +53,12 @@ pub fn timeclonk_interface_loggedin(
 
       if allowed {
         let saved = sqldata::save_project_edit(&conn, uid, sp)?;
-        Ok(TcResponseX::TrSavedProjectEdit(saved))
+        Ok(TcResponse::TrSavedProjectEdit(saved))
       } else {
-        Ok(TcResponseX::TrSavedProjectEditDenied)
+        Ok(TcResponse::TrSavedProjectEditDenied)
       }
     }
-    TcMessageX::TmGetProjectEdit(pid) => {
+    TcMessage::TmGetProjectEdit(pid) => {
       let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
       let allowed = match sqldata::member_role(&conn, uid, pid)? {
         Some(_) => true, // any role is ok
@@ -67,12 +67,12 @@ pub fn timeclonk_interface_loggedin(
       if allowed {
         let project = sqldata::read_project_edit(&conn, pid)?;
 
-        Ok(TcResponseX::TrProjectEdit(project))
+        Ok(TcResponse::TrProjectEdit(project))
       } else {
-        Ok(TcResponseX::TrProjectEditDenied)
+        Ok(TcResponse::TrProjectEditDenied)
       }
     }
-    TcMessageX::TmSaveProjectInvoice(sp) => {
+    TcMessage::TmSaveProjectInvoice(sp) => {
       let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
       let allowed = match sqldata::member_role(&conn, uid, &sp.id)? {
         Some(Role::Admin) => true,
@@ -82,12 +82,12 @@ pub fn timeclonk_interface_loggedin(
 
       if allowed {
         let saved = sqldata::save_project_invoice(&conn, sp)?;
-        Ok(TcResponseX::TrSavedProjectInvoice(saved))
+        Ok(TcResponse::TrSavedProjectInvoice(saved))
       } else {
-        Ok(TcResponseX::TrSavedProjectInvoiceDenied)
+        Ok(TcResponse::TrSavedProjectInvoiceDenied)
       }
     }
-    TcMessageX::TmGetProjectTime(pid) => {
+    TcMessage::TmGetProjectTime(pid) => {
       let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
       let allowed = match sqldata::member_role(&conn, uid, pid)? {
         Some(_) => true, // any role is ok
@@ -97,12 +97,12 @@ pub fn timeclonk_interface_loggedin(
       if allowed {
         let project = sqldata::read_project_time(&conn, pid)?;
 
-        Ok(TcResponseX::TrProjectTime(project))
+        Ok(TcResponse::TrProjectTime(project))
       } else {
-        Ok(TcResponseX::TrProjectTimeDenied)
+        Ok(TcResponse::TrProjectTimeDenied)
       }
     }
-    TcMessageX::TmSaveProjectTime(spt) => {
+    TcMessage::TmSaveProjectTime(spt) => {
       let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
 
       let allowed = match sqldata::member_role(&conn, uid, &spt.project)? {
@@ -114,22 +114,22 @@ pub fn timeclonk_interface_loggedin(
       if allowed {
         let bak = sqldata::save_project_time(&conn, uid, spt)?;
 
-        Ok(TcResponseX::TrProjectTime(bak))
+        Ok(TcResponse::TrProjectTime(bak))
       } else {
-        Ok(TcResponseX::TrProjectTimeDenied)
+        Ok(TcResponse::TrProjectTimeDenied)
       }
     }
-    TcMessageX::TmGetUserTime => {
+    TcMessage::TmGetUserTime => {
       let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
       let time = sqldata::user_time(&conn, uid)?;
-      Ok(TcResponseX::TrUserTime(time))
+      Ok(TcResponse::TrUserTime(time))
     }
-    TcMessageX::TmGetAllUsers => {
+    TcMessage::TmGetAllUsers => {
       // all users can see all users!
       let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
       let members = sqldata::user_list(&conn)?;
 
-      Ok(TcResponseX::TrAllUsers(members))
+      Ok(TcResponse::TrAllUsers(members))
     }
   }
 }
@@ -137,15 +137,15 @@ pub fn timeclonk_interface_loggedin(
 // public json msgs don't require login.
 pub fn public_interface(
   config: &Config,
-  msg: PublicMessageX,
-) -> Result<PublicResponseX, Box<dyn Error>> {
+  msg: PublicMessage,
+) -> Result<PublicResponse, Box<dyn Error>> {
   match msg {
-    PublicMessageX::PmGetProjectTime(pid) => {
+    PublicMessage::PmGetProjectTime(pid) => {
       let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
       let project = sqldata::read_project_time(&conn, &pid)?;
 
       if project.project.public {
-        Ok(PublicResponseX::PrProjectTime(project))
+        Ok(PublicResponse::PrProjectTime(project))
       } else {
         Err(Box::new(simple_error::SimpleError::new(format!(
           "can't access project!"

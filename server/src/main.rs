@@ -1,6 +1,6 @@
 mod config;
 use protocol::messages::{
-  PublicMessageX, PublicResponseX::PrError, TcMessageX, TcResponseX, TimeClonkError,
+  PublicMessage, PublicResponse::PrError, TcMessage, TcResponse, TimeClonkError,
 };
 mod interfaces;
 mod invoice;
@@ -85,7 +85,7 @@ async fn mainpage(session: Session, data: web::Data<Config>, req: HttpRequest) -
 
 async fn public(
   data: web::Data<Config>,
-  item: web::Json<PublicMessageX>,
+  item: web::Json<PublicMessage>,
   req: HttpRequest,
 ) -> HttpResponse {
   info!(
@@ -166,14 +166,14 @@ async fn admin(
 async fn private(
   session: Session,
   data: web::Data<Config>,
-  item: web::Json<TcMessageX>,
+  item: web::Json<TcMessage>,
   _req: HttpRequest,
 ) -> HttpResponse {
   match timeclonk_interface_check(&session, &data, item.into_inner()) {
     Ok(sr) => HttpResponse::Ok().json(sr),
     Err(e) => {
       error!("'private' err: {:?}", e);
-      HttpResponse::Ok().json(TcResponseX::TrError(TimeClonkError::TeOther(e.to_string())))
+      HttpResponse::Ok().json(TcResponse::TrError(TimeClonkError::TeOther(e.to_string())))
     }
   }
 }
@@ -181,10 +181,10 @@ async fn private(
 fn timeclonk_interface_check(
   session: &Session,
   config: &Config,
-  msg: TcMessageX,
-) -> Result<TcResponseX, Box<dyn Error>> {
+  msg: TcMessage,
+) -> Result<TcResponse, Box<dyn Error>> {
   match session.get::<Uuid>("token")? {
-    None => Ok(TcResponseX::TrError(TimeClonkError::TeNotLoggedIn)),
+    None => Ok(TcResponse::TrError(TimeClonkError::TeNotLoggedIn)),
     Some(token) => {
       let conn = sqldata::connection_open(config.orgauth_config.db.as_path())?;
       match orgauth::dbfun::read_user_by_token_api(
@@ -196,7 +196,7 @@ fn timeclonk_interface_check(
         Err(e) => {
           info!("read_user_by_token_api error: {:?}", e);
 
-          Ok(TcResponseX::TrError(TimeClonkError::TeInvalidLogin))
+          Ok(TcResponse::TrError(TimeClonkError::TeInvalidLogin))
         }
         Ok(userdata) => {
           // finally!  processing messages as logged in user.

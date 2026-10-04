@@ -7,7 +7,7 @@ use crate::data::{
 };
 
 #[derive(Serialize, ElmDecode, Elm)]
-pub enum TcResponseX {
+pub enum TcResponse {
   TrProjectEdit(ProjectEdit),
   TrProjectEditDenied,
   TrSavedProjectEdit(SavedProjectEdit),
@@ -30,7 +30,7 @@ pub enum TimeClonkError {
 }
 
 #[derive(Elm, ElmEncode, Deserialize, Debug)]
-pub enum TcMessageX {
+pub enum TcMessage {
   TmGetProjectList,
   TmSaveProjectEdit(SaveProjectEdit),
   TmGetProjectEdit(ProjectId),
@@ -42,12 +42,12 @@ pub enum TcMessageX {
 }
 
 #[derive(Elm, ElmEncode, Deserialize, Debug)]
-pub enum PublicMessageX {
+pub enum PublicMessage {
   PmGetProjectTime(ProjectId),
 }
 
 #[derive(Serialize, ElmDecode, Elm)]
-pub enum PublicResponseX {
+pub enum PublicResponse {
   PrProjectTime(ProjectTime),
   PrError(TimeClonkError),
 }

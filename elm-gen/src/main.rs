@@ -8,7 +8,7 @@ use protocol::{
     SaveProject, SaveProjectEdit, SaveProjectInvoice, SaveProjectMember, SaveProjectTime,
     SaveTimeEntry, SavedProjectEdit, TimeEntry, User,
   },
-  messages::{PublicMessageX, PublicResponseX, TcMessageX, TcResponseX, TimeClonkError},
+  messages::{PublicMessage, PublicResponse, TcMessage, TcResponse, TimeClonkError},
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -32,7 +32,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
           ProjectId,
           ProjectMember,
           ProjectTime,
-          PublicMessageX,
+          PublicMessage,
           Role,
           SaveAllocation,
           SavePayEntry,
@@ -43,7 +43,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
           SaveProjectTime,
           SaveTimeEntry,
           SavedProjectEdit,
-          TcMessageX,
+          TcMessage,
           TimeEntry,
         ],
         // generates types and decoders for types implementing ElmDecoder
@@ -58,10 +58,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
           ProjectId,
           ProjectMember,
           ProjectTime,
-          PublicResponseX,
+          PublicResponse,
           Role,
           SavedProjectEdit,
-          TcResponseX,
+          TcResponse,
           TimeClonkError,
           TimeEntry,
           User,
