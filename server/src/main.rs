@@ -1,5 +1,7 @@
 mod config;
-use protocol::messages::{PublicMessageX, ServerResponse, TcMessageX, TcResponseX, TimeClonkError};
+use protocol::messages::{
+  PublicMessageX, PublicResponseX::PrError, TcMessageX, TcResponseX, TimeClonkError,
+};
 mod interfaces;
 mod invoice;
 mod migrations;
@@ -96,11 +98,7 @@ async fn public(
     Ok(sr) => HttpResponse::Ok().json(sr),
     Err(e) => {
       error!("'public' err: {:?}", e);
-      let se = ServerResponse {
-        what: "server error".to_string(),
-        content: serde_json::Value::String(e.to_string()),
-      };
-      HttpResponse::Ok().json(se)
+      HttpResponse::Ok().json(PrError(TimeClonkError::TeOther(e.to_string())))
     }
   }
 }

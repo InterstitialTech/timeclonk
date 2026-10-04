@@ -1340,6 +1340,9 @@ actualupdate msg model =
                             , Cmd.none
                             )
 
+                        TP.PrError tce ->
+                            ( displayMessageDialog model <| DataUtil.showTimeClonkError tce, Cmd.none )
+
         ( TProjectViewData mode urd, state ) ->
             case urd of
                 Err e ->
@@ -1892,6 +1895,9 @@ actualupdate msg model =
 
                                 _ ->
                                     ( { model | state = ProjectView (ProjectView.init model.timezone x model.pageincrement "") (stateLogin state) }, Cmd.none )
+
+                        TP.PrError tce ->
+                            ( displayMessageDialog model <| DataUtil.showTimeClonkError tce, Cmd.none )
 
         ( DisplayMessageMsg bm, DisplayMessage bs prevstate ) ->
             case GD.update bm bs of

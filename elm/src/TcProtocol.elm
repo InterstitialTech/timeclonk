@@ -647,12 +647,14 @@ projectTimeDecoder =
 
 type PublicResponseX
     = PrProjectTime (ProjectTime)
+    | PrError (TimeClonkError)
 
 
 publicResponseXDecoder : Json.Decode.Decoder PublicResponseX
 publicResponseXDecoder = 
     Json.Decode.oneOf
         [ Json.Decode.map PrProjectTime (Json.Decode.field "PrProjectTime" (projectTimeDecoder))
+        , Json.Decode.map PrError (Json.Decode.field "PrError" (timeClonkErrorDecoder))
         ]
 
 roleDecoder : Json.Decode.Decoder Role

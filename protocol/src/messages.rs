@@ -1,17 +1,10 @@
 use elm_rs::{Elm, ElmDecode, ElmEncode};
 use serde_derive::{Deserialize, Serialize};
-use serde_json::Value;
 
 use crate::data::{
   ListProject, Project, ProjectEdit, ProjectId, ProjectTime, SaveProjectEdit, SaveProjectInvoice,
   SaveProjectTime, SavedProjectEdit, TimeEntry, User,
 };
-
-#[derive(Serialize, Deserialize)]
-pub struct ServerResponse {
-  pub what: String,
-  pub content: Value,
-}
 
 #[derive(Serialize, ElmDecode, Elm)]
 pub enum TcResponseX {
@@ -48,18 +41,6 @@ pub enum TcMessageX {
   TmGetAllUsers,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
-pub struct UserMessage {
-  pub what: String,
-  pub data: Option<serde_json::Value>,
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-pub struct PublicMessage {
-  pub what: String,
-  pub data: Option<serde_json::Value>,
-}
-
 #[derive(Elm, ElmEncode, Deserialize, Debug)]
 pub enum PublicMessageX {
   PmGetProjectTime(ProjectId),
@@ -68,4 +49,5 @@ pub enum PublicMessageX {
 #[derive(Serialize, ElmDecode, Elm)]
 pub enum PublicResponseX {
   PrProjectTime(ProjectTime),
+  PrError(TimeClonkError),
 }
