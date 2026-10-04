@@ -1,6 +1,8 @@
 module PrintInvoice exposing (GDModel, Model, Msg(..), init, update, view)
 
-import Data
+-- import Data
+
+import DataUtil
 import Dict exposing (Dict)
 import Element as E exposing (Element)
 import Element.Background as EBk
@@ -10,6 +12,7 @@ import Element.Input as EI
 import GenDialog as GD
 import Orgauth.Data as Data
 import TcCommon as TC
+import TcProtocol as TP
 import Util
 
 
@@ -17,8 +20,8 @@ type alias Model =
     { date : String
     , duedate : String
     , sequence : Int
-    , extraFields : List Data.ExtraField
-    , printInvoiceInternal : Data.PrintInvoiceInternal
+    , extraFields : List TP.ExtraField
+    , printInvoiceInternal : DataUtil.PrintInvoiceInternal
     }
 
 
@@ -36,10 +39,10 @@ type Msg
 
 
 type alias GDModel =
-    GD.Model Model Msg ( Data.PrintInvoice, Data.SaveProjectInvoice )
+    GD.Model Model Msg ( TP.PrintInvoice, TP.SaveProjectInvoice )
 
 
-init : Data.PrintInvoiceInternal -> String -> String -> List (E.Attribute Msg) -> Element () -> GDModel
+init : DataUtil.PrintInvoiceInternal -> String -> String -> List (E.Attribute Msg) -> Element () -> GDModel
 init pi date duedate buttonStyle underLay =
     { view = view buttonStyle
     , update = update
@@ -64,7 +67,7 @@ view buttonStyle mbsize model =
         [ E.el [ EF.size 20, EF.bold, E.centerX ] <| E.text "Print Invoice"
         , E.row []
             [ E.text "invoice id: "
-            , E.el [ EF.bold ] <| E.text (Data.makeInvoiceId model.printInvoiceInternal.idtemplate model.date model.sequence)
+            , E.el [ EF.bold ] <| E.text (DataUtil.makeInvoiceId model.printInvoiceInternal.idtemplate model.date model.sequence)
             ]
         , EI.text
             []
@@ -154,7 +157,7 @@ view buttonStyle mbsize model =
         ]
 
 
-update : Msg -> Model -> GD.Transition Model ( Data.PrintInvoice, Data.SaveProjectInvoice )
+update : Msg -> Model -> GD.Transition Model ( TP.PrintInvoice, TP.SaveProjectInvoice )
 update msg model =
     case msg of
         DateChanged s ->
@@ -231,7 +234,7 @@ update msg model =
                 mpiis =
                     { mpii | seq = model.sequence, extraFields = model.extraFields }
             in
-            GD.Ok ( Data.toPi mpiis model.date model.duedate, Data.toSaveProjectInvoice mpiis )
+            GD.Ok ( DataUtil.toPi mpiis model.date model.duedate, DataUtil.toSaveProjectInvoice mpiis )
 
         Noop ->
             GD.Dialog model

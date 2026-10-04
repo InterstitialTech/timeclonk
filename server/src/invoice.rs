@@ -1,5 +1,4 @@
 use crate::config::Config;
-use crate::data::{InvoiceItem, PrintInvoice};
 use crate::sqldata;
 use actix_files::NamedFile;
 use actix_session::Session;
@@ -7,6 +6,7 @@ use actix_web::{
   error::{ErrorInternalServerError, ErrorUnauthorized},
   web, HttpRequest,
 };
+use protocol::data::{InvoiceItem, PrintInvoice};
 use std::path::PathBuf;
 use std::process::Command;
 use uuid::Uuid;

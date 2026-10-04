@@ -1,7 +1,6 @@
 module TaskSummary exposing (..)
 
 import Common
-import Data exposing (PayType(..))
 import Dict exposing (Dict)
 import Element as E exposing (Element)
 import Element.Font as EF

@@ -2,29 +2,23 @@ module UserTime exposing (..)
 
 import Calendar
 import Common
-import Csv
-import Data
+import DataUtil
 import Dict exposing (Dict)
 import Element as E exposing (Element)
 import Element.Background as EBk
-import Element.Border as EBd
-import Element.Events as EE
 import Element.Font as EF
 import Element.Input as EI
-import Orgauth.Data as OD exposing (UserId, getUserIdVal, makeUserId)
+import Orgauth.UserId exposing (getUserIdVal)
 import Paginator as P
-import Round as R
 import Set
-import TDict exposing (TDict)
 import TSet exposing (TSet)
 import TangoColors as TC
 import TcCommon as TC
+import TcProtocol as TP
 import Time
-import TimeReporting as TR exposing (EditAllocation, EditPayEntry, EditTimeEntry, csvToEditAllocations, csvToEditTimeEntries, eteToCsv, millisAsHours)
-import TimeTotaler exposing (TTotaler, getTes, getTotes, mapTimeentry, mkTToteler, setTes)
-import Toop
+import TimeReporting as TR exposing (EditTimeEntry, eteToCsv, millisAsHours)
+import TimeTotaler exposing (TTotaler, getTes, getTotes, mkTToteler)
 import Util
-import WindowKeys as WK
 
 
 type Msg
@@ -39,7 +33,7 @@ type Msg
 
 
 type alias Model =
-    { projects : Dict Int Data.ListProject
+    { projects : Dict Int TP.ListProject
     , timeentries : TTotaler
     , initialtimeentries : Dict Int EditTimeEntry
     , tepaginator : P.Model Msg
@@ -59,14 +53,14 @@ headerStyle =
     [ EF.bold ]
 
 
-emptyTimeEntryIdSet : TSet Data.TimeEntryId Int
+emptyTimeEntryIdSet : TSet DataUtil.TimeEntryId Int
 emptyTimeEntryIdSet =
-    TSet.empty Data.getTimeEntryIdVal Data.makeTimeEntryId
+    TSet.empty DataUtil.getTimeEntryIdVal DataUtil.makeTimeEntryId
 
 
-toEditTimeEntry : Data.TimeEntry -> EditTimeEntry
+toEditTimeEntry : TP.TimeEntry -> EditTimeEntry
 toEditTimeEntry te =
-    { id = Just te.id
+    { id = Just (DataUtil.makeTimeEntryId te.id)
     , user = te.user
     , description = te.description
     , startdate = te.startdate
@@ -77,14 +71,14 @@ toEditTimeEntry te =
     }
 
 
-toEteDict : List Data.TimeEntry -> Dict Int EditTimeEntry
+toEteDict : List TP.TimeEntry -> Dict Int EditTimeEntry
 toEteDict te =
     te
         |> List.map (toEditTimeEntry >> (\ete -> ( ete.startdate, ete )))
         |> Dict.fromList
 
 
-init : Time.Zone -> Data.LoginData -> List Data.TimeEntry -> Dict Int Data.ListProject -> Int -> Model
+init : Time.Zone -> DataUtil.LoginData -> List TP.TimeEntry -> Dict Int TP.ListProject -> Int -> Model
 init zone ld timeentries projects pageincrement =
     let
         ietes =
@@ -108,7 +102,7 @@ setPageIncrement pageincrement model =
     }
 
 
-view : Data.LoginData -> Util.Size -> Time.Zone -> Model -> Element Msg
+view : DataUtil.LoginData -> Util.Size -> Time.Zone -> Model -> Element Msg
 view ld size zone model =
     let
         maxwidth =
@@ -149,7 +143,7 @@ dateTimeWidth =
     200
 
 
-clonkview : Data.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
+clonkview : DataUtil.LoginData -> Util.Size -> Time.Zone -> Model -> List (Element Msg)
 clonkview ld size zone model =
     let
         ttotes =
@@ -179,7 +173,7 @@ clonkview ld size zone model =
                             [ E.text <|
                                 let
                                     pid =
-                                        Data.getProjectIdVal te.project
+                                        DataUtil.getProjectIdVal te.project
                                 in
                                 Dict.get pid model.projects
                                     |> Maybe.map .name
@@ -299,7 +293,7 @@ clonkview ld size zone model =
     ]
 
 
-update : Msg -> Model -> Data.LoginData -> Time.Zone -> ( Model, Command )
+update : Msg -> Model -> DataUtil.LoginData -> Time.Zone -> ( Model, Command )
 update msg model ld zone =
     case msg of
         SettingsPress ->
@@ -310,7 +304,7 @@ update msg model ld zone =
             , SaveCsv ("timeclonk-" ++ ld.name ++ ".csv")
                 (eteToCsv zone
                     (Dict.map (\_ v -> v.name) model.projects)
-                    (Dict.fromList [ ( OD.getUserIdVal ld.userid, ld.name ) ])
+                    (Dict.fromList [ ( getUserIdVal ld.userid, ld.name ) ])
                     (getTes model.timeentries |> Dict.values)
                 )
             )
