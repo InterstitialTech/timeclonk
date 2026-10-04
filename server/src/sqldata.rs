@@ -313,7 +313,6 @@ pub fn save_project_edit(
         "delete from projectmember
          where user = ?1 and project = ?2",
         params![m.id.to_i64(), sp.id.to_i64()],
-        // wasn't this WRONG??  TODO: test.
       )?;
     } else {
       conn.execute(

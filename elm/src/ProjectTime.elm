@@ -1,7 +1,5 @@
 module ProjectTime exposing (..)
 
--- import Data exposing (InvoiceItem, SaveProjectInvoice)
-
 import Calendar
 import Common
 import Csv

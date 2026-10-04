@@ -325,100 +325,30 @@ showMessage msg =
         ShowMessageMsg _ ->
             "ShowMessageMsg"
 
-        UserReplyData urd ->
-            "UserReplyData: "
+        UserReplyData _ ->
+            "UserReplyData "
 
-        -- ++ (Result.map UI.showServerResponse urd
-        --         |> Result.mapError Util.httpErrorString
-        --         |> (\r ->
-        --                 case r of
-        --                     Ok m ->
-        --                         "message: " ++ m
-        --                     Err e ->
-        --                         "error: " ++ e
-        --            )
-        --    )
-        AdminReplyData urd ->
-            "AdminReplyData: "
+        AdminReplyData _ ->
+            "AdminReplyData "
 
-        -- ++ (Result.map AI.showServerResponse urd
-        --         |> Result.mapError Util.httpErrorString
-        --         |> (\r ->
-        --                 case r of
-        --                     Ok m ->
-        --                         "message: " ++ m
-        --                     Err e ->
-        --                         "error: " ++ e
-        --            )
-        --    )
-        TimeclonkReplyData urd ->
-            "TimeclonkReplyData: "
+        TimeclonkReplyData _ ->
+            "TimeclonkReplyData "
 
-        -- ++ (Result.map TP.TmshowServerResponse urd
-        --         |> Result.mapError Util.httpErrorString
-        --         |> (\r ->
-        --                 case r of
-        --                     Ok m ->
-        --                         "message: " ++ m
-        --                     Err e ->
-        --                         "error: " ++ e
-        --            )
-        --    )
-        PublicReplyData urd ->
-            "PublicReplyData: "
+        PublicReplyData _ ->
+            "PublicReplyData "
 
-        -- ++ (Result.map PI.showServerResponse urd
-        --         |> Result.mapError Util.httpErrorString
-        --         |> (\r ->
-        --                 case r of
-        --                     Ok m ->
-        --                         "message: " ++ m
-        --                     Err e ->
-        --                         "error: " ++ e
-        --            )
-        --    )
-        ProjectTimeData mode urd ->
-            "ProjectTimeData: "
-                -- ++ (Result.map TP.TmshowServerResponse urd
-                --         |> Result.mapError Util.httpErrorString
-                --         |> (\r ->
-                --                 case r of
-                --                     Ok m ->
-                --                         "message: " ++ m
-                --                     Err e ->
-                --                         "error: " ++ e
-                --            )
-                --    )
+        ProjectTimeData mode _ ->
+            "ProjectTimeData "
                 ++ "\nmode: "
                 ++ mode
 
-        ProjectViewData mode urd ->
-            "ProjectViewData: "
-                -- ++ (Result.map PI.showServerResponse urd
-                --         |> Result.mapError Util.httpErrorString
-                --         |> (\r ->
-                --                 case r of
-                --                     Ok m ->
-                --                         "message: " ++ m
-                --                     Err e ->
-                --                         "error: " ++ e
-                --            )
-                --    )
+        ProjectViewData mode _ ->
+            "ProjectViewData "
                 ++ "\nmode: "
                 ++ mode
 
-        TProjectViewData mode urd ->
-            "TProjectViewData: "
-                -- ++ (Result.map TP.TmshowServerResponse urd
-                --         |> Result.mapError Util.httpErrorString
-                --         |> (\r ->
-                --                 case r of
-                --                     Ok m ->
-                --                         "message: " ++ m
-                --                     Err e ->
-                --                         "error: " ++ e
-                --            )
-                --    )
+        TProjectViewData mode _ ->
+            "TProjectViewData "
                 ++ "\nmode: "
                 ++ mode
 
@@ -1316,8 +1246,6 @@ actualupdate msg model =
                             -- TODO: something else?
                             ( { model | state = initLoginState model }, Cmd.none )
 
-                        -- TP.TrInvalidUserOrPwd ->
-                        --     ( { model | state = initLoginState model }, Cmd.none )
                         _ ->
                             ( unexpectedMsg model msg
                             , Cmd.none
@@ -1756,10 +1684,6 @@ actualupdate msg model =
 
                 Ok uiresponse ->
                     case uiresponse of
-                        -- TP.TrServerError e ->
-                        --     ( displayMessageDialog model <| e, Cmd.none )
-                        -- TP.TrNotLoggedIn ->
-                        --     ( { model | state = initLoginState model }, Cmd.none )
                         TP.TrProjectEditDenied ->
                             ( displayMessageDialog model <| "Project Edit Denied", Cmd.none )
 

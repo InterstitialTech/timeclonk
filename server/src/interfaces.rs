@@ -1,7 +1,6 @@
 use crate::config::Config;
 use crate::sqldata;
 use actix_session::Session;
-// use log::info;
 use protocol::data::Role;
 use protocol::messages::{PublicMessage, PublicResponse, TcMessage, TcResponse};
 use std::error::Error;

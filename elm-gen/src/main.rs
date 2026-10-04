@@ -16,11 +16,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
   {
     let mut target = vec![];
-    // elm_rs provides a macro for conveniently creating an Elm module with everything needed
     elm_rs::export!(
         "TcProtocol",
         &mut target,
-        {        // generates types and encoders for types implementing ElmEncoder
+        {
+        // generates types and encoders for types implementing ElmEncoder
         encoders: [
           Allocation,
           ExtraField,

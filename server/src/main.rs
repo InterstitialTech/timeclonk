@@ -144,7 +144,6 @@ async fn admin(
 ) -> HttpResponse {
   info!(
     "admin msg:  \n connection_info: {:?}",
-    // &item.what,
     req.connection_info()
   );
   let mut cb = sqldata::timeclonk_callbacks();
