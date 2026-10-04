@@ -65,11 +65,11 @@ type Msg
     | ShowMessageMsg ShowMessage.Msg
     | UserReplyData (Result Http.Error OD.UserResponse)
     | AdminReplyData (Result Http.Error OD.AdminResponse)
-    | TimeclonkReplyData (Result Http.Error TP.TcResponseX)
-    | PublicReplyData (Result Http.Error TP.PublicResponseX)
-    | ProjectTimeData String (Result Http.Error TP.TcResponseX)
-    | ProjectViewData String (Result Http.Error TP.PublicResponseX)
-    | TProjectViewData String (Result Http.Error TP.TcResponseX)
+    | TimeclonkReplyData (Result Http.Error TP.TcResponse)
+    | PublicReplyData (Result Http.Error TP.PublicResponse)
+    | ProjectTimeData String (Result Http.Error TP.TcResponse)
+    | ProjectViewData String (Result Http.Error TP.PublicResponse)
+    | TProjectViewData String (Result Http.Error TP.TcResponse)
     | PrintInvoiceReplyData (Result Http.Error (Cmd Msg))
     | LoadUrl String
     | InternalUrl Url
@@ -731,31 +731,31 @@ stateLogin state =
             Nothing
 
 
-sendTcMsg : String -> TP.TcMessageX -> Cmd Msg
+sendTcMsg : String -> TP.TcMessage -> Cmd Msg
 sendTcMsg location msg =
     sendTcMsgExp location msg TimeclonkReplyData
 
 
-sendTcMsgExp : String -> TP.TcMessageX -> (Result Http.Error TP.TcResponseX -> Msg) -> Cmd Msg
+sendTcMsgExp : String -> TP.TcMessage -> (Result Http.Error TP.TcResponse -> Msg) -> Cmd Msg
 sendTcMsgExp location msg tomsg =
     Http.post
         { url = location ++ "/private"
-        , body = Http.jsonBody (TP.tcMessageXEncoder msg)
-        , expect = Http.expectJson tomsg TP.tcResponseXDecoder
+        , body = Http.jsonBody (TP.tcMessageEncoder msg)
+        , expect = Http.expectJson tomsg TP.tcResponseDecoder
         }
 
 
-sendPIMsg : String -> TP.PublicMessageX -> Cmd Msg
+sendPIMsg : String -> TP.PublicMessage -> Cmd Msg
 sendPIMsg location msg =
     sendPIMsgExp location msg PublicReplyData
 
 
-sendPIMsgExp : String -> TP.PublicMessageX -> (Result Http.Error TP.PublicResponseX -> Msg) -> Cmd Msg
+sendPIMsgExp : String -> TP.PublicMessage -> (Result Http.Error TP.PublicResponse -> Msg) -> Cmd Msg
 sendPIMsgExp location msg tomsg =
     Http.post
         { url = location ++ "/public"
-        , body = Http.jsonBody (TP.publicMessageXEncoder msg)
-        , expect = Http.expectJson tomsg TP.publicResponseXDecoder
+        , body = Http.jsonBody (TP.publicMessageEncoder msg)
+        , expect = Http.expectJson tomsg TP.publicResponseDecoder
         }
 
 

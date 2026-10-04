@@ -240,12 +240,12 @@ projectTimeEncoder struct =
         ]
 
 
-type PublicMessageX
+type PublicMessage
     = PmGetProjectTime (ProjectId)
 
 
-publicMessageXEncoder : PublicMessageX -> Json.Encode.Value
-publicMessageXEncoder enum =
+publicMessageEncoder : PublicMessage -> Json.Encode.Value
+publicMessageEncoder enum =
     case enum of
         PmGetProjectTime inner ->
             Json.Encode.object [ ( "PmGetProjectTime", projectIdEncoder inner ) ]
@@ -454,7 +454,7 @@ savedProjectEditEncoder struct =
         ]
 
 
-type TcMessageX
+type TcMessage
     = TmGetProjectList
     | TmSaveProjectEdit (SaveProjectEdit)
     | TmGetProjectEdit (ProjectId)
@@ -465,8 +465,8 @@ type TcMessageX
     | TmGetAllUsers
 
 
-tcMessageXEncoder : TcMessageX -> Json.Encode.Value
-tcMessageXEncoder enum =
+tcMessageEncoder : TcMessage -> Json.Encode.Value
+tcMessageEncoder enum =
     case enum of
         TmGetProjectList ->
             Json.Encode.string "TmGetProjectList"
@@ -645,13 +645,13 @@ projectTimeDecoder =
         |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "allocations" (Json.Decode.list (allocationDecoder))))
 
 
-type PublicResponseX
+type PublicResponse
     = PrProjectTime (ProjectTime)
     | PrError (TimeClonkError)
 
 
-publicResponseXDecoder : Json.Decode.Decoder PublicResponseX
-publicResponseXDecoder = 
+publicResponseDecoder : Json.Decode.Decoder PublicResponse
+publicResponseDecoder = 
     Json.Decode.oneOf
         [ Json.Decode.map PrProjectTime (Json.Decode.field "PrProjectTime" (projectTimeDecoder))
         , Json.Decode.map PrError (Json.Decode.field "PrError" (timeClonkErrorDecoder))
@@ -696,7 +696,7 @@ savedProjectEditDecoder =
         |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "members" (Json.Decode.list (projectMemberDecoder))))
 
 
-type TcResponseX
+type TcResponse
     = TrProjectEdit (ProjectEdit)
     | TrProjectEditDenied
     | TrSavedProjectEdit (SavedProjectEdit)
@@ -711,8 +711,8 @@ type TcResponseX
     | TrError (TimeClonkError)
 
 
-tcResponseXDecoder : Json.Decode.Decoder TcResponseX
-tcResponseXDecoder = 
+tcResponseDecoder : Json.Decode.Decoder TcResponse
+tcResponseDecoder = 
     Json.Decode.oneOf
         [ Json.Decode.map TrProjectEdit (Json.Decode.field "TrProjectEdit" (projectEditDecoder))
         , Json.Decode.string
