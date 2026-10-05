@@ -2,8 +2,8 @@
   description = "timeclonk";
 
   inputs = {
-    nixpkgs = { url = "github:nixos/nixpkgs/nixos-unstable"; };
-    # nixpkgs = { url = "github:nixos/nixpkgs/nixos-26.05"; };
+    # nixpkgs = { url = "github:nixos/nixpkgs/nixos-unstable"; };
+    nixpkgs = { url = "github:nixos/nixpkgs/nixos-26.05"; };
     flake-utils.url = "github:numtide/flake-utils";
     naersk.url = "github:nmattia/naersk";
     naersk.inputs.nixpkgs.follows = "nixpkgs";  # needed so we don't get obsolete rustc!
