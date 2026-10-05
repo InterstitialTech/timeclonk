@@ -53,6 +53,7 @@ in
         send_emails = false
         non_admin_invite = true
         remote_registration = true
+        send_emails = true
       '';
       description = ''
         timeclonk config.toml file.
